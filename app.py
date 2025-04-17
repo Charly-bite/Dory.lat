@@ -1,4 +1,4 @@
-# --- Simplified app.py for Render Deployment ---
+# --- Simplified app.py for Render Deployment with Debugging ---
 
 import os
 import re
@@ -12,7 +12,6 @@ import textstat # For readability
 try:
     import nltk
     # Attempt to ensure punkt tokenizer is available (Render might need this)
-    # This might fail in some environments, but textstat might fallback
     try: nltk.data.find('tokenizers/punkt')
     except: nltk.download('punkt', quiet=True)
 except ImportError:
@@ -54,11 +53,40 @@ model_load_error = None
 EXPECTED_NUMERIC_COLS = None # Initialize
 
 logger.info("--- Loading Model and Preprocessor ---")
-logger.info(f"App directory: {os.getcwd()}")
-logger.info(f"Attempting to load Preprocessor from: {PREPROCESSOR_PATH}")
+logger.info(f"App directory (Current Working Directory): {os.getcwd()}")
+logger.info(f"Looking for models directory at: {MODELS_DIR}")
+logger.info(f"Looking for preprocessor file at: {PREPROCESSOR_PATH}")
+logger.info(f"Looking for model file at: {MODEL_PATH}")
+
+# --- DEBUGGING: Check file system ---
+logger.info(f"Checking for existence of base directory: {OUTPUT_DIR}")
+if os.path.exists(OUTPUT_DIR):
+    logger.info(f"Directory {OUTPUT_DIR} exists. Contents: {os.listdir(OUTPUT_DIR)}")
+else:
+    logger.error(f"Directory {OUTPUT_DIR} does NOT exist.")
+
+logger.info(f"Checking for existence of models directory: {MODELS_DIR}")
+if os.path.exists(MODELS_DIR):
+    logger.info(f"Directory {MODELS_DIR} exists. Contents: {os.listdir(MODELS_DIR)}")
+else:
+    logger.error(f"Directory {MODELS_DIR} does NOT exist.")
+
+logger.info(f"Checking for existence of PREPROCESSOR file: {PREPROCESSOR_PATH}")
+if os.path.exists(PREPROCESSOR_PATH):
+    logger.info(f"File {PREPROCESSOR_PATH} exists.")
+else:
+    logger.error(f"File {PREPROCESSOR_PATH} does NOT exist.")
+
+logger.info(f"Checking for existence of MODEL file: {MODEL_PATH}")
+if os.path.exists(MODEL_PATH):
+    logger.info(f"File {MODEL_PATH} exists.")
+else:
+    logger.error(f"File {MODEL_PATH} does NOT exist.")
+# --- END DEBUGGING ---
+
 
 try:
-    # Load Preprocessor
+    # Load Preprocessor (only if file exists based on debug check)
     if os.path.exists(PREPROCESSOR_PATH):
         preprocessor = joblib.load(PREPROCESSOR_PATH)
         logger.info(f"Preprocessor loaded successfully.")
@@ -79,28 +107,27 @@ try:
              model_load_error = "Could not determine numeric columns from preprocessor; using defaults."
 
     else:
+        # Error already logged by debug check, just set variable
         model_load_error = f"Preprocessor file not found at: {PREPROCESSOR_PATH}"
-        logger.error(model_load_error)
         preprocessor = None # Ensure it's None
 
-    # Load Model (only if preprocessor loaded successfully)
-    if preprocessor and not model_load_error:
+    # Load Model (only if preprocessor loaded successfully AND model file exists)
+    if preprocessor and not model_load_error and os.path.exists(MODEL_PATH):
         logger.info(f"Attempting to load Sklearn Model from: {MODEL_PATH}")
-        if not os.path.exists(MODEL_PATH):
-             model_load_error = f"Model file not found at: {MODEL_PATH}"
-             logger.error(model_load_error)
-             model = None
-        else:
-            try:
-                model = joblib.load(MODEL_PATH)
-                logger.info(f"Scikit-learn model loaded successfully.")
-            except Exception as sklearn_load_e:
-                model_load_error = f"Error loading scikit-learn model: {sklearn_load_e}"
-                logger.error(model_load_error, exc_info=True)
-                model = None
+        try:
+            model = joblib.load(MODEL_PATH)
+            logger.info(f"Scikit-learn model loaded successfully.")
+        except Exception as sklearn_load_e:
+            model_load_error = f"Error loading scikit-learn model: {sklearn_load_e}"
+            logger.error(model_load_error, exc_info=True)
+            model = None
+    elif preprocessor and not model_load_error and not os.path.exists(MODEL_PATH):
+        # Error already logged by debug check, just set variable
+         model_load_error = f"Model file not found at: {MODEL_PATH}"
+         model = None
 
-    # If anything failed, ensure model/preprocessor are None
-    if model_load_error and preprocessor is None: # Only null model if preproc fails too
+    # If anything failed, ensure model/preprocessor are None where applicable
+    if model_load_error and preprocessor is None:
         model = None
         logger.warning("Setting model/preprocessor to None due to loading errors.")
     elif model_load_error and model is None:
@@ -112,6 +139,7 @@ except Exception as e:
     logger.error(model_load_error, exc_info=True)
     model = None
     preprocessor = None
+
 
 # --- Preprocessing Functions for New Input ---
 # (Keep your clean_email_input and extract_features_input functions here - unchanged)
@@ -205,12 +233,15 @@ def predict():
     """Handles the prediction request."""
     global model, preprocessor, model_load_error, EXPECTED_NUMERIC_COLS
 
+    # Check if the necessary components are loaded
     if model is None or preprocessor is None:
         logger.error("Model or preprocessor not loaded, cannot predict.")
+        # Use the stored error message if available
+        error_msg = model_load_error if model_load_error else "Model/Preprocessor not available."
         return render_template('index.html',
-                               prediction_text='Error: Model/Preprocessor not available.',
+                               prediction_text=f'Error: {error_msg}',
                                email_text=request.form.get('email_text', ''),
-                               model_error=model_load_error)
+                               model_error=model_load_error) # Pass original error too
 
     try:
         email_text = request.form['email_text']
@@ -219,7 +250,6 @@ def predict():
         cleaned_text = clean_email_input(email_text)
         if not cleaned_text:
              logger.warning("Input email resulted in empty cleaned text.")
-             # Return error or default prediction (e.g., legitimate) based on desired behavior
              return render_template('index.html',
                                     prediction_text='Input email content is empty after cleaning.',
                                     email_text=email_text,
@@ -250,7 +280,6 @@ def predict():
 
 
         logger.info(f"Making prediction using {MODEL_TYPE} model...")
-        # Pass the DataFrame with original features to the SKLEARN pipeline
         pred_proba_array = model.predict_proba(input_df_for_pipeline)
         prediction_proba = pred_proba_array[0][1] # Probability of class 1 (Phishing)
         prediction = 1 if prediction_proba >= 0.5 else 0
