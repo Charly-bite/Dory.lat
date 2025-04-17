@@ -1,0 +1,11 @@
+Flask
+gunicorn
+pandas
+numpy
+joblib
+scikit-learn
+beautifulsoup4
+lxml
+textstat
+nltk
+scipy
