@@ -1,83 +1,262 @@
 <!doctype html>
-<html lang="en">
+<html lang="en"> <!-- Lang attribute will be updated by JS -->
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Phishing Email Detector</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Phishing Detector</title>
     <style>
-        body { font-family: sans-serif; line-height: 1.6; padding: 20px; background-color: #f4f4f4; }
-        .container { max-width: 800px; margin: auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; text-align: center; margin-bottom: 20px; }
-        textarea { width: 95%; height: 200px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
-        .button-container { display: flex; gap: 10px; margin-bottom: 15px; } /* Container for buttons */
-        button { /* Common button styles */
-            flex-grow: 1; /* Allow buttons to grow */
-            padding: 10px 15px;
-            color: white;
+        body {
+            font-family: sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: start; /* Align to top */
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 700px;
+            text-align: center; /* Center align text */
+            margin-top: 20px; /* Add some margin top */
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+            text-align: left; /* Align label text left */
+        }
+        textarea {
+            width: 100%;
+            min-height: 150px; /* Increased height */
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            box-sizing: border-box; /* Include padding and border in width */
+        }
+        textarea::placeholder { /* Style the placeholder text */
+            color: #999;
+            font-style: italic;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between; /* Space out buttons */
+            gap: 10px; /* Add gap between buttons */
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 12px 20px;
             border: none;
             border-radius: 4px;
-            font-size: 1.1em;
+            font-size: 1rem;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.3s ease;
+            flex-grow: 1; /* Make buttons share space */
         }
-        .analyze-button { background-color: #5cb85c; } /* Green */
-        .analyze-button:hover { background-color: #4cae4c; }
-        .clear-button { background-color: #f0ad4e; } /* Orange */
-        .clear-button:hover { background-color: #ec971f; }
-
-        .result { margin-top: 25px; padding: 15px; border-radius: 4px; font-weight: bold; text-align: center; font-size: 1.2em; }
-        .phishing { background-color: #f2dede; border: 1px solid #ebccd1; color: #a94442; }
-        .legitimate { background-color: #dff0d8; border: 1px solid #d6e9c6; color: #3c763d; }
-        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
-        .model-error { background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px; margin-bottom: 15px; border-radius: 4px; text-align: center;}
+        .analyze-button {
+            background-color: #007bff;
+            color: white;
+        }
+        .analyze-button:hover {
+            background-color: #0056b3;
+        }
+        .clear-button {
+            background-color: #6c757d;
+            color: white;
+        }
+        .clear-button:hover {
+            background-color: #5a6268;
+        }
+        .lang-button { /* Style for language button */
+            background-color: #ffc107;
+            color: #333;
+            max-width: 150px; /* Adjust width if needed */
+            flex-grow: 0; /* Don't let it grow like others */
+        }
+        .lang-button:hover {
+            background-color: #e0a800;
+        }
+        .result {
+            margin-top: 25px;
+            padding: 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            word-wrap: break-word; /* Ensure long results wrap */
+            text-align: left; /* Align result text left */
+        }
+        .result.phishing {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .result.legitimate {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error, .model-error { /* Combined error style */
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            text-align: left; /* Align error text left */
+        }
+        .model-error { /* Specific style for model load error */
+             margin-bottom: 20px; /* Add space below model error */
+             padding: 10px;
+             font-size: 0.9rem;
+        }
+        /* Add container for header and button */
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .header-container h1 {
+            margin: 0; /* Remove default h1 margin */
+            text-align: left; /* Ensure heading stays left */
+            flex-grow: 1; /* Allow heading to take space */
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Phishing Email Detector</h1>
 
-        <!-- Display model loading error if any -->
-        {% if model_error %}
-        <div class="model-error">
-            <strong>Warning:</strong> {{ model_error }}
+        <div class="header-container">
+            <!-- Added ID for translation -->
+            <h1 id="main-heading">Phishing Detector</h1>
+            <!-- Added Language Toggle Button -->
+            <button id="lang-toggle" class="lang-button">Español</button>
         </div>
+
+        {% if model_error %}
+            <div class="model-error">{{ model_error }}</div>
         {% endif %}
 
-        <form action="/predict" method="post" id="email-form"> {# Added ID to form #}
-            <label for="email_text">Paste Email Content Below:</label><br>
-            <textarea id="email_text" name="email_text" required>{{ email_text or '' }}</textarea><br>
+        <form action="/predict" method="post" id="email-form">
+             <!-- Added ID for translation -->
+            <label for="email_text" id="textarea-label">Enter the email text below:</label>
+            <!-- Added placeholder attribute -->
+            <textarea
+                id="email_text"
+                name="email_text"
+                required
+                placeholder="Paste the full email content here, not just the address..."
+                >{{ email_text or '' }}</textarea>
 
-            {# Container for buttons #}
             <div class="button-container">
-                <button type="submit" class="analyze-button">Analyze Email</button>
-                {# NEW: Clear button - type="button" prevents form submission #}
-                <button type="button" class="clear-button" onclick="clearTextArea()">Clear Text</button>
+                 <!-- Added ID for translation -->
+                <button type="submit" class="analyze-button" id="analyze-button">Analyze Email</button>
+                 <!-- Added ID for translation -->
+                <button type="button" class="clear-button" id="clear-button" onclick="clearTextArea()">Clear Text</button>
             </div>
         </form>
 
-        {# Result display area #}
-        {% if prediction_text %}
-        <div id="result-area" class="result {% if 'Phishing' in prediction_text %}phishing{% elif 'Legitimate' in prediction_text %}legitimate{% else %}error{% endif %}">
-             {{ prediction_text }}
+        <!-- Added ID for the result container -->
+        <div id="result-area">
+            {% if prediction_text %}
+                <div class="result {% if 'Phishing' in prediction_text %}phishing{% elif 'Legitimate' in prediction_text %}legitimate{% else %}error{% endif %}">
+                    {{ prediction_text }}
+                </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 
-    {# NEW: JavaScript function #}
     <script>
-        function clearTextArea() {
-            // Get the textarea element by its ID
-            var textArea = document.getElementById('email_text');
-            // Set its value to an empty string
-            textArea.value = '';
-            // Optionally, clear the result area as well
-            var resultArea = document.getElementById('result-area');
-            if (resultArea) {
-                resultArea.innerHTML = ''; // Clear content
-                resultArea.className = 'result'; // Reset class
+        // Wait for the HTML to be fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // --- Elements to Translate ---
+            const elements = {
+                mainHeading: document.getElementById('main-heading'),
+                textareaLabel: document.getElementById('textarea-label'),
+                analyzeButton: document.getElementById('analyze-button'),
+                clearButton: document.getElementById('clear-button'),
+                langToggleButton: document.getElementById('lang-toggle'),
+                emailTextarea: document.getElementById('email_text'), // Reference to textarea for placeholder
+            };
+
+            // --- Translations ---
+            const translations = {
+                en: {
+                    mainHeading: "Phishing Detector",
+                    textareaLabel: "Enter the email text below:",
+                    analyzeButton: "Analyze Email",
+                    clearButton: "Clear Text",
+                    langToggleButton: "Español", // Show Spanish option when in English
+                    textareaPlaceholder: "Paste the full email content here, not just the address...",
+                },
+                es: {
+                    mainHeading: "Detector de Phishing",
+                    textareaLabel: "Introduzca el texto del correo electrónico a continuación:",
+                    analyzeButton: "Analizar Correo",
+                    clearButton: "Limpiar Texto",
+                    langToggleButton: "English", // Show English option when in Spanish
+                    textareaPlaceholder: "Pegue aquí el contenido completo del correo electrónico, no sólo la dirección...",
+                }
+            };
+
+            // --- Function to Set Language ---
+            function setLanguage(lang) {
+                if (!translations[lang]) {
+                    console.error("Language not supported:", lang);
+                    return;
+                }
+
+                // Update text content
+                elements.mainHeading.innerText = translations[lang].mainHeading;
+                elements.textareaLabel.innerText = translations[lang].textareaLabel;
+                elements.analyzeButton.innerText = translations[lang].analyzeButton;
+                elements.clearButton.innerText = translations[lang].clearButton;
+                elements.langToggleButton.innerText = translations[lang].langToggleButton;
+
+                // Update placeholder
+                elements.emailTextarea.placeholder = translations[lang].textareaPlaceholder;
+
+                // Store preference
+                localStorage.setItem('preferredLang', lang);
+                // Set lang attribute on HTML tag for potential CSS use or accessibility
+                document.documentElement.lang = lang;
             }
-            // Optionally, focus back on the text area
-            textArea.focus();
+
+            // --- Toggle Button Event Listener ---
+            elements.langToggleButton.addEventListener('click', function() {
+                // Get current language (from storage or default to 'en')
+                const currentLang = localStorage.getItem('preferredLang') || 'en';
+                // Determine the new language
+                const newLang = currentLang === 'en' ? 'es' : 'en';
+                // Set the new language
+                setLanguage(newLang);
+            });
+
+            // --- Initial Language Load ---
+            // Get language from storage or default to English
+            const initialLang = localStorage.getItem('preferredLang') || 'en';
+            setLanguage(initialLang);
+
+        }); // End DOMContentLoaded
+
+        // --- Clear Text Area Function ---
+        function clearTextArea() {
+            document.getElementById('email_text').value = '';
+            // Clear the result area as well
+            const resultArea = document.getElementById('result-area');
+            if (resultArea) {
+                resultArea.innerHTML = ''; // Clear previous results
+            }
         }
     </script>
 
