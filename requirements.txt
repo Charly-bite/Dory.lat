@@ -9,3 +9,5 @@ lxml
 textstat
 nltk
 scipy
+tensorflow
+sentence-transformers
