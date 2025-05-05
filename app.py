@@ -1,4 +1,3 @@
---- START OF FILE app.py ---
 # --- Ensemble app.py for Render Deployment ---
 
 import os
@@ -22,7 +21,7 @@ try:
         nltk.data.find('tokenizers/punkt')
         print("--- NLTK data found. OK. ---")
     except LookupError:
-        print("--- NLTK resource missing. Attempting programmatic download... ---");
+        print("--- NLTK resource missing. Attempting programmatic download... ---", file=sys.stderr);
         try: nltk.download('stopwords', quiet=True)
         except Exception as download_e: print(f"--- WARNING: Failed to download stopwords: {download_e} ---", file=sys.stderr)
         try: nltk.download('punkt', quiet=True)
@@ -240,30 +239,6 @@ else:
     EMBEDDING_MODEL_NAME = None # Ensure None on error
 
 
-# --- Load Keras Model ---
-logger.info(f"Attempting to load Keras model from: {KERAS_MODEL_PATH}")
-if TF_AVAILABLE:
-    if os.path.exists(KERAS_MODEL_PATH):
-        try:
-            loaded_keras_model = load_keras_model(KERAS_MODEL_PATH)
-            logger.info("Keras model loaded successfully.")
-        except Exception as e:
-            error_msg = f"Error loading Keras model from {KERAS_MODEL_PATH}: {e}"
-            logger.error(error_msg, exc_info=True)
-            model_load_errors.append(error_msg)
-            loaded_keras_model = None # Ensure None on failure
-    else:
-        error_msg = f"Keras model file not found at: {KERAS_MODEL_PATH}"
-        logger.error(error_msg)
-        model_load_errors.append(error_msg)
-        loaded_keras_model = None # Ensure None if file missing
-else:
-    error_msg = "TensorFlow not available. Cannot load Keras model."
-    logger.error(error_msg)
-    model_load_errors.append(error_msg)
-    loaded_keras_model = None # Ensure None if TF missing
-
-
 # --- Final Loading Checks & Global Status ---
 # The app can only make predictions if the Keras model, numeric preprocessor,
 # numeric column names, embedding model, and embedding dimension are ALL available.
@@ -460,7 +435,7 @@ def predict():
     global loaded_keras_model, numeric_preprocessor, embedding_model, EXPECTED_NUMERIC_COLS, EMBEDDING_DIM, model_load_error_str
 
     # 0. Check if prediction is possible based on loaded artifacts
-    if not (loaded_keras_model and numeric_preprocessor and embedding_model and EXPECTED_NUMERIC_COLS is not None and EMBEDDING_DIM > 0):
+    if not (loaded_keras_model and numeric_preprocessor and embedding_model and EXPECTED_NUMERIC_COLS is not None and len(EXPECTED_NUMERIC_COLS) > 0 and EMBEDDING_DIM > 0):
         logger.error("App is not ready for predictions due to missing artifacts.")
         return render_template('index.html',
                                prediction_text='Error: App not fully initialized. Missing models or data. Check server logs.',
