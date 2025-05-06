@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import joblib # For loading sklearn models/preprocessor
 from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
-import warnings
+import warnings # Make sure this is imported correctly (it is)
 import textstat # For readability
 import json # Needed to load numeric_cols_info and embedding_model_info
 from scipy.sparse import issparse # Might be needed if preprocessor outputs sparse data (less likely with StandardScaler)
@@ -82,7 +82,7 @@ from scipy.sparse import issparse
 
 # --- Global Configuration & Setup ---
 warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
-warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=FutureWarning) # Corrected typo here already
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # --- Basic Logging Setup ---
@@ -90,6 +90,10 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 if not logging.getLogger().hasHandlers():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# --- Set logging level to DEBUG temporarily for troubleshooting Keras load ---
+# Remove or change this back to logging.INFO once the issue is resolved
+# logger.setLevel(logging.DEBUG) # Uncomment this line to see the DEBUG logs
 
 
 # --- Constants ---
@@ -237,6 +241,37 @@ else:
     EMBEDDING_DIM = 0 # Ensure 0 on error
     embedding_model = None # Ensure None on error
     EMBEDDING_MODEL_NAME = None # Ensure None on error
+
+
+# --- Load Keras Model ---
+logger.info(f"Attempting to load Keras model from: {KERAS_MODEL_PATH}")
+logger.debug(f"TF_AVAILABLE: {TF_AVAILABLE}, KERAS_MODEL_PATH exists: {os.path.exists(KERAS_MODEL_PATH)}") # Added Debug Log 1
+if TF_AVAILABLE:
+    if os.path.exists(KERAS_MODEL_PATH):
+        logger.debug(f"KERAS_MODEL_PATH: {KERAS_MODEL_PATH}") # Added Debug Log Path Check
+        logger.debug(f"Proceeding to load Keras model using load_keras_model from {tf.keras.models.__name__}") # Added Debug Log 2
+        try:
+            loaded_keras_model = load_keras_model(KERAS_MODEL_PATH)
+            logger.info("Keras model loaded successfully.") # Existing log, but should appear now if successful
+            logger.debug("Keras model object assigned.") # Added Debug Log 3 (after success)
+        except Exception as e:
+            error_msg = f"Error loading Keras model from {KERAS_MODEL_PATH}: {e}"
+            logger.error(error_msg, exc_info=True)
+            model_load_errors.append(error_msg)
+            loaded_keras_model = None # Ensure None on failure
+            logger.debug("Keras model loading failed, loaded_keras_model set to None.") # Added Debug Log 4 (after failure)
+    else:
+        error_msg = f"Keras model file not found at: {KERAS_MODEL_PATH}"
+        logger.error(error_msg)
+        model_load_errors.append(error_msg)
+        loaded_keras_model = None # Ensure None if file missing
+else:
+    error_msg = "TensorFlow not available. Cannot load Keras model."
+    logger.error(error_msg)
+    model_load_errors.append(error_msg)
+    loaded_keras_model = None # Ensure None if TF missing
+
+logger.debug(f"Finished Keras load block. loaded_keras_model is: {loaded_keras_model is not None}") # Added Debug Log 5
 
 
 # --- Final Loading Checks & Global Status ---
@@ -435,7 +470,7 @@ def predict():
     global loaded_keras_model, numeric_preprocessor, embedding_model, EXPECTED_NUMERIC_COLS, EMBEDDING_DIM, model_load_error_str
 
     # 0. Check if prediction is possible based on loaded artifacts
-    if not (loaded_keras_model and numeric_preprocessor and embedding_model and EXPECTED_NUMERIC_COLS is not None and len(EXPECTED_NUMERIC_COLS) > 0 and EMBEDDING_DIM > 0):
+    if not (loaded_keras_model is not None and numeric_preprocessor is not None and EXPECTED_NUMERIC_COLS is not None and len(EXPECTED_NUMERIC_COLS) > 0 and embedding_model is not None and EMBEDDING_DIM > 0):
         logger.error("App is not ready for predictions due to missing artifacts.")
         return render_template('index.html',
                                prediction_text='Error: App not fully initialized. Missing models or data. Check server logs.',
