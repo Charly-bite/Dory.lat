@@ -22,6 +22,8 @@ try:
         print("--- NLTK data found. OK. ---")
     except LookupError:
         print("--- NLTK resource missing. Attempting programmatic download... ---", file=sys.stderr);
+        # It's better to handle NLTK download in the build phase in Render settings
+        # but we keep the attempt here as a fallback.
         try: nltk.download('stopwords', quiet=True)
         except Exception as download_e: print(f"--- WARNING: Failed to download stopwords: {download_e} ---", file=sys.stderr)
         try: nltk.download('punkt', quiet=True)
@@ -251,7 +253,12 @@ if TF_AVAILABLE:
         logger.debug(f"KERAS_MODEL_PATH: {KERAS_MODEL_PATH}") # Added Debug Log Path Check
         logger.debug(f"Proceeding to load Keras model using load_keras_model from {tf.keras.models.__name__}") # Added Debug Log 2
         try:
+            # Add debugging logs just before the load call
+            logger.debug("Calling load_keras_model...")
             loaded_keras_model = load_keras_model(KERAS_MODEL_PATH)
+            # Add debugging logs just after the load call
+            logger.debug("load_keras_model call finished.")
+
             logger.info("Keras model loaded successfully.") # Existing log, but should appear now if successful
             logger.debug("Keras model object assigned.") # Added Debug Log 3 (after success)
         except Exception as e:
@@ -609,13 +616,15 @@ def predict():
 
 
 # --- Run Check (Important for Render Startup) ---
+# Although Gunicorn runs 'app', Render might still check if the file can be executed.
+# This check prevents the app from exiting immediately if run directly for testing.
 if __name__ == '__main__':
-    # Check if all required artifacts loaded successfully before running the app
-    # This prevents the app from starting in a broken state on Render
+    # Check if loading succeeded before allowing run
+    # We keep the critical log but remove the sys.exit so the app doesn't stop booting
     if not prediction_ready:
-         logger.critical("----- FATAL: App is not configured to run due to failed artifact loading. Exiting. -----")
+         logger.critical("----- FATAL: App is not configured to run due to failed artifact loading. App will start but prediction will fail. -----")
          if model_load_error_str: logger.critical(f"----- Loading Errors: {model_load_error_str} -----")
-         sys.exit("App initialization failed.") # Exit with an error code
+         # Removed: sys.exit("App initialization failed.") # <--- REMOVED THIS LINE
 
     logger.warning("----- This script is intended to be run with Gunicorn on Render. -----")
     logger.warning("----- Running directly with 'python app.py' is for local testing ONLY. -----")
