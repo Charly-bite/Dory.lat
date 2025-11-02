@@ -130,22 +130,22 @@ def predict():
         # Check if JSON or form data
         if request.is_json:
             data = request.get_json()
+            # Combine subject and body from JSON
+            subject = data.get('subject', '')
+            body = data.get('body', '')
+            full_text = f"{subject}\n{body}".strip()
         else:
             # Handle form data from HTML form
-            data = {
-                'subject': request.form.get('subject', ''),
-                'body': request.form.get('body', '')
-            }
+            # The form sends 'email_text' as a single field
+            full_text = request.form.get('email_text', '').strip()
+            
+            # Also check for separate subject/body fields (for API compatibility)
+            if not full_text:
+                subject = request.form.get('subject', '')
+                body = request.form.get('body', '')
+                full_text = f"{subject}\n{body}".strip()
         
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        # Combine subject and body
-        subject = data.get('subject', '')
-        body = data.get('body', '')
-        full_text = f"{subject}\n{body}"
-        
-        if not full_text.strip():
+        if not full_text:
             return jsonify({'error': 'No text provided'}), 400
         
         logger.info("Processing prediction request...")
