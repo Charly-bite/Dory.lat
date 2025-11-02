@@ -2,8 +2,8 @@ services:
   - type: web
     name: dory-lat-app
     runtime: python
-    buildCommand: mkdir -p /opt/render/project/nltk_data && pip install -r requirements.txt && python -m nltk.downloader -d /opt/render/project/nltk_data punkt stopwords
-    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app --timeout 120 --workers 1
+    buildCommand: mkdir -p /opt/render/nltk_data && pip install -r requirements.txt && python -m nltk.downloader -d /opt/render/nltk_data punkt stopwords
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2 --threads 2
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
@@ -11,4 +11,4 @@ services:
       - key: PORT
         value: 10000
       - key: NLTK_DATA
-        value: /opt/render/project/nltk_data
+        value: /opt/render/nltk_data
