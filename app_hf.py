@@ -153,11 +153,21 @@ def predict():
         # Get prediction from HuggingFace
         result = predict_phishing_hf(full_text)
         
+        # Calculate confidence based on prediction
+        # If it's phishing, confidence = probability of phishing
+        # If it's legitimate, confidence = probability of legitimate
+        is_phishing = result['is_phishing']
+        phishing_prob = float(result['confidence'])
+        legitimate_prob = float(1 - result['confidence'])
+        
+        # Confidence is the probability of the predicted class
+        confidence = phishing_prob if is_phishing else legitimate_prob
+        
         response = {
-            'prediction': 'PHISHING' if result['is_phishing'] else 'LEGITIMATE',
-            'confidence': float(result['confidence']),
-            'probability_phishing': float(result['confidence']),
-            'probability_legitimate': float(1 - result['confidence']),
+            'prediction': 'PHISHING' if is_phishing else 'LEGITIMATE',
+            'confidence': confidence,
+            'probability_phishing': phishing_prob,
+            'probability_legitimate': legitimate_prob,
             'analysis': {
                 'text_length': result['features']['length'],
                 'word_count': result['features']['word_count'],
@@ -171,7 +181,7 @@ def predict():
             'version': '2.0'
         }
         
-        logger.info(f"Prediction: {response['prediction']} (confidence: {response['confidence']:.2f})")
+        logger.info(f"Prediction: {response['prediction']} (confidence: {confidence:.2f})")
         return jsonify(response), 200
         
     except Exception as e:
