@@ -15,30 +15,31 @@ from scipy.sparse import issparse # Might be needed if preprocessor outputs spar
 # --- NLTK Imports and Setup (Copied/Adapted from main_script.py) ---
 try:
     import nltk
-    # Add Render's NLTK data path
-    nltk.data.path.append('/opt/render/nltk_data')
+    # Add Render's NLTK data path FIRST, before checking
+    nltk.data.path.insert(0, '/opt/render/nltk_data')
     
     # Check for resources, attempt download if missing
     try:
         nltk.data.find('corpora/stopwords')
         nltk.data.find('tokenizers/punkt')
         print("--- NLTK data found. OK. ---")
+        
+        # Load stopwords immediately after finding them
+        stop_words_en = set(nltk.corpus.stopwords.words('english'))
+        print("--- NLTK stopwords loaded. ---")
+        
     except LookupError:
-        print("--- NLTK resource missing. Attempting programmatic download... ---", file=sys.stderr);
+        print("--- NLTK resource missing. Attempting programmatic download... ---", file=sys.stderr)
         # It's better to handle NLTK download in the build phase in Render settings
         # but we keep the attempt here as a fallback.
-        try: nltk.download('stopwords', quiet=True)
-        except Exception as download_e: print(f"--- WARNING: Failed to download stopwords: {download_e} ---", file=sys.stderr)
-        try: nltk.download('punkt', quiet=True)
-        except Exception as download_e: print(f"--- WARNING: Failed to download punkt: {download_e} ---", file=sys.stderr)
-
-    # Keep English stopwords as used in main_script.py
-    try:
-        stop_words_en = set(nltk.corpus.stopwords.words('english')) # This line will fail if stopwords download failed
-        print("--- NLTK stopwords loaded. ---")
-    except LookupError:
-         print("--- CRITICAL: NLTK stopwords resource is not available. Readability score might be inaccurate/fail. ---", file=sys.stderr)
-         stop_words_en = set() # Use empty set if critical resource missing
+        try: 
+            nltk.download('stopwords', quiet=True)
+            nltk.download('punkt', quiet=True)
+            stop_words_en = set(nltk.corpus.stopwords.words('english'))
+            print("--- NLTK data downloaded and loaded. ---")
+        except Exception as download_e: 
+            print(f"--- WARNING: Failed to download NLTK data: {download_e} ---", file=sys.stderr)
+            stop_words_en = set() # Use empty set if download fails
     except Exception as e:
          print(f"--- WARNING: Error loading NLTK stopwords: {e} ---", file=sys.stderr)
          stop_words_en = set()
