@@ -487,6 +487,12 @@ def home():
     return render_template('index.html', model_error=model_load_error_str)
 
 
+@app.route('/health')
+def health():
+    """Health check endpoint for Render to detect the service is running."""
+    return {'status': 'healthy', 'models_loaded': prediction_ready}, 200
+
+
 @app.route('/predict', methods=['POST'])
 def predict():
     """Handles the prediction request using the loaded Keras model."""
