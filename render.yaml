@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: dory-lat-app
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python -m nltk.downloader punkt stopwords
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: PORT
+        value: 10000
