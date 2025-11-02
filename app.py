@@ -15,8 +15,19 @@ from scipy.sparse import issparse # Might be needed if preprocessor outputs spar
 # --- NLTK Imports and Setup (Copied/Adapted from main_script.py) ---
 try:
     import nltk
-    # Add Render's NLTK data path FIRST, before checking
-    nltk.data.path.insert(0, '/opt/render/nltk_data')
+    # Add multiple possible NLTK data paths for Render
+    possible_paths = [
+        '/opt/render/nltk_data',
+        '/opt/render/project/nltk_data',
+        os.path.expanduser('~/nltk_data'),
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            nltk.data.path.insert(0, path)
+            print(f"--- Added NLTK path: {path} ---", file=sys.stderr)
+    
+    print(f"--- NLTK search paths: {nltk.data.path[:3]} ---", file=sys.stderr)
     
     # Check for resources, attempt download if missing
     try:
@@ -28,8 +39,8 @@ try:
         stop_words_en = set(nltk.corpus.stopwords.words('english'))
         print("--- NLTK stopwords loaded. ---")
         
-    except LookupError:
-        print("--- NLTK resource missing. Attempting programmatic download... ---", file=sys.stderr)
+    except LookupError as e:
+        print(f"--- NLTK resource missing: {e}. Attempting programmatic download... ---", file=sys.stderr)
         # It's better to handle NLTK download in the build phase in Render settings
         # but we keep the attempt here as a fallback.
         try: 
