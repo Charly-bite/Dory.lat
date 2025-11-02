@@ -15,17 +15,23 @@ from scipy.sparse import issparse # Might be needed if preprocessor outputs spar
 # --- NLTK Imports and Setup (Copied/Adapted from main_script.py) ---
 try:
     import nltk
-    # Add multiple possible NLTK data paths for Render
-    possible_paths = [
-        '/opt/render/nltk_data',
-        '/opt/render/project/nltk_data',
-        os.path.expanduser('~/nltk_data'),
-    ]
-    
-    for path in possible_paths:
-        if os.path.exists(path):
-            nltk.data.path.insert(0, path)
-            print(f"--- Added NLTK path: {path} ---", file=sys.stderr)
+    # Use NLTK_DATA environment variable if set, otherwise check common paths
+    nltk_data_env = os.environ.get('NLTK_DATA')
+    if nltk_data_env and os.path.exists(nltk_data_env):
+        nltk.data.path.insert(0, nltk_data_env)
+        print(f"--- Using NLTK_DATA env var: {nltk_data_env} ---", file=sys.stderr)
+    else:
+        # Add multiple possible NLTK data paths for Render
+        possible_paths = [
+            '/opt/render/project/nltk_data',
+            '/opt/render/nltk_data',
+            os.path.expanduser('~/nltk_data'),
+        ]
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                nltk.data.path.insert(0, path)
+                print(f"--- Added NLTK path: {path} ---", file=sys.stderr)
     
     print(f"--- NLTK search paths: {nltk.data.path[:3]} ---", file=sys.stderr)
     
@@ -40,17 +46,11 @@ try:
         print("--- NLTK stopwords loaded. ---")
         
     except LookupError as e:
-        print(f"--- NLTK resource missing: {e}. Attempting programmatic download... ---", file=sys.stderr)
-        # It's better to handle NLTK download in the build phase in Render settings
-        # but we keep the attempt here as a fallback.
-        try: 
-            nltk.download('stopwords', quiet=True)
-            nltk.download('punkt', quiet=True)
-            stop_words_en = set(nltk.corpus.stopwords.words('english'))
-            print("--- NLTK data downloaded and loaded. ---")
-        except Exception as download_e: 
-            print(f"--- WARNING: Failed to download NLTK data: {download_e} ---", file=sys.stderr)
-            stop_words_en = set() # Use empty set if download fails
+        print(f"--- NLTK resource missing: {e}. Skipping download in production. ---", file=sys.stderr)
+        # DON'T download at runtime - it takes too long and blocks port binding
+        # NLTK data should be downloaded during build phase
+        print("--- WARNING: NLTK data not available. Using empty stopwords set. ---", file=sys.stderr)
+        stop_words_en = set() # Use empty set if data not found
     except Exception as e:
          print(f"--- WARNING: Error loading NLTK stopwords: {e} ---", file=sys.stderr)
          stop_words_en = set()
