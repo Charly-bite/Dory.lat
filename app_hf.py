@@ -122,17 +122,23 @@ def predict():
     """
     Predict if email is phishing using HuggingFace API.
     
-    Expected JSON:
-    {
-        "subject": "Email subject",
-        "body": "Email body text"
-    }
+    Accepts both JSON and form data:
+    - JSON: {"subject": "...", "body": "..."}
+    - Form: subject=...&body=...
     """
     try:
-        data = request.get_json()
+        # Check if JSON or form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            # Handle form data from HTML form
+            data = {
+                'subject': request.form.get('subject', ''),
+                'body': request.form.get('body', '')
+            }
         
         if not data:
-            return jsonify({'error': 'No JSON data provided'}), 400
+            return jsonify({'error': 'No data provided'}), 400
         
         # Combine subject and body
         subject = data.get('subject', '')
