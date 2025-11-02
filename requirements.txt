@@ -11,4 +11,3 @@ nltk
 scipy
 tensorflow
 sentence-transformers
-tf-keras

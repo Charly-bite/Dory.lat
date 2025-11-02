@@ -99,7 +99,9 @@ logger = logging.getLogger(__name__)
 
 
 # --- Constants ---
-OUTPUT_DIR = "saved_data" # Directory where artifacts were saved by main_script.py
+# Get the absolute path of the directory where this script is located
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(APP_ROOT, "saved_data") # Directory where artifacts were saved by main_script.py
 MODELS_DIR = os.path.join(OUTPUT_DIR, "models")
 
 # --- ARTIFACT FILENAMES (MUST match main_script.py saving) ---
@@ -630,4 +632,4 @@ if __name__ == '__main__':
     logger.warning("----- Running directly with 'python app.py' is for local testing ONLY. -----")
     # Start development server if run directly (for local testing)
     # In production (Render with Gunicorn), this block is not executed.
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
