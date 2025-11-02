@@ -10,4 +10,5 @@ textstat
 nltk
 scipy
 tensorflow
+tf-keras
 sentence-transformers

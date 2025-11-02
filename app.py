@@ -15,6 +15,9 @@ from scipy.sparse import issparse # Might be needed if preprocessor outputs spar
 # --- NLTK Imports and Setup (Copied/Adapted from main_script.py) ---
 try:
     import nltk
+    # Add Render's NLTK data path
+    nltk.data.path.append('/opt/render/nltk_data')
+    
     # Check for resources, attempt download if missing
     try:
         nltk.data.find('corpora/stopwords')
