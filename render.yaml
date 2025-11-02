@@ -2,13 +2,13 @@ services:
   - type: web
     name: dory-lat-app
     runtime: python
-    buildCommand: mkdir -p /opt/render/nltk_data && pip install -r requirements.txt && python -m nltk.downloader -d /opt/render/nltk_data punkt stopwords
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers 1 --threads 1 --access-logfile - --error-logfile - app_lazy:app
+    buildCommand: pip install -r requirements_hf.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --timeout 60 --workers 2 --threads 2 --access-logfile - --error-logfile - app_hf:app
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
       - key: PORT
         value: 10000
-      - key: NLTK_DATA
-        value: /opt/render/nltk_data
+      - key: HF_API_TOKEN
+        sync: false
