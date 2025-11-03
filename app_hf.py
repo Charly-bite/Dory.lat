@@ -317,86 +317,113 @@ def predict_phishing_hf(text):
     # embeddings = get_hf_embeddings(text)
     
     # Advanced scoring system with weighted factors
+    # Weights optimized based on real-world effectiveness (v2.3 stable)
     risk_score = 0
     max_score = 0
     
-    # Google Safe Browsing check (HIGHEST PRIORITY - very reliable)
+    # === TIER 1: Critical Indicators (50-30 points) ===
+    # These are highly reliable and rarely give false positives
+    
+    # Google Safe Browsing check (HIGHEST PRIORITY - 50 points)
     if not safe_browsing_result['is_safe']:
-        risk_score += 50  # Major red flag if Google confirms it's malicious
+        risk_score += 50  # Confirmed malicious by Google's database
         max_score += 50
     elif safe_browsing_result['api_available']:
-        max_score += 50  # Add to max_score even if safe (to normalize properly)
+        max_score += 50  # Add to max_score even if safe (for normalization)
     
-    # URL-based indicators (high weight)
-    if features['url_count'] > 0:
-        max_score += 25
-        if features['url_count'] > 3:
-            risk_score += 25  # Multiple URLs is very suspicious
-        elif features['url_count'] > 1:
-            risk_score += 15
-        else:
-            risk_score += 5
-    
-    if features['has_suspicious_tld']:
-        risk_score += 20
-        max_score += 20
-    
-    if features['has_url_shortener']:
-        risk_score += 15
-        max_score += 15
-    
+    # IP address in URL (35 points) - Extremely suspicious
     if features['has_ip_in_url']:
-        risk_score += 25  # IP in URL is highly suspicious
-        max_score += 25
+        risk_score += 35
+        max_score += 35
     
-    # Keyword-based indicators (medium-high weight)
-    max_score += 20
-    if features['keyword_matches'] > 5:
-        risk_score += 20
-    elif features['keyword_matches'] > 3:
-        risk_score += 15
-    elif features['keyword_matches'] > 0:
-        risk_score += 10
-    
-    # Social engineering tactics (high weight)
-    if features['has_urgency']:
-        risk_score += 20
-        max_score += 20
-    
+    # Credential request (30 points) - Major phishing indicator
     if features['requests_credentials']:
-        risk_score += 25  # Asking for credentials is major red flag
-        max_score += 25
+        risk_score += 30
+        max_score += 30
     
-    if features['has_unrealistic_offer']:
-        risk_score += 20
-        max_score += 20
+    # === TIER 2: Strong Indicators (25-15 points) ===
+    # These are very good indicators but can occasionally appear in legitimate emails
     
-    # Typosquatting (high weight)
+    # Brand name typosquatting (25 points)
     if features['has_brand_typo']:
         risk_score += 25
         max_score += 25
     
-    # Generic greeting (medium weight)
+    # Multiple URLs (20-25 points based on count)
+    if features['url_count'] > 0:
+        max_score += 25
+        if features['url_count'] > 4:
+            risk_score += 25  # Many URLs is very suspicious
+        elif features['url_count'] > 2:
+            risk_score += 18
+        elif features['url_count'] > 1:
+            risk_score += 12
+        else:
+            risk_score += 6  # Single URL is slightly suspicious
+    
+    # Suspicious TLD (20 points)
+    if features['has_suspicious_tld']:
+        risk_score += 20
+        max_score += 20
+    
+    # Urgency tactics (20 points)
+    if features['has_urgency']:
+        risk_score += 20
+        max_score += 20
+    
+    # Too-good-to-be-true offers (18 points)
+    if features['has_unrealistic_offer']:
+        risk_score += 18
+        max_score += 18
+    
+    # === TIER 3: Moderate Indicators (15-10 points) ===
+    # Useful but can appear in both legitimate and phishing emails
+    
+    # URL shorteners (15 points)
+    if features['has_url_shortener']:
+        risk_score += 15
+        max_score += 15
+    
+    # Phishing keywords (12-20 points based on count)
+    max_score += 20
+    if features['keyword_matches'] > 6:
+        risk_score += 20
+    elif features['keyword_matches'] > 4:
+        risk_score += 16
+    elif features['keyword_matches'] > 2:
+        risk_score += 12
+    elif features['keyword_matches'] > 0:
+        risk_score += 8
+    
+    # Generic greeting (10 points)
     if features['has_generic_greeting']:
         risk_score += 10
         max_score += 10
     
-    # Formatting indicators (medium weight)
-    max_score += 15
-    if features['uppercase_ratio'] > 0.4:
-        risk_score += 15  # Excessive caps
-    elif features['uppercase_ratio'] > 0.3:
-        risk_score += 10
-    elif features['uppercase_ratio'] > 0.2:
-        risk_score += 5
+    # === TIER 4: Minor Indicators (8-3 points) ===
+    # Weak signals that add up when combined
     
-    max_score += 10
-    if features['exclamation_count'] > 5:
-        risk_score += 10
-    elif features['exclamation_count'] > 3:
-        risk_score += 7
-    elif features['exclamation_count'] > 1:
+    # Excessive capitalization (5-12 points)
+    max_score += 12
+    if features['uppercase_ratio'] > 0.5:
+        risk_score += 12  # More than 50% caps is very unusual
+    elif features['uppercase_ratio'] > 0.35:
+        risk_score += 8
+    elif features['uppercase_ratio'] > 0.25:
+        risk_score += 5
+    elif features['uppercase_ratio'] > 0.15:
         risk_score += 3
+    
+    # Excessive exclamation marks (3-8 points)
+    max_score += 8
+    if features['exclamation_count'] > 6:
+        risk_score += 8
+    elif features['exclamation_count'] > 4:
+        risk_score += 6
+    elif features['exclamation_count'] > 2:
+        risk_score += 4
+    elif features['exclamation_count'] > 0:
+        risk_score += 2
     
     if features['multiple_exclamation'] > 0:
         risk_score += 8
@@ -418,24 +445,34 @@ def predict_phishing_hf(text):
         max_score = 100
     
     # Normalize to 0-1 probability
-    probability = min(risk_score / max_score, 1.0)
+    probability = min(risk_score / max_score, 1.0) if max_score > 0 else 0.0
     
-    # Apply threshold with some wiggle room
-    # Very low scores (<0.2) are clearly legitimate
-    # Very high scores (>0.7) are clearly phishing
-    # Middle range (0.2-0.7) is uncertain but we lean towards caution
+    # Apply calibrated thresholds (optimized for v2.3)
+    # Thresholds designed to minimize false positives while catching real threats
     
-    if probability < 0.2:
+    if probability < 0.15:
+        # Very low risk - clearly legitimate
         is_phishing = False
-        confidence_boost = 0.1  # Boost confidence for clear legitimate emails
-    elif probability > 0.7:
+        confidence_boost = 0.15  # High confidence in legitimate classification
+    elif probability < 0.35:
+        # Low-medium risk - likely legitimate but some red flags
+        is_phishing = False
+        confidence_boost = 0.05  # Moderate confidence
+    elif probability < 0.55:
+        # Medium risk - uncertain, could go either way
+        # Default to SAFE (legitimate) to avoid false alarms
+        is_phishing = False
+        confidence_boost = -0.10  # Low confidence, borderline case
+    elif probability < 0.75:
+        # Medium-high risk - likely phishing
         is_phishing = True
-        confidence_boost = 0.1  # Boost confidence for clear phishing
+        confidence_boost = 0.0  # Neutral confidence
     else:
-        # Uncertain range - classify as phishing if > 0.5, but with lower confidence
-        is_phishing = probability > 0.5
-        confidence_boost = -0.1  # Reduce confidence for uncertain cases
+        # High risk - very likely phishing
+        is_phishing = True
+        confidence_boost = 0.12  # High confidence in phishing classification
     
+    # Ensure confidence stays in valid range [0, 1]
     final_confidence = min(max(probability + confidence_boost, 0.0), 1.0)
     
     return {
