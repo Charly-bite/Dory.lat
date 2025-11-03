@@ -1,7 +1,7 @@
 {
   "proyecto": "Dory-Lat Phishing Detector",
-  "version_actual": "2.3-stable",
-  "estado": "Producción - Baseline Optimizado",
+  "version_actual": "2.4-theme-system",
+  "estado": "Producción - UX Mejorada",
   "fecha_roadmap": "2025-11-02",
   "ultima_actualizacion": "2025-11-02",
   
@@ -227,7 +227,9 @@
         "titulo": "Modo Claro/Oscuro Toggle",
         "impacto": 3,
         "esfuerzo": 2,
-        "descripcion": "Agregar tema claro como alternativa al actual tema oscuro",
+        "estado": "Completado",
+        "version_completada": "2.4",
+        "descripcion": "Sistema completo de temas claro/oscuro con 45+ CSS variables, toggle flotante, y persistencia localStorage",
         "implementacion": [
           "CSS variables para colores",
           "Toggle switch en header",
@@ -235,9 +237,11 @@
           "Animación suave de transición"
         ],
         "archivos_modificar": [
-          "templates/index.html (CSS y JavaScript)"
+          "templates/index.html (CSS y JavaScript)",
+          "app_hf.py (actualizar versión)"
         ],
-        "estimacion_tiempo": "2-3 horas"
+        "estimacion_tiempo": "2-3 horas",
+        "tiempo_real": "2.5 horas"
       },
       {
         "id": 10,
