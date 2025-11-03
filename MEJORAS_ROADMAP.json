@@ -1,7 +1,7 @@
 {
   "proyecto": "Dory-Lat Phishing Detector",
-  "version_actual": "2.4-theme-system",
-  "estado": "Producción - UX Mejorada",
+  "version_actual": "2.5-history-system",
+  "estado": "Producción - UX Mejorada con Historial",
   "fecha_roadmap": "2025-11-02",
   "ultima_actualizacion": "2025-11-02",
   
@@ -209,7 +209,9 @@
         "titulo": "Historial de Análisis Local",
         "impacto": 3,
         "esfuerzo": 2,
-        "descripcion": "Guardar últimos análisis en localStorage del navegador",
+        "estado": "Completado",
+        "version_completada": "2.5",
+        "descripcion": "Sistema completo de historial con localStorage, modal interactivo, exportación JSON, y gestión de 10 análisis recientes",
         "features": [
           "Guardar últimos 10 análisis",
           "Botón 'Ver Historial'",
@@ -218,9 +220,11 @@
           "Exportar historial como JSON"
         ],
         "archivos_modificar": [
-          "templates/index.html (JavaScript)"
+          "templates/index.html (JavaScript)",
+          "app_hf.py (actualizar versión)"
         ],
-        "estimacion_tiempo": "3-4 horas"
+        "estimacion_tiempo": "3-4 horas",
+        "tiempo_real": "3 horas"
       },
       {
         "id": 9,
