@@ -26,6 +26,10 @@ HF_API_URL = "https://api-inference.huggingface.co/models/"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # For text embeddings
 # For your Keras model, you'd need to convert it or use a similar classifier
 
+# --- Google Safe Browsing Configuration ---
+GOOGLE_SAFE_BROWSING_API_KEY = os.environ.get('GOOGLE_SAFE_BROWSING_API_KEY', '')
+GOOGLE_SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
+
 # --- Simple feature extraction (lightweight, no NLTK needed for basic version) ---
 def extract_basic_features(text):
     """Extract comprehensive features for phishing detection."""
@@ -146,9 +150,119 @@ def get_hf_embeddings(text):
         logger.error(f"HF API error: {response.status_code} - {response.text}")
         return None
 
+def check_urls_with_safe_browsing(urls):
+    """
+    Check URLs against Google Safe Browsing API.
+    
+    Args:
+        urls: List of URLs to check
+        
+    Returns:
+        dict: {
+            'malicious_urls': list of malicious URLs found,
+            'threats_found': list of threat types,
+            'is_safe': bool
+        }
+    """
+    if not urls or not GOOGLE_SAFE_BROWSING_API_KEY:
+        return {
+            'malicious_urls': [],
+            'threats_found': [],
+            'is_safe': True,
+            'api_available': bool(GOOGLE_SAFE_BROWSING_API_KEY)
+        }
+    
+    # Prepare the request payload
+    threat_entries = [{"url": url} for url in urls]
+    
+    payload = {
+        "client": {
+            "clientId": "dory-phishing-detector",
+            "clientVersion": "2.1"
+        },
+        "threatInfo": {
+            "threatTypes": [
+                "MALWARE",
+                "SOCIAL_ENGINEERING",
+                "UNWANTED_SOFTWARE",
+                "POTENTIALLY_HARMFUL_APPLICATION"
+            ],
+            "platformTypes": ["ANY_PLATFORM"],
+            "threatEntryTypes": ["URL"],
+            "threatEntries": threat_entries
+        }
+    }
+    
+    try:
+        response = requests.post(
+            f"{GOOGLE_SAFE_BROWSING_URL}?key={GOOGLE_SAFE_BROWSING_API_KEY}",
+            json=payload,
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            
+            # Parse the response
+            matches = result.get('matches', [])
+            malicious_urls = []
+            threats_found = []
+            
+            for match in matches:
+                url = match.get('threat', {}).get('url', '')
+                threat_type = match.get('threatType', '')
+                
+                if url and url not in malicious_urls:
+                    malicious_urls.append(url)
+                
+                if threat_type and threat_type not in threats_found:
+                    # Convert threat type to user-friendly name
+                    threat_mapping = {
+                        'MALWARE': 'Malware',
+                        'SOCIAL_ENGINEERING': 'Phishing/Social Engineering',
+                        'UNWANTED_SOFTWARE': 'Unwanted Software',
+                        'POTENTIALLY_HARMFUL_APPLICATION': 'Harmful Application'
+                    }
+                    threats_found.append(threat_mapping.get(threat_type, threat_type))
+            
+            return {
+                'malicious_urls': malicious_urls,
+                'threats_found': threats_found,
+                'is_safe': len(malicious_urls) == 0,
+                'api_available': True
+            }
+        else:
+            logger.error(f"Google Safe Browsing API error: {response.status_code}")
+            return {
+                'malicious_urls': [],
+                'threats_found': [],
+                'is_safe': True,
+                'api_available': True,
+                'error': f"API returned {response.status_code}"
+            }
+            
+    except requests.exceptions.Timeout:
+        logger.warning("Google Safe Browsing API timeout")
+        return {
+            'malicious_urls': [],
+            'threats_found': [],
+            'is_safe': True,
+            'api_available': True,
+            'error': 'API timeout'
+        }
+    except Exception as e:
+        logger.error(f"Google Safe Browsing API error: {str(e)}")
+        return {
+            'malicious_urls': [],
+            'threats_found': [],
+            'is_safe': True,
+            'api_available': True,
+            'error': str(e)
+        }
+
 def predict_phishing_hf(text):
     """
-    Enhanced prediction using comprehensive heuristics.
+    Enhanced prediction using comprehensive heuristics + Google Safe Browsing.
     
     Scoring system based on multiple phishing indicators.
     Returns probability score from 0 (legitimate) to 1 (phishing).
@@ -157,12 +271,25 @@ def predict_phishing_hf(text):
     # Extract comprehensive features
     features = extract_basic_features(text)
     
+    # Extract URLs from text for Google Safe Browsing check
+    urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
+    
+    # Check URLs with Google Safe Browsing API
+    safe_browsing_result = check_urls_with_safe_browsing(urls)
+    
     # Get embeddings from HF (optional, for future ML model)
     # embeddings = get_hf_embeddings(text)
     
     # Advanced scoring system with weighted factors
     risk_score = 0
     max_score = 0
+    
+    # Google Safe Browsing check (HIGHEST PRIORITY - very reliable)
+    if not safe_browsing_result['is_safe']:
+        risk_score += 50  # Major red flag if Google confirms it's malicious
+        max_score += 50
+    elif safe_browsing_result['api_available']:
+        max_score += 50  # Add to max_score even if safe (to normalize properly)
     
     # URL-based indicators (high weight)
     if features['url_count'] > 0:
@@ -280,7 +407,8 @@ def predict_phishing_hf(text):
         'confidence': final_confidence,
         'features': features,
         'risk_score': risk_score,
-        'max_possible_score': max_score
+        'max_possible_score': max_score,
+        'safe_browsing': safe_browsing_result
     }
 
 # --- Routes ---
@@ -295,7 +423,12 @@ def health():
     return jsonify({
         'status': 'healthy',
         'service': 'dory-phishing-detector-hf',
-        'version': '2.1-enhanced-heuristics'
+        'version': '2.2-google-safe-browsing',
+        'features': {
+            'enhanced_heuristics': True,
+            'google_safe_browsing': bool(GOOGLE_SAFE_BROWSING_API_KEY),
+            'bilingual_support': True
+        }
     }), 200
 
 @app.route('/predict', methods=['POST'])
@@ -346,6 +479,12 @@ def predict():
         
         # Build list of detected threats
         threats_detected = []
+        
+        # Google Safe Browsing threats (highest priority)
+        if result.get('safe_browsing') and not result['safe_browsing']['is_safe']:
+            for threat in result['safe_browsing']['threats_found']:
+                threats_detected.append(f'Google Safe Browsing: {threat}')
+        
         if result['features']['has_suspicious_tld']:
             threats_detected.append('Suspicious domain extension')
         if result['features']['has_url_shortener']:
@@ -367,12 +506,22 @@ def predict():
         if result['features']['keyword_matches'] > 3:
             threats_detected.append(f'{result["features"]["keyword_matches"]} phishing keywords')
         
+        # Prepare Google Safe Browsing info
+        safe_browsing_info = result.get('safe_browsing', {})
+        google_verdict = {
+            'checked': safe_browsing_info.get('api_available', False),
+            'is_safe': safe_browsing_info.get('is_safe', True),
+            'malicious_urls': safe_browsing_info.get('malicious_urls', []),
+            'threats_found': safe_browsing_info.get('threats_found', [])
+        }
+        
         response = {
             'prediction': 'PHISHING' if is_phishing else 'LEGITIMATE',
             'confidence': confidence,
             'probability_phishing': phishing_prob,
             'probability_legitimate': legitimate_prob,
             'threats_detected': threats_detected,
+            'google_safe_browsing': google_verdict,
             'analysis': {
                 'text_length': result['features']['length'],
                 'word_count': result['features']['word_count'],
@@ -394,8 +543,8 @@ def predict():
                 'brand_typo': result['features']['has_brand_typo'],
                 'generic_greeting': result['features']['has_generic_greeting']
             },
-            'model': 'enhanced-heuristics',
-            'version': '2.1'
+            'model': 'enhanced-heuristics-with-safe-browsing',
+            'version': '2.2'
         }
         
         logger.info(f"Prediction: {response['prediction']} (confidence: {confidence:.2f})")

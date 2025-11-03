@@ -12,3 +12,5 @@ services:
         value: 10000
       - key: HF_API_TOKEN
         sync: false
+      - key: GOOGLE_SAFE_BROWSING_API_KEY
+        sync: false

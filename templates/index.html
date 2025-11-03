@@ -553,7 +553,16 @@
                         no: 'No',
                         none: 'None',
                         characters: 'characters',
-                        words: 'words'
+                        words: 'words',
+                        googleSafeBrowsing: 'Google Safe Browsing',
+                        urlVerification: 'URL Verification',
+                        checked: 'Checked',
+                        notChecked: 'Not Checked',
+                        safe: 'Safe',
+                        malicious: 'Malicious',
+                        maliciousUrls: 'Malicious URLs',
+                        threatTypes: 'Threat Types',
+                        apiNotConfigured: 'API not configured'
                     },
                     es: {
                         phishing: 'Phishing Detectado',
@@ -585,7 +594,16 @@
                         no: 'No',
                         none: 'Ninguna',
                         characters: 'caracteres',
-                        words: 'palabras'
+                        words: 'palabras',
+                        googleSafeBrowsing: 'Google Safe Browsing',
+                        urlVerification: 'Verificación de URLs',
+                        checked: 'Verificada',
+                        notChecked: 'No Verificada',
+                        safe: 'Segura',
+                        malicious: 'Maliciosa',
+                        maliciousUrls: 'URLs Maliciosas',
+                        threatTypes: 'Tipos de Amenazas',
+                        apiNotConfigured: 'API no configurada'
                     }
                 };
 
@@ -606,7 +624,12 @@
                         'Brand name misspelling': 'Brand name misspelling',
                         'Generic greeting': 'Generic greeting',
                         'Excessive capitalization': 'Excessive capitalization',
-                        'phishing keywords': 'phishing keywords'
+                        'phishing keywords': 'phishing keywords',
+                        'Google Safe Browsing': 'Google Safe Browsing',
+                        'Malware': 'Malware',
+                        'Phishing/Social Engineering': 'Phishing/Social Engineering',
+                        'Unwanted Software': 'Unwanted Software',
+                        'Harmful Application': 'Harmful Application'
                     },
                     es: {
                         'Suspicious domain extension': 'Extensión de dominio sospechosa',
@@ -618,7 +641,12 @@
                         'Brand name misspelling': 'Nombre de marca mal escrito',
                         'Generic greeting': 'Saludo genérico',
                         'Excessive capitalization': 'Uso excesivo de mayúsculas',
-                        'phishing keywords': 'palabras clave de phishing'
+                        'phishing keywords': 'palabras clave de phishing',
+                        'Google Safe Browsing': 'Google Safe Browsing',
+                        'Malware': 'Malware',
+                        'Phishing/Social Engineering': 'Phishing/Ingeniería Social',
+                        'Unwanted Software': 'Software No Deseado',
+                        'Harmful Application': 'Aplicación Dañina'
                     }
                 };
                 
@@ -631,6 +659,16 @@
                         return lang === 'es' 
                             ? `${count} palabras clave de phishing`
                             : `${count} phishing keywords`;
+                    }
+                    
+                    // Handle Google Safe Browsing threats like "Google Safe Browsing: Malware"
+                    const googleMatch = threat.match(/^Google Safe Browsing:\s+(.+)$/);
+                    if (googleMatch) {
+                        const threatType = googleMatch[1];
+                        const translatedType = threatTranslations[lang][threatType] || threatType;
+                        return lang === 'es'
+                            ? `Google Safe Browsing: ${translatedType}`
+                            : `Google Safe Browsing: ${translatedType}`;
                     }
                     
                     // Use translation table or return original if not found
@@ -648,6 +686,43 @@
                     threatsHTML += '</ul></div>';
                 } else {
                     threatsHTML = '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatsDetected + ':</span><span class="detail-value" style="color: #14dd7a;">' + t.none + '</span></div>';
+                }
+                
+                // Build Google Safe Browsing HTML
+                let safeBrowsingHTML = '';
+                if (data.google_safe_browsing) {
+                    const gsb = data.google_safe_browsing;
+                    safeBrowsingHTML = '<div style="grid-column: 1 / -1; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);"><strong>🛡️ ' + t.googleSafeBrowsing + '</strong></div>';
+                    
+                    // Status badge
+                    if (gsb.checked) {
+                        const statusText = gsb.is_safe ? t.safe : t.malicious;
+                        const statusColor = gsb.is_safe ? '#14dd7a' : '#e94560';
+                        const statusIcon = gsb.is_safe ? '✓' : '⚠️';
+                        safeBrowsingHTML += '<div class="detail-row"><span class="detail-label">' + t.urlVerification + ':</span><span class="detail-value" style="color: ' + statusColor + ';"> ' + statusIcon + ' ' + statusText + '</span></div>';
+                        
+                        // Show malicious URLs if found
+                        if (!gsb.is_safe && gsb.malicious_urls && gsb.malicious_urls.length > 0) {
+                            safeBrowsingHTML += '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.maliciousUrls + ':</span><ul style="margin: 5px 0 0 20px; color: #e94560;">';
+                            gsb.malicious_urls.forEach(url => {
+                                safeBrowsingHTML += '<li style="word-break: break-all;">' + url + '</li>';
+                            });
+                            safeBrowsingHTML += '</ul></div>';
+                            
+                            // Show threat types if found
+                            if (gsb.threats_found && gsb.threats_found.length > 0) {
+                                safeBrowsingHTML += '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatTypes + ':</span><ul style="margin: 5px 0 0 20px; color: #e94560;">';
+                                gsb.threats_found.forEach(threat => {
+                                    const translatedThreat = threatTranslations[currentLang][threat] || threat;
+                                    safeBrowsingHTML += '<li>' + translatedThreat + '</li>';
+                                });
+                                safeBrowsingHTML += '</ul></div>';
+                            }
+                        }
+                    } else {
+                        // API not configured
+                        safeBrowsingHTML += '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.urlVerification + ':</span><span class="detail-value" style="color: #888;">⊘ ' + t.apiNotConfigured + '</span></div>';
+                    }
                 }
                 
                 // Build advanced flags HTML
@@ -720,6 +795,7 @@
                                 <span class="detail-label">${t.emojiCount}:</span>
                                 <span class="detail-value">${data.analysis.emoji_count}</span>
                             </div>
+                            ${safeBrowsingHTML}
                             ${flagsHTML}
                         </div>
                     </div>
