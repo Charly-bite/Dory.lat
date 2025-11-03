@@ -5,7 +5,11 @@ Ultra-lightweight - no heavy ML libraries loaded locally.
 import os
 import re
 import logging
+import sqlite3
+import json
+from datetime import datetime
 from flask import Flask, request, render_template, jsonify
+from functools import wraps
 import requests
 
 # --- Basic Setup ---
@@ -29,6 +33,38 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # For text embedding
 # --- Google Safe Browsing Configuration ---
 GOOGLE_SAFE_BROWSING_API_KEY = os.environ.get('GOOGLE_SAFE_BROWSING_API_KEY', '')
 GOOGLE_SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
+
+# --- Database Configuration ---
+DATABASE_PATH = os.path.join(APP_ROOT, 'feedback.db')
+
+def init_database():
+    """Initialize SQLite database for user feedback."""
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            email_text TEXT NOT NULL,
+            prediction TEXT NOT NULL,
+            user_feedback TEXT NOT NULL,
+            confidence REAL,
+            risk_score TEXT,
+            threats_detected TEXT,
+            google_safe_browsing_checked BOOLEAN,
+            google_safe_browsing_safe BOOLEAN,
+            ip_address TEXT,
+            user_agent TEXT
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+    logger.info(f"Database initialized at {DATABASE_PATH}")
+
+# Initialize database on startup
+init_database()
 
 # --- Simple feature extraction (lightweight, no NLTK needed for basic version) ---
 def extract_basic_features(text):
@@ -423,11 +459,12 @@ def health():
     return jsonify({
         'status': 'healthy',
         'service': 'dory-phishing-detector-hf',
-        'version': '2.2-google-safe-browsing',
+        'version': '2.3-feedback-system',
         'features': {
             'enhanced_heuristics': True,
             'google_safe_browsing': bool(GOOGLE_SAFE_BROWSING_API_KEY),
-            'bilingual_support': True
+            'bilingual_support': True,
+            'user_feedback_system': True
         }
     }), 200
 
@@ -544,7 +581,7 @@ def predict():
                 'generic_greeting': result['features']['has_generic_greeting']
             },
             'model': 'enhanced-heuristics-with-safe-browsing',
-            'version': '2.2'
+            'version': '2.3'
         }
         
         logger.info(f"Prediction: {response['prediction']} (confidence: {confidence:.2f})")
@@ -554,6 +591,199 @@ def predict():
         logger.error(f"Prediction error: {str(e)}", exc_info=True)
         return jsonify({
             'error': 'Prediction failed',
+            'details': str(e)
+        }), 500
+
+# --- Feedback Endpoint ---
+@app.route('/feedback', methods=['POST'])
+def submit_feedback():
+    """Store user feedback about prediction accuracy."""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['email_text', 'prediction', 'user_feedback']
+        if not all(field in data for field in required_fields):
+            return jsonify({
+                'error': 'Missing required fields',
+                'required': required_fields
+            }), 400
+        
+        # Validate user_feedback value
+        if data['user_feedback'] not in ['correct', 'incorrect']:
+            return jsonify({
+                'error': 'Invalid user_feedback value',
+                'allowed': ['correct', 'incorrect']
+            }), 400
+        
+        # Get client info
+        ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+        user_agent = request.headers.get('User-Agent', 'Unknown')
+        
+        # Store in database
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO feedback (
+                email_text, prediction, user_feedback, confidence, 
+                risk_score, threats_detected, google_safe_browsing_checked,
+                google_safe_browsing_safe, ip_address, user_agent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            data['email_text'],
+            data['prediction'],
+            data['user_feedback'],
+            data.get('confidence'),
+            data.get('risk_score'),
+            json.dumps(data.get('threats_detected', [])),
+            data.get('google_safe_browsing_checked', False),
+            data.get('google_safe_browsing_safe', True),
+            ip_address,
+            user_agent
+        ))
+        
+        conn.commit()
+        feedback_id = cursor.lastrowid
+        conn.close()
+        
+        logger.info(f"Feedback received: {data['user_feedback']} for prediction {data['prediction']}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Feedback recorded successfully',
+            'feedback_id': feedback_id
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Feedback error: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to record feedback',
+            'details': str(e)
+        }), 500
+
+# --- Admin Dashboard ---
+def check_auth(username, password):
+    """Check if username/password is valid."""
+    # Simple authentication - in production, use environment variables
+    admin_user = os.environ.get('ADMIN_USERNAME', 'admin')
+    admin_pass = os.environ.get('ADMIN_PASSWORD', 'dory2024')
+    return username == admin_user and password == admin_pass
+
+def authenticate():
+    """Send 401 response for authentication."""
+    return jsonify({'error': 'Authentication required'}), 401, {
+        'WWW-Authenticate': 'Basic realm="Admin Access"'
+    }
+
+def requires_auth(f):
+    """Decorator for routes that require authentication."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/admin/feedback', methods=['GET'])
+@requires_auth
+def view_feedback():
+    """Admin endpoint to view feedback statistics and data."""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get statistics
+        cursor.execute('''
+            SELECT 
+                COUNT(*) as total_feedback,
+                SUM(CASE WHEN user_feedback = 'correct' THEN 1 ELSE 0 END) as correct_predictions,
+                SUM(CASE WHEN user_feedback = 'incorrect' THEN 1 ELSE 0 END) as incorrect_predictions,
+                SUM(CASE WHEN prediction = 'PHISHING' THEN 1 ELSE 0 END) as phishing_predictions,
+                SUM(CASE WHEN prediction = 'LEGITIMATE' THEN 1 ELSE 0 END) as legitimate_predictions
+            FROM feedback
+        ''')
+        stats = dict(cursor.fetchone())
+        
+        # Calculate accuracy
+        total = stats['total_feedback']
+        if total > 0:
+            stats['accuracy'] = round((stats['correct_predictions'] / total) * 100, 2)
+        else:
+            stats['accuracy'] = 0
+        
+        # Get recent feedback (last 100)
+        cursor.execute('''
+            SELECT 
+                id, timestamp, email_text, prediction, user_feedback, 
+                confidence, risk_score, threats_detected,
+                google_safe_browsing_checked, google_safe_browsing_safe
+            FROM feedback
+            ORDER BY timestamp DESC
+            LIMIT 100
+        ''')
+        
+        recent_feedback = []
+        for row in cursor.fetchall():
+            feedback_item = dict(row)
+            # Parse JSON fields
+            if feedback_item['threats_detected']:
+                try:
+                    feedback_item['threats_detected'] = json.loads(feedback_item['threats_detected'])
+                except:
+                    feedback_item['threats_detected'] = []
+            recent_feedback.append(feedback_item)
+        
+        conn.close()
+        
+        return jsonify({
+            'statistics': stats,
+            'recent_feedback': recent_feedback
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Admin feedback error: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to retrieve feedback',
+            'details': str(e)
+        }), 500
+
+@app.route('/admin/feedback/export', methods=['GET'])
+@requires_auth
+def export_feedback():
+    """Export all feedback data as JSON."""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM feedback ORDER BY timestamp DESC')
+        
+        feedback_data = []
+        for row in cursor.fetchall():
+            feedback_item = dict(row)
+            # Parse JSON fields
+            if feedback_item['threats_detected']:
+                try:
+                    feedback_item['threats_detected'] = json.loads(feedback_item['threats_detected'])
+                except:
+                    feedback_item['threats_detected'] = []
+            feedback_data.append(feedback_item)
+        
+        conn.close()
+        
+        return jsonify({
+            'total_records': len(feedback_data),
+            'export_date': datetime.now().isoformat(),
+            'data': feedback_data
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Export error: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to export feedback',
             'details': str(e)
         }), 500
 

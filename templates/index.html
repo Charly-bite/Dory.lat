@@ -456,6 +456,9 @@
             const initialLang = localStorage.getItem('preferredLang') || 'es';
             setLanguage(initialLang);
 
+            // --- Global variable to store last prediction ---
+            let lastPredictionData = null;
+
             // --- Form Submission with AJAX ---
             const emailForm = document.getElementById('email-form');
             const resultArea = document.getElementById('result-area');
@@ -489,6 +492,16 @@
                     const data = await response.json();
 
                     if (response.ok) {
+                        // Store prediction data for feedback
+                        lastPredictionData = {
+                            email_text: emailText,
+                            prediction: data.prediction,
+                            confidence: data.confidence,
+                            risk_score: data.analysis.risk_score,
+                            threats_detected: data.threats_detected,
+                            google_safe_browsing_checked: data.google_safe_browsing?.checked || false,
+                            google_safe_browsing_safe: data.google_safe_browsing?.is_safe || true
+                        };
                         showResult(data);
                     } else {
                         const errorMessage = currentLang === 'es'
@@ -562,7 +575,12 @@
                         malicious: 'Malicious',
                         maliciousUrls: 'Malicious URLs',
                         threatTypes: 'Threat Types',
-                        apiNotConfigured: 'API not configured'
+                        apiNotConfigured: 'API not configured',
+                        feedbackQuestion: 'Was this prediction correct?',
+                        feedbackCorrect: 'Yes, correct',
+                        feedbackIncorrect: 'No, incorrect',
+                        feedbackThanks: 'Thank you for your feedback!',
+                        feedbackError: 'Error submitting feedback'
                     },
                     es: {
                         phishing: 'Phishing Detectado',
@@ -603,7 +621,12 @@
                         malicious: 'Maliciosa',
                         maliciousUrls: 'URLs Maliciosas',
                         threatTypes: 'Tipos de Amenazas',
-                        apiNotConfigured: 'API no configurada'
+                        apiNotConfigured: 'API no configurada',
+                        feedbackQuestion: '¿Fue correcta esta predicción?',
+                        feedbackCorrect: 'Sí, correcta',
+                        feedbackIncorrect: 'No, incorrecta',
+                        feedbackThanks: '¡Gracias por tu retroalimentación!',
+                        feedbackError: 'Error al enviar retroalimentación'
                     }
                 };
 
@@ -798,6 +821,17 @@
                             ${safeBrowsingHTML}
                             ${flagsHTML}
                         </div>
+                        <div id="feedback-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
+                            <p style="margin-bottom: 15px; color: #ccc; font-size: 14px;">${t.feedbackQuestion}</p>
+                            <div style="display: flex; gap: 15px; justify-content: center;">
+                                <button onclick="submitFeedback('correct')" style="padding: 10px 20px; background: linear-gradient(135deg, #14dd7a, #0fa368); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">
+                                    👍 ${t.feedbackCorrect}
+                                </button>
+                                <button onclick="submitFeedback('incorrect')" style="padding: 10px 20px; background: linear-gradient(135deg, #e94560, #c92a4a); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">
+                                    👎 ${t.feedbackIncorrect}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
@@ -819,6 +853,64 @@
                     </div>
                 `;
             }
+
+            // --- Submit Feedback Function ---
+            window.submitFeedback = async function(feedbackType) {
+                if (!lastPredictionData) {
+                    console.error('No prediction data available');
+                    return;
+                }
+
+                const currentLang = localStorage.getItem('preferredLang') || 'es';
+                const translations = {
+                    en: {
+                        thanks: 'Thank you for your feedback!',
+                        error: 'Error submitting feedback'
+                    },
+                    es: {
+                        thanks: '¡Gracias por tu retroalimentación!',
+                        error: 'Error al enviar retroalimentación'
+                    }
+                };
+
+                try {
+                    const response = await fetch('/feedback', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email_text: lastPredictionData.email_text,
+                            prediction: lastPredictionData.prediction,
+                            user_feedback: feedbackType,
+                            confidence: lastPredictionData.confidence,
+                            risk_score: lastPredictionData.risk_score,
+                            threats_detected: lastPredictionData.threats_detected,
+                            google_safe_browsing_checked: lastPredictionData.google_safe_browsing_checked,
+                            google_safe_browsing_safe: lastPredictionData.google_safe_browsing_safe
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Replace feedback section with thank you message
+                        const feedbackSection = document.getElementById('feedback-section');
+                        if (feedbackSection) {
+                            feedbackSection.innerHTML = `
+                                <p style="color: #14dd7a; font-weight: bold; font-size: 16px;">
+                                    ✓ ${translations[currentLang].thanks}
+                                </p>
+                            `;
+                        }
+                    } else {
+                        alert(translations[currentLang].error);
+                    }
+                } catch (error) {
+                    console.error('Feedback error:', error);
+                    alert(translations[currentLang].error);
+                }
+            };
 
         }); // End DOMContentLoaded
 
