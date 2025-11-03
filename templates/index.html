@@ -16,39 +16,147 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
+        /* === CSS Variables for Theme System === */
+        :root {
+            /* Dark Theme (Default) */
+            --bg-primary: #1a1a2e;
+            --bg-secondary: rgba(26, 26, 46, 0.8);
+            --bg-gradient-start: #16213e;
+            --bg-gradient-end: #0f3460;
+            --bg-input: #1a1a2e;
+            --bg-select: #1a1f2e;
+            
+            --text-primary: #ffffff;
+            --text-secondary: #a9b4d2;
+            --text-placeholder: #a9b4d2;
+            --text-select: #e8e6e3;
+            
+            --border-primary: #0f3460;
+            --border-secondary: rgba(255, 255, 255, 0.18);
+            --border-light: rgba(255, 255, 255, 0.1);
+            --border-medium: rgba(255, 255, 255, 0.2);
+            
+            --accent-danger: #e94560;
+            --accent-danger-hover: #c62a42;
+            --accent-danger-light: #f7b6c0;
+            --accent-danger-bg: rgba(233, 69, 96, 0.1);
+            
+            --accent-success: #14dd7a;
+            --accent-success-dark: #0fa368;
+            --accent-success-light: #a1e9c4;
+            --accent-success-bg: rgba(20, 221, 122, 0.1);
+            
+            --accent-warning: #ffc107;
+            --accent-warning-light: #ffddaa;
+            --accent-warning-bg: rgba(255, 193, 7, 0.1);
+            
+            --btn-clear: #536976;
+            --btn-clear-hover: #41515b;
+            --btn-outline: #f0f0f0;
+            
+            --shadow-primary: rgba(0, 0, 0, 0.37);
+            --shadow-accent: rgba(233, 69, 96, 0.3);
+            --shadow-hover: rgba(233, 69, 96, 0.4);
+            
+            --overlay-bg: rgba(255, 255, 255, 0.1);
+            --gray-text: #888;
+            --feedback-text: #ccc;
+            
+            /* Theme transition */
+            --transition-speed: 0.3s;
+        }
+        
+        /* Light Theme */
+        [data-theme="light"] {
+            --bg-primary: #f5f7fa;
+            --bg-secondary: rgba(255, 255, 255, 0.9);
+            --bg-gradient-start: #e8eaf6;
+            --bg-gradient-end: #c5cae9;
+            --bg-input: #ffffff;
+            --bg-select: #ffffff;
+            
+            --text-primary: #1a1a2e;
+            --text-secondary: #5a6c7d;
+            --text-placeholder: #9099a3;
+            --text-select: #2c3e50;
+            
+            --border-primary: #d1d8e0;
+            --border-secondary: rgba(0, 0, 0, 0.1);
+            --border-light: rgba(0, 0, 0, 0.08);
+            --border-medium: rgba(0, 0, 0, 0.15);
+            
+            --accent-danger: #d32f2f;
+            --accent-danger-hover: #b71c1c;
+            --accent-danger-light: #c62828;
+            --accent-danger-bg: rgba(211, 47, 47, 0.08);
+            
+            --accent-success: #388e3c;
+            --accent-success-dark: #2e7d32;
+            --accent-success-light: #4caf50;
+            --accent-success-bg: rgba(56, 142, 60, 0.08);
+            
+            --accent-warning: #f57c00;
+            --accent-warning-light: #ff9800;
+            --accent-warning-bg: rgba(245, 124, 0, 0.08);
+            
+            --btn-clear: #78909c;
+            --btn-clear-hover: #607d8b;
+            --btn-outline: #37474f;
+            
+            --shadow-primary: rgba(0, 0, 0, 0.12);
+            --shadow-accent: rgba(211, 47, 47, 0.2);
+            --shadow-hover: rgba(211, 47, 47, 0.3);
+            
+            --overlay-bg: rgba(0, 0, 0, 0.05);
+            --gray-text: #666;
+            --feedback-text: #555;
+        }
+        
+        /* Smooth transitions for theme changes */
+        * {
+            transition: background-color var(--transition-speed) ease,
+                        color var(--transition-speed) ease,
+                        border-color var(--transition-speed) ease;
+        }
+        
+        /* Prevent transition on page load */
+        .no-transition * {
+            transition: none !important;
+        }
+        
         body {
             font-family: 'Poppins', sans-serif;
-            background-color: #1a1a2e;
-            color: #ffffff;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
             margin: 0;
             padding: 20px;
             display: flex;
             justify-content: center;
             align-items: start; /* Align to top */
             min-height: 100vh;
-            background: linear-gradient(135deg, #16213e, #0f3460);
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
         }
         .container {
-            background-color: rgba(26, 26, 46, 0.8);
+            background-color: var(--bg-secondary);
             backdrop-filter: blur(10px);
             padding: 40px;
             border-radius: 12px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            box-shadow: 0 8px 32px 0 var(--shadow-primary);
             width: 90%;
             max-width: 700px;
             text-align: center; /* Center align text */
             margin-top: 20px; /* Add some margin top */
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            border: 1px solid var(--border-secondary);
         }
         h1 {
-            color: #ffffff;
+            color: var(--text-primary);
             margin-bottom: 25px;
             font-weight: 600;
         }
         label {
             display: block;
             margin-bottom: 10px;
-            color: #a9b4d2;
+            color: var(--text-secondary);
             font-weight: 400;
             text-align: left; /* Align label text left */
         }
@@ -56,17 +164,17 @@
             width: 100%;
             min-height: 180px; /* Increased height */
             padding: 15px;
-            border: 1px solid #0f3460;
+            border: 1px solid var(--border-primary);
             border-radius: 8px;
             font-size: 1rem;
             margin-bottom: 25px;
             box-sizing: border-box; /* Include padding and border in width */
-            background-color: #1a1a2e;
-            color: #ffffff;
+            background-color: var(--bg-input);
+            color: var(--text-primary);
             font-family: 'Poppins', sans-serif;
         }
         textarea::placeholder { /* Style the placeholder text */
-            color: #a9b4d2;
+            color: var(--text-placeholder);
             font-style: italic;
         }
         .button-container {
@@ -86,32 +194,32 @@
             flex-grow: 1; /* Make buttons share space */
         }
         .analyze-button {
-            background-color: #e94560;
+            background-color: var(--accent-danger);
             color: white;
         }
         .analyze-button:hover {
-            background-color: #c62a42;
+            background-color: var(--accent-danger-hover);
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+            box-shadow: 0 4px 15px var(--shadow-hover);
         }
         .clear-button {
-            background-color: #536976;
+            background-color: var(--btn-clear);
             color: white;
         }
         .clear-button:hover {
-            background-color: #41515b;
+            background-color: var(--btn-clear-hover);
             transform: translateY(-2px);
         }
         .lang-button { /* Style for language button */
             background-color: transparent;
-            color: #f0f0f0;
-            border: 1px solid #f0f0f0;
+            color: var(--btn-outline);
+            border: 1px solid var(--btn-outline);
             max-width: 150px; /* Adjust width if needed */
             flex-grow: 0; /* Don't let it grow like others */
         }
         .lang-button:hover {
-            background-color: #f0f0f0;
-            color: #1a1a2e;
+            background-color: var(--btn-outline);
+            color: var(--bg-primary);
         }
         .result {
             margin-top: 25px;
@@ -124,19 +232,19 @@
             border-left: 5px solid;
         }
         .result.phishing {
-            background-color: rgba(233, 69, 96, 0.1);
-            color: #f7b6c0;
-            border-color: #e94560;
+            background-color: var(--result-phishing-bg);
+            color: var(--result-phishing-text);
+            border-color: var(--accent-danger);
         }
         .result.legitimate {
-            background-color: rgba(20, 221, 122, 0.1);
-            color: #a1e9c4;
-            border-color: #14dd7a;
+            background-color: var(--result-legitimate-bg);
+            color: var(--result-legitimate-text);
+            border-color: var(--accent-success);
         }
         .result.error, .model-error { /* Combined error style */
-            background-color: rgba(255, 193, 7, 0.1);
-            color: #ffdDAA;
-            border-color: #ffc107;
+            background-color: var(--result-warning-bg);
+            color: var(--result-warning-text);
+            border-color: var(--accent-warning);
             text-align: left; /* Align error text left */
         }
         .model-error { /* Specific style for model load error */
@@ -158,7 +266,7 @@
         .result-details {
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            border-top: 1px solid var(--border-primary);
             font-size: 0.9rem;
             font-weight: normal;
         }
@@ -176,7 +284,7 @@
         .confidence-bar {
             width: 100%;
             height: 8px;
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: var(--confidence-bg);
             border-radius: 4px;
             margin-top: 10px;
             overflow: hidden;
@@ -188,12 +296,12 @@
         }
         .loading {
             text-align: center;
-            color: #a9b4d2;
+            color: var(--text-secondary);
             padding: 20px;
         }
         .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top: 3px solid #e94560;
+            border: 3px solid var(--spinner-bg);
+            border-top: 3px solid var(--accent-danger);
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -229,27 +337,57 @@
             width: 64px;
             height: 64px;
             border-radius: 50%;
-            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+            box-shadow: 0 4px 15px var(--shadow-hover);
         }
         /* Footer styles */
         .footer {
             margin-top: 30px;
             padding-top: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            color: #a9b4d2;
+            border-top: 1px solid var(--border-primary);
+            color: var(--text-secondary);
             font-size: 0.9rem;
         }
         .footer a {
-            color: #e94560;
+            color: var(--accent-danger);
             text-decoration: none;
             transition: color 0.3s ease;
         }
         .footer a:hover {
-            color: #f7b6c0;
+            color: var(--accent-danger-light);
+        }
+        
+        /* Theme toggle button */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-primary);
+            color: var(--text-primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px var(--shadow-primary);
+            z-index: 1000;
+        }
+        .theme-toggle:hover {
+            transform: scale(1.1) rotate(15deg);
+            box-shadow: 0 6px 20px var(--shadow-hover);
         }
     </style>
 </head>
-<body>
+<body class="no-transition">
+    <!-- Theme Toggle Button -->
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+        🌙
+    </button>
+    
     <div class="container">
 
         <a href="https://github.com/Charly-bite" target="_blank" class="logo-link" rel="noopener noreferrer">
@@ -273,7 +411,7 @@
             
             <!-- Example Selector -->
             <div style="margin-bottom: 15px;">
-                <select id="example-selector" style="width: 100%; padding: 12px; border-radius: 8px; background-color: #1a1f2e; color: #e8e6e3; border: 1px solid rgba(255, 255, 255, 0.2); font-size: 1rem; cursor: pointer;">
+                <select id="example-selector" style="width: 100%; padding: 12px; border-radius: 8px; background-color: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-primary); font-size: 1rem; cursor: pointer;">
                     <option value="" id="example-option-default">-- Select an example to test --</option>
                     <option value="phishing_bank" id="example-option-bank">🏦 Phishing: Fake Bank Alert</option>
                     <option value="phishing_prize" id="example-option-prize">🎁 Phishing: Fake Prize/Lottery</option>
@@ -317,6 +455,41 @@
     <script>
         // Wait for the HTML to be fully loaded
         document.addEventListener('DOMContentLoaded', function() {
+            
+            // --- Theme Toggle Logic ---
+            const themeToggle = document.getElementById('theme-toggle');
+            const html = document.documentElement;
+            
+            // Helper function to get CSS variable values
+            function getCSSVar(varName) {
+                return getComputedStyle(html).getPropertyValue(varName).trim();
+            }
+            
+            // Load saved theme or default to dark
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            html.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+            
+            // Remove no-transition class after initial load
+            setTimeout(() => {
+                document.body.classList.remove('no-transition');
+            }, 100);
+            
+            // Theme toggle handler
+            themeToggle.addEventListener('click', function() {
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateThemeIcon(newTheme);
+            });
+            
+            // Update theme icon
+            function updateThemeIcon(theme) {
+                themeToggle.textContent = theme === 'dark' ? '🌙' : '☀️';
+                themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+            }
 
             // --- Elements to Translate ---
             const elements = {
@@ -633,7 +806,7 @@
                 const t = translations[currentLang];
                 const resultTitle = isPhishing ? t.phishing : t.legitimate;
                 const confidence = (data.confidence * 100).toFixed(1);
-                const confidenceColor = isPhishing ? '#e94560' : '#14dd7a';
+                const confidenceColor = isPhishing ? getCSSVar('--accent-danger') : getCSSVar('--accent-success');
                 
                 // Threat translations
                 const threatTranslations = {
@@ -701,32 +874,32 @@
                 // Build threats list HTML
                 let threatsHTML = '';
                 if (data.threats_detected && data.threats_detected.length > 0) {
-                    threatsHTML = '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatsDetected + ':</span><ul style="margin: 5px 0 0 20px; color: #e94560;">';
+                    threatsHTML = '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatsDetected + ':</span><ul style="margin: 5px 0 0 20px; color: ' + getCSSVar('--accent-danger') + ';">';
                     data.threats_detected.forEach(threat => {
                         const translatedThreat = translateThreat(threat, currentLang);
                         threatsHTML += '<li>' + translatedThreat + '</li>';
                     });
                     threatsHTML += '</ul></div>';
                 } else {
-                    threatsHTML = '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatsDetected + ':</span><span class="detail-value" style="color: #14dd7a;">' + t.none + '</span></div>';
+                    threatsHTML = '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatsDetected + ':</span><span class="detail-value" style="color: ' + getCSSVar('--accent-success') + ';">' + t.none + '</span></div>';
                 }
                 
                 // Build Google Safe Browsing HTML
                 let safeBrowsingHTML = '';
                 if (data.google_safe_browsing) {
                     const gsb = data.google_safe_browsing;
-                    safeBrowsingHTML = '<div style="grid-column: 1 / -1; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);"><strong>🛡️ ' + t.googleSafeBrowsing + '</strong></div>';
+                    safeBrowsingHTML = '<div style="grid-column: 1 / -1; margin-top: 15px; padding-top: 15px; border-top: 1px solid ' + getCSSVar('--border-primary') + ';"><strong>🛡️ ' + t.googleSafeBrowsing + '</strong></div>';
                     
                     // Status badge
                     if (gsb.checked) {
                         const statusText = gsb.is_safe ? t.safe : t.malicious;
-                        const statusColor = gsb.is_safe ? '#14dd7a' : '#e94560';
+                        const statusColor = gsb.is_safe ? getCSSVar('--accent-success') : getCSSVar('--accent-danger');
                         const statusIcon = gsb.is_safe ? '✓' : '⚠️';
                         safeBrowsingHTML += '<div class="detail-row"><span class="detail-label">' + t.urlVerification + ':</span><span class="detail-value" style="color: ' + statusColor + ';"> ' + statusIcon + ' ' + statusText + '</span></div>';
                         
                         // Show malicious URLs if found
                         if (!gsb.is_safe && gsb.malicious_urls && gsb.malicious_urls.length > 0) {
-                            safeBrowsingHTML += '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.maliciousUrls + ':</span><ul style="margin: 5px 0 0 20px; color: #e94560;">';
+                            safeBrowsingHTML += '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.maliciousUrls + ':</span><ul style="margin: 5px 0 0 20px; color: ' + getCSSVar('--accent-danger') + ';">';
                             gsb.malicious_urls.forEach(url => {
                                 safeBrowsingHTML += '<li style="word-break: break-all;">' + url + '</li>';
                             });
@@ -734,7 +907,7 @@
                             
                             // Show threat types if found
                             if (gsb.threats_found && gsb.threats_found.length > 0) {
-                                safeBrowsingHTML += '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatTypes + ':</span><ul style="margin: 5px 0 0 20px; color: #e94560;">';
+                                safeBrowsingHTML += '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatTypes + ':</span><ul style="margin: 5px 0 0 20px; color: ' + getCSSVar('--accent-danger') + ';">';
                                 gsb.threats_found.forEach(threat => {
                                     const translatedThreat = threatTranslations[currentLang][threat] || threat;
                                     safeBrowsingHTML += '<li>' + translatedThreat + '</li>';
@@ -744,7 +917,7 @@
                         }
                     } else {
                         // API not configured
-                        safeBrowsingHTML += '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.urlVerification + ':</span><span class="detail-value" style="color: #888;">⊘ ' + t.apiNotConfigured + '</span></div>';
+                        safeBrowsingHTML += '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.urlVerification + ':</span><span class="detail-value" style="color: ' + getCSSVar('--text-tertiary') + ';">⊘ ' + t.apiNotConfigured + '</span></div>';
                     }
                 }
                 
@@ -762,11 +935,11 @@
                         { key: 'generic_greeting', label: t.genericGreeting }
                     ];
                     
-                    flagsHTML = '<div style="grid-column: 1 / -1; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);"><strong>' + t.advancedFlags + '</strong></div>';
+                    flagsHTML = '<div style="grid-column: 1 / -1; margin-top: 15px; padding-top: 15px; border-top: 1px solid ' + getCSSVar('--border-primary') + ';"><strong>' + t.advancedFlags + '</strong></div>';
                     flagsToShow.forEach(flag => {
                         const value = data.flags[flag.key];
                         const valueText = value ? t.yes : t.no;
-                        const valueColor = value ? '#e94560' : '#14dd7a';
+                        const valueColor = value ? getCSSVar('--accent-danger') : getCSSVar('--accent-success');
                         flagsHTML += '<div class="detail-row"><span class="detail-label">' + flag.label + ':</span><span class="detail-value" style="color: ' + valueColor + ';">' + valueText + '</span></div>';
                     });
                 }
@@ -821,13 +994,13 @@
                             ${safeBrowsingHTML}
                             ${flagsHTML}
                         </div>
-                        <div id="feedback-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
-                            <p style="margin-bottom: 15px; color: #ccc; font-size: 14px;">${t.feedbackQuestion}</p>
+                        <div id="feedback-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid ${getCSSVar('--border-primary')}; text-align: center;">
+                            <p style="margin-bottom: 15px; color: ${getCSSVar('--text-secondary')}; font-size: 14px;">${t.feedbackQuestion}</p>
                             <div style="display: flex; gap: 15px; justify-content: center;">
-                                <button onclick="submitFeedback('correct')" style="padding: 10px 20px; background: linear-gradient(135deg, #14dd7a, #0fa368); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">
+                                <button onclick="submitFeedback('correct')" style="padding: 10px 20px; background: linear-gradient(135deg, ${getCSSVar('--accent-success')}, ${getCSSVar('--accent-success-hover')}); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">
                                     👍 ${t.feedbackCorrect}
                                 </button>
-                                <button onclick="submitFeedback('incorrect')" style="padding: 10px 20px; background: linear-gradient(135deg, #e94560, #c92a4a); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">
+                                <button onclick="submitFeedback('incorrect')" style="padding: 10px 20px; background: linear-gradient(135deg, ${getCSSVar('--accent-danger')}, ${getCSSVar('--accent-danger-hover')}); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">
                                     👎 ${t.feedbackIncorrect}
                                 </button>
                             </div>
@@ -898,7 +1071,7 @@
                         const feedbackSection = document.getElementById('feedback-section');
                         if (feedbackSection) {
                             feedbackSection.innerHTML = `
-                                <p style="color: #14dd7a; font-weight: bold; font-size: 16px;">
+                                <p style="color: ${getCSSVar('--accent-success')}; font-weight: bold; font-size: 16px;">
                                     ✓ ${translations[currentLang].thanks}
                                 </p>
                             `;

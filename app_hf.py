@@ -496,12 +496,13 @@ def health():
     return jsonify({
         'status': 'healthy',
         'service': 'dory-phishing-detector-hf',
-        'version': '2.3-feedback-system',
+        'version': '2.4-theme-system',
         'features': {
             'enhanced_heuristics': True,
             'google_safe_browsing': bool(GOOGLE_SAFE_BROWSING_API_KEY),
             'bilingual_support': True,
-            'user_feedback_system': True
+            'user_feedback_system': True,
+            'light_dark_theme': True
         }
     }), 200
 

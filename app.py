@@ -12,27 +12,34 @@ import textstat # For readability
 import json # Needed to load numeric_cols_info and embedding_model_info
 from scipy.sparse import issparse # Might be needed if preprocessor outputs sparse data (less likely with StandardScaler)
 
+# Resolve repository root early so dependent setup (e.g., NLTK, model assets) can reference it.
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+
 # --- NLTK Imports and Setup (Copied/Adapted from main_script.py) ---
 try:
     import nltk
-    # Use NLTK_DATA environment variable if set, otherwise check common paths
+    # Explicitly add known NLTK data locations. Render stores build outputs under /opt/render/project/src.
+    candidate_nltk_paths = []
+
+    # Highest priority: user-provided environment variable (matches render.yaml config).
     nltk_data_env = os.environ.get('NLTK_DATA')
-    if nltk_data_env and os.path.exists(nltk_data_env):
-        nltk.data.path.insert(0, nltk_data_env)
-        print(f"--- Using NLTK_DATA env var: {nltk_data_env} ---", file=sys.stderr)
-    else:
-        # Add multiple possible NLTK data paths for Render
-        possible_paths = [
-            '/opt/render/project/nltk_data',
-            '/opt/render/nltk_data',
-            os.path.expanduser('~/nltk_data'),
-        ]
-        
-        for path in possible_paths:
-            if os.path.exists(path):
+    if nltk_data_env:
+        candidate_nltk_paths.append(nltk_data_env)
+
+    # Common folders where we might persist data between build and runtime.
+    candidate_nltk_paths.extend([
+        os.path.join(APP_ROOT, 'nltk_data'),
+        '/opt/render/project/src/nltk_data',
+        '/opt/render/project/nltk_data',
+        '/opt/render/nltk_data',
+    ])
+
+    for path in candidate_nltk_paths:
+        if path and os.path.exists(path):
+            if path not in nltk.data.path:
                 nltk.data.path.insert(0, path)
-                print(f"--- Added NLTK path: {path} ---", file=sys.stderr)
-    
+            print(f"--- Added NLTK path: {path} ---", file=sys.stderr)
+
     print(f"--- NLTK search paths: {nltk.data.path[:3]} ---", file=sys.stderr)
     
     # Check for resources, attempt download if missing
@@ -114,8 +121,6 @@ logger = logging.getLogger(__name__)
 
 
 # --- Constants ---
-# Get the absolute path of the directory where this script is located
-APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(APP_ROOT, "saved_data") # Directory where artifacts were saved by main_script.py
 MODELS_DIR = os.path.join(OUTPUT_DIR, "models")
 
@@ -653,4 +658,4 @@ if __name__ == '__main__':
     logger.warning("----- Running directly with 'python app.py' is for local testing ONLY. -----")
     # Start development server if run directly (for local testing)
     # In production (Render with Gunicorn), this block is not executed.
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)), debug=False)
