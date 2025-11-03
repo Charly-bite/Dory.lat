@@ -1,0 +1,529 @@
+{
+  "proyecto": "Dory-Lat Phishing Detector",
+  "version_actual": "2.0-huggingface",
+  "estado": "Producción - 100% Funcional",
+  "fecha_roadmap": "2025-11-02",
+  
+  "mejoras_prioritarias": {
+    "prioridad_alta": [
+      {
+        "id": 1,
+        "titulo": "Subir Modelo Real a HuggingFace",
+        "impacto": 5,
+        "esfuerzo": 3,
+        "estado": "Pendiente",
+        "descripcion": "Migrar el modelo Keras entrenado a HuggingFace Inference API",
+        "beneficios": [
+          "Aumentar precisión de 60-70% a 85-95%",
+          "Mantener arquitectura serverless actual",
+          "Aprovechar GPUs de HuggingFace para inferencia"
+        ],
+        "pasos": [
+          "Ejecutar script upload_model_to_hf.py con token de escritura",
+          "Probar modelo en HuggingFace Inference API",
+          "Actualizar app_hf.py para usar modelo en vez de heurísticas",
+          "Mantener heurísticas como fallback"
+        ],
+        "archivos_requeridos": [
+          "upload_model_to_hf.py",
+          "saved_data/models/HybridNN.keras",
+          "saved_data/models/embedding_model_info.json"
+        ],
+        "estimacion_tiempo": "2-4 horas"
+      },
+      {
+        "id": 2,
+        "titulo": "Mejorar Heurísticas de Detección",
+        "impacto": 4,
+        "esfuerzo": 2,
+        "estado": "Pendiente",
+        "descripcion": "Expandir reglas heurísticas para mejor detección sin ML",
+        "mejoras_especificas": {
+          "palabras_sospechosas_espanol": [
+            "urgente",
+            "verificar",
+            "suspender",
+            "actualizar datos",
+            "confirmar identidad",
+            "premio",
+            "ganador",
+            "reclame"
+          ],
+          "analisis_urls": [
+            "Detectar dominios acortados (bit.ly, tinyurl)",
+            "Identificar caracteres Unicode sospechosos",
+            "Revisar TLD inusuales (.xyz, .top, .tk)",
+            "Detectar subdominios que imitan marcas (paypa1.com)"
+          ],
+          "patrones_ingenieria_social": [
+            "Solicitudes de contraseñas/PINs",
+            "Urgencia artificial ('cuenta bloqueada en 24h')",
+            "Ofertas demasiado buenas ('iPhone gratis')",
+            "Errores ortográficos intencionales"
+          ],
+          "analisis_contenido": [
+            "Ratio emojis/texto > 0.1",
+            "Múltiples signos de exclamación/interrogación",
+            "Texto en mayúsculas > 30%",
+            "Mezcla de idiomas sin sentido"
+          ]
+        },
+        "archivos_modificar": [
+          "app_hf.py (función predict_phishing_hf)"
+        ],
+        "estimacion_tiempo": "3-5 horas"
+      },
+      {
+        "id": 3,
+        "titulo": "Integración con Google Safe Browsing API",
+        "impacto": 5,
+        "esfuerzo": 3,
+        "estado": "Pendiente",
+        "descripcion": "Verificar URLs contra base de datos de sitios maliciosos de Google",
+        "beneficios": [
+          "Base de datos de millones de URLs maliciosas",
+          "Actualización en tiempo real",
+          "API gratuita hasta 10,000 requests/día",
+          "Alta confiabilidad (usado por Chrome/Firefox)"
+        ],
+        "implementacion": {
+          "api_endpoint": "https://safebrowsing.googleapis.com/v4/threatMatches:find",
+          "costo": "Gratis (10k requests/día)",
+          "nueva_dependencia": "requests (ya instalada)",
+          "variables_entorno": [
+            "GOOGLE_SAFE_BROWSING_API_KEY"
+          ]
+        },
+        "archivos_modificar": [
+          "app_hf.py",
+          "requirements_hf.txt (no cambios necesarios)"
+        ],
+        "estimacion_tiempo": "4-6 horas"
+      },
+      {
+        "id": 4,
+        "titulo": "Sistema de Feedback de Usuarios",
+        "impacto": 5,
+        "esfuerzo": 3,
+        "estado": "Pendiente",
+        "descripcion": "Permitir que usuarios reporten si la predicción fue correcta o incorrecta",
+        "implementacion": {
+          "frontend": "Botones 👍/👎 después del resultado",
+          "backend": "Endpoint POST /feedback",
+          "almacenamiento": "CSV o SQLite local (inicio), PostgreSQL (futuro)",
+          "campos": [
+            "email_hash (SHA256 del texto)",
+            "prediction",
+            "user_feedback (correct/incorrect)",
+            "timestamp",
+            "analysis_data"
+          ]
+        },
+        "uso_datos": [
+          "Identificar falsos positivos/negativos",
+          "Casos de borde para reentrenamiento",
+          "Métricas de precisión en producción",
+          "Dataset de mejora continua"
+        ],
+        "archivos_nuevos": [
+          "feedback_storage.py",
+          "data/feedback.csv o feedback.db"
+        ],
+        "archivos_modificar": [
+          "app_hf.py",
+          "templates/index.html"
+        ],
+        "estimacion_tiempo": "5-7 horas"
+      },
+      {
+        "id": 5,
+        "titulo": "Ejemplos Pre-cargados Educativos",
+        "impacto": 3,
+        "esfuerzo": 1,
+        "estado": "Pendiente",
+        "descripcion": "Dropdown con ejemplos reales de phishing y emails legítimos",
+        "ejemplos": {
+          "phishing_bancario": "URGENTE: Su cuenta de Banco Nacional ha sido bloqueada. Haga clic aquí http://banco-verificacion.tk/login para verificar su identidad en las próximas 24 horas o perderá acceso permanente.",
+          "phishing_premio": "¡FELICIDADES! Has ganado un iPhone 15 Pro Max GRATIS 🎁📱 Reclama tu premio ahora: http://sorteo-apple.xyz/claim?id=2847291",
+          "phishing_redes_sociales": "Alerta de Seguridad: Alguien intentó acceder a tu cuenta de Instagram desde Nigeria. Confirma que eres tú: http://instagram-security.com/verify",
+          "email_legitimo_trabajo": "Hola equipo,\n\nLes confirmo la reunión de mañana a las 10:00 AM en la sala de conferencias 3. Por favor traigan los reportes mensuales.\n\nSaludos,\nJuan",
+          "email_legitimo_servicio": "Estimado cliente,\n\nSu pedido #12345 ha sido enviado. Puede rastrear su paquete en nuestra página oficial.\n\nGracias por su compra,\nEquipo de Amazon"
+        },
+        "archivos_modificar": [
+          "templates/index.html (agregar <select> con ejemplos)"
+        ],
+        "estimacion_tiempo": "1-2 horas"
+      }
+    ],
+    
+    "prioridad_media": [
+      {
+        "id": 6,
+        "titulo": "API Pública con Documentación",
+        "impacto": 4,
+        "esfuerzo": 3,
+        "descripcion": "Documentar API REST y agregar autenticación opcional",
+        "features": [
+          "Documentación Swagger/OpenAPI",
+          "Rate limiting (100 requests/día gratis)",
+          "API Keys para usuarios registrados",
+          "Diferentes planes (Free/Pro/Enterprise)"
+        ],
+        "tecnologias": [
+          "Flask-RESTX para Swagger",
+          "Flask-Limiter para rate limiting",
+          "JWT para autenticación"
+        ],
+        "estimacion_tiempo": "8-12 horas"
+      },
+      {
+        "id": 7,
+        "titulo": "Análisis de Headers de Email",
+        "impacto": 5,
+        "esfuerzo": 4,
+        "descripcion": "Analizar headers completos para detectar spoofing y verificar autenticación",
+        "analisis_incluidos": [
+          "IP de origen y geolocalización",
+          "Validación SPF (Sender Policy Framework)",
+          "Validación DKIM (DomainKeys Identified Mail)",
+          "Validación DMARC (Domain-based Message Authentication)",
+          "Análisis de ruta de servidores",
+          "Detección de discrepancias From/Reply-To"
+        ],
+        "librerias": [
+          "email (built-in Python)",
+          "dkim (nuevo)",
+          "geoip2 (nuevo)",
+          "dnspython (nuevo)"
+        ],
+        "estimacion_tiempo": "10-15 horas"
+      },
+      {
+        "id": 8,
+        "titulo": "Historial de Análisis Local",
+        "impacto": 3,
+        "esfuerzo": 2,
+        "descripcion": "Guardar últimos análisis en localStorage del navegador",
+        "features": [
+          "Guardar últimos 10 análisis",
+          "Botón 'Ver Historial'",
+          "Modal con lista de análisis previos",
+          "Poder re-analizar emails del historial",
+          "Exportar historial como JSON"
+        ],
+        "archivos_modificar": [
+          "templates/index.html (JavaScript)"
+        ],
+        "estimacion_tiempo": "3-4 horas"
+      },
+      {
+        "id": 9,
+        "titulo": "Modo Claro/Oscuro Toggle",
+        "impacto": 3,
+        "esfuerzo": 2,
+        "descripcion": "Agregar tema claro como alternativa al actual tema oscuro",
+        "implementacion": [
+          "CSS variables para colores",
+          "Toggle switch en header",
+          "Guardar preferencia en localStorage",
+          "Animación suave de transición"
+        ],
+        "archivos_modificar": [
+          "templates/index.html (CSS y JavaScript)"
+        ],
+        "estimacion_tiempo": "2-3 horas"
+      },
+      {
+        "id": 10,
+        "titulo": "Exportar Reporte en PDF",
+        "impacto": 3,
+        "esfuerzo": 3,
+        "descripcion": "Generar PDF profesional con análisis completo del email",
+        "contenido_pdf": [
+          "Logo y branding de Dory-Lat",
+          "Timestamp del análisis",
+          "Texto completo del email analizado",
+          "Resultado de la predicción",
+          "Métricas detalladas",
+          "Recomendaciones de seguridad",
+          "Disclaimer legal"
+        ],
+        "tecnologias": [
+          "jsPDF (frontend)",
+          "O ReportLab (backend Python)"
+        ],
+        "estimacion_tiempo": "4-6 horas"
+      }
+    ],
+    
+    "prioridad_baja": [
+      {
+        "id": 11,
+        "titulo": "Extensión de Navegador",
+        "impacto": 5,
+        "esfuerzo": 5,
+        "descripcion": "Extension Chrome/Firefox para analizar emails directamente en Gmail/Outlook",
+        "features": [
+          "Click derecho → 'Analizar con Dory'",
+          "Botón en toolbar de Gmail",
+          "Alertas en tiempo real",
+          "Integración con API de Dory-Lat"
+        ],
+        "archivos_nuevos": [
+          "browser-extension/ (nuevo proyecto)"
+        ],
+        "estimacion_tiempo": "20-30 horas"
+      },
+      {
+        "id": 12,
+        "titulo": "Dashboard de Estadísticas",
+        "impacto": 3,
+        "esfuerzo": 4,
+        "descripcion": "Panel administrativo con métricas de uso",
+        "metricas": [
+          "Total emails analizados",
+          "Porcentaje phishing detectados",
+          "Tipos más comunes de phishing",
+          "Gráficos de uso por día/semana/mes",
+          "Países de origen de análisis"
+        ],
+        "tecnologias": [
+          "Chart.js para gráficos",
+          "Base de datos para almacenar métricas"
+        ],
+        "estimacion_tiempo": "12-16 horas"
+      },
+      {
+        "id": 13,
+        "titulo": "Bot de Telegram/WhatsApp",
+        "impacto": 4,
+        "esfuerzo": 4,
+        "descripcion": "Bot para analizar emails desde aplicaciones de mensajería",
+        "plataformas": [
+          "Telegram Bot API",
+          "WhatsApp Business API (más complejo)"
+        ],
+        "features": [
+          "Reenviar email al bot",
+          "Recibir análisis instantáneo",
+          "Comandos: /analizar, /ayuda, /stats"
+        ],
+        "estimacion_tiempo": "10-15 horas"
+      },
+      {
+        "id": 14,
+        "titulo": "Análisis de Archivos Adjuntos",
+        "impacto": 5,
+        "esfuerzo": 5,
+        "descripcion": "Escanear attachments en busca de malware",
+        "tipos_archivo": [
+          ".exe, .dll, .bat, .cmd",
+          ".pdf con JavaScript embebido",
+          ".docx/.xlsx con macros",
+          ".zip con archivos maliciosos"
+        ],
+        "integraciones": [
+          "VirusTotal API",
+          "Análisis de hashes (MD5/SHA256)",
+          "Detección de macros"
+        ],
+        "estimacion_tiempo": "15-20 horas"
+      },
+      {
+        "id": 15,
+        "titulo": "Blog/Wiki Educativo",
+        "impacto": 3,
+        "esfuerzo": 4,
+        "descripcion": "Contenido educativo sobre phishing y seguridad",
+        "secciones": [
+          "¿Qué es el phishing?",
+          "Tipos de phishing (spear, whaling, vishing)",
+          "Casos de estudio reales",
+          "Quiz interactivo",
+          "Mejores prácticas de seguridad",
+          "Certificado de completación"
+        ],
+        "implementacion": [
+          "Markdown para contenido",
+          "Sistema de CMS simple",
+          "O integración con Medium/Ghost"
+        ],
+        "estimacion_tiempo": "20-30 horas + contenido"
+      }
+    ]
+  },
+  
+  "mejoras_tecnicas": {
+    "infraestructura": [
+      {
+        "titulo": "Migrar a Base de Datos",
+        "descripcion": "PostgreSQL en Render para almacenar feedback y estadísticas",
+        "cuando": "Al implementar feedback de usuarios (mejora #4)",
+        "costo": "Gratis con Render PostgreSQL (250MB)"
+      },
+      {
+        "titulo": "CDN para Assets Estáticos",
+        "descripcion": "Usar Cloudflare CDN para favicons e imágenes",
+        "beneficio": "Carga más rápida globalmente",
+        "costo": "Gratis"
+      },
+      {
+        "titulo": "Monitoreo y Logs",
+        "descripcion": "Integrar Sentry para error tracking",
+        "beneficio": "Detectar errores en producción proactivamente",
+        "costo": "Gratis hasta 5k eventos/mes"
+      },
+      {
+        "titulo": "Tests Automatizados",
+        "descripcion": "Pytest para backend, Jest para frontend",
+        "beneficio": "Prevenir regresiones, CI/CD más robusto",
+        "esfuerzo": "6-10 horas"
+      }
+    ],
+    
+    "optimizaciones": [
+      {
+        "titulo": "Caché de Resultados",
+        "descripcion": "Redis para cachear análisis de emails duplicados",
+        "beneficio": "Respuesta instantánea para emails repetidos",
+        "implementacion": "Hash del texto como key, resultado como value"
+      },
+      {
+        "titulo": "Compresión de Respuestas",
+        "descripcion": "Gzip compression en Flask",
+        "beneficio": "Reducir tamaño de respuestas JSON en 60-70%",
+        "codigo": "from flask_compress import Compress; Compress(app)"
+      },
+      {
+        "titulo": "Lazy Loading de Componentes",
+        "descripcion": "Cargar JavaScript pesado solo cuando se necesita",
+        "beneficio": "Mejorar tiempo de carga inicial"
+      }
+    ]
+  },
+  
+  "roadmap_sugerido": {
+    "fase_1_corto_plazo": {
+      "duracion": "1-2 semanas",
+      "mejoras": [1, 2, 5],
+      "objetivo": "Aumentar precisión y mejorar UX básica"
+    },
+    "fase_2_mediano_plazo": {
+      "duracion": "1 mes",
+      "mejoras": [3, 4, 8, 9],
+      "objetivo": "Integrar APIs externas y feedback de usuarios"
+    },
+    "fase_3_largo_plazo": {
+      "duracion": "2-3 meses",
+      "mejoras": [6, 7, 10, 11],
+      "objetivo": "Escalar producto y expandir funcionalidades"
+    },
+    "fase_4_expansion": {
+      "duracion": "3+ meses",
+      "mejoras": [12, 13, 14, 15],
+      "objetivo": "Convertir en plataforma completa de seguridad"
+    }
+  },
+  
+  "metricas_exito": {
+    "precision_modelo": {
+      "actual": "60-70% (heurísticas)",
+      "objetivo_fase_1": "85-90% (modelo real)",
+      "objetivo_fase_3": "95%+ (con feedback y reentrenamiento)"
+    },
+    "usuarios": {
+      "actual": "Deployment inicial",
+      "objetivo_fase_2": "100 análisis/semana",
+      "objetivo_fase_4": "1000+ análisis/semana"
+    },
+    "cobertura": {
+      "actual": "Emails de texto plano",
+      "objetivo_fase_2": "Emails + URLs verificadas",
+      "objetivo_fase_4": "Emails + URLs + Attachments + Headers"
+    }
+  },
+  
+  "recursos_adicionales": {
+    "apis_gratuitas_utiles": [
+      {
+        "nombre": "Google Safe Browsing",
+        "uso": "Verificación de URLs maliciosas",
+        "limite": "10,000 requests/día",
+        "url": "https://developers.google.com/safe-browsing"
+      },
+      {
+        "nombre": "VirusTotal Public API",
+        "uso": "Escaneo de archivos y URLs",
+        "limite": "4 requests/minuto",
+        "url": "https://www.virustotal.com/gui/home/upload"
+      },
+      {
+        "nombre": "PhishTank",
+        "uso": "Base de datos de phishing verificado",
+        "limite": "Ilimitado (descarga diaria)",
+        "url": "https://www.phishtank.com/"
+      },
+      {
+        "nombre": "Have I Been Pwned",
+        "uso": "Verificar si emails/dominios fueron comprometidos",
+        "limite": "1 request/1.5 segundos",
+        "url": "https://haveibeenpwned.com/API/v3"
+      }
+    ],
+    
+    "datasets_entrenamiento": [
+      {
+        "nombre": "Enron Email Dataset",
+        "descripcion": "500k emails legítimos",
+        "url": "https://www.cs.cmu.edu/~enron/"
+      },
+      {
+        "nombre": "Nigerian Fraud Email Dataset",
+        "descripcion": "Colección de emails de phishing",
+        "url": "https://www.kaggle.com/datasets/rtatman/fraudulent-email-corpus"
+      },
+      {
+        "nombre": "SpamAssassin Public Corpus",
+        "descripcion": "Emails clasificados spam/ham",
+        "url": "https://spamassassin.apache.org/old/publiccorpus/"
+      }
+    ],
+    
+    "herramientas_desarrollo": [
+      {
+        "nombre": "Postman/Thunder Client",
+        "uso": "Testing de API REST"
+      },
+      {
+        "nombre": "Lighthouse",
+        "uso": "Auditoría de performance y SEO"
+      },
+      {
+        "nombre": "WAVE",
+        "uso": "Verificar accesibilidad web"
+      }
+    ]
+  },
+  
+  "consideraciones_legales": {
+    "privacidad": [
+      "No almacenar contenido completo de emails sin consentimiento",
+      "Usar hashes para identificación (SHA256)",
+      "Agregar Política de Privacidad",
+      "Cumplir con GDPR si hay usuarios europeos"
+    ],
+    "terminos_servicio": [
+      "Disclaimer: Herramienta educativa, no reemplaza criterio humano",
+      "No responsabilidad por falsos negativos",
+      "Uso aceptable (no para spam masivo)"
+    ]
+  },
+  
+  "notas_implementacion": {
+    "priorizar_por": "Impacto vs Esfuerzo (Quick Wins primero)",
+    "mantener": "Arquitectura serverless actual (sin cambios mayores)",
+    "probar_antes": "Todas las mejoras en branch de desarrollo",
+    "documentar": "Cada nueva feature en README.md",
+    "versionar": "Semantic Versioning (2.1.0, 2.2.0, etc.)"
+  }
+}

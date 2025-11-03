@@ -270,6 +270,20 @@
         <form id="email-form">
              <!-- Added ID for translation -->
             <label for="email_text" id="textarea-label">Enter the email text below:</label>
+            
+            <!-- Example Selector -->
+            <div style="margin-bottom: 15px;">
+                <select id="example-selector" style="width: 100%; padding: 12px; border-radius: 8px; background-color: #1a1f2e; color: #e8e6e3; border: 1px solid rgba(255, 255, 255, 0.2); font-size: 1rem; cursor: pointer;">
+                    <option value="" id="example-option-default">-- Select an example to test --</option>
+                    <option value="phishing_bank" id="example-option-bank">🏦 Phishing: Fake Bank Alert</option>
+                    <option value="phishing_prize" id="example-option-prize">🎁 Phishing: Fake Prize/Lottery</option>
+                    <option value="phishing_social" id="example-option-social">📱 Phishing: Social Media Alert</option>
+                    <option value="phishing_urgency" id="example-option-urgency">⚠️ Phishing: Urgent Action Required</option>
+                    <option value="legitimate_work" id="example-option-work">✅ Legitimate: Work Meeting</option>
+                    <option value="legitimate_service" id="example-option-service">📦 Legitimate: Order Confirmation</option>
+                </select>
+            </div>
+            
             <!-- Added placeholder attribute -->
             <textarea
                 id="email_text"
@@ -312,6 +326,42 @@
                 clearButton: document.getElementById('clear-button'),
                 langToggleButton: document.getElementById('lang-toggle'),
                 emailTextarea: document.getElementById('email_text'), // Reference to textarea for placeholder
+                exampleSelector: document.getElementById('example-selector'),
+                exampleOptionDefault: document.getElementById('example-option-default'),
+                exampleOptionBank: document.getElementById('example-option-bank'),
+                exampleOptionPrize: document.getElementById('example-option-prize'),
+                exampleOptionSocial: document.getElementById('example-option-social'),
+                exampleOptionUrgency: document.getElementById('example-option-urgency'),
+                exampleOptionWork: document.getElementById('example-option-work'),
+                exampleOptionService: document.getElementById('example-option-service'),
+            };
+
+            // --- Example Emails ---
+            const examples = {
+                phishing_bank: {
+                    en: "URGENT: SECURITY ALERT\n\nDear valued customer,\n\nYour Bank of America account has been LOCKED due to suspicious activity detected from Nigeria. You must verify your identity IMMEDIATELY or your account will be permanently closed within 24 hours.\n\nClick here to verify now: http://bankofamerica-secure-login.tk/verify?id=8472910\n\nDO NOT ignore this message. Failure to act will result in permanent loss of access to your funds.\n\nBank Security Team\n(This is an automated message, do not reply)",
+                    es: "URGENTE: ALERTA DE SEGURIDAD\n\nEstimado cliente,\n\nSu cuenta de Banco Santander ha sido BLOQUEADA debido a actividad sospechosa detectada desde el extranjero. Debe verificar su identidad INMEDIATAMENTE o su cuenta será cerrada permanentemente en las próximas 24 horas.\n\nHaga clic aquí para verificar ahora: http://bancosantander-verificacion.tk/login?id=8472910\n\nNO ignore este mensaje. Si no actúa, perderá acceso permanente a sus fondos.\n\nEquipo de Seguridad Bancaria\n(Este es un mensaje automatizado, no responda)"
+                },
+                phishing_prize: {
+                    en: "🎉 CONGRATULATIONS! YOU'VE WON! 🎉\n\nDear LUCKY WINNER,\n\nYou have been selected as the GRAND PRIZE WINNER of our Apple iPhone 15 Pro Max GIVEAWAY! 📱✨\n\nYour winning number: #847291\nPrize value: $1,299 USD\n\nClaim your FREE iPhone now before it expires:\n👉 http://apple-prizes-claim.xyz/winner?code=IPHONE2024\n\nHurry! Only 3 hours left to claim!\n\n🎁 100% FREE - No purchase necessary!\n🚚 FREE International Shipping!\n\nClick NOW or lose your prize forever!",
+                    es: "🎉 ¡FELICIDADES! ¡HAS GANADO! 🎉\n\nEstimado GANADOR AFORTUNADO,\n\n¡Has sido seleccionado como GANADOR DEL GRAN PREMIO de nuestro SORTEO de iPhone 15 Pro Max! 📱✨\n\nTu número ganador: #847291\nValor del premio: $1,299 USD\n\nReclama tu iPhone GRATIS ahora antes de que expire:\n👉 http://sorteo-apple-oficial.xyz/ganador?codigo=IPHONE2024\n\n¡Apúrate! ¡Solo quedan 3 horas para reclamar!\n\n🎁 100% GRATIS - ¡No requiere compra!\n🚚 ¡Envío Internacional GRATIS!\n\n¡Haz clic AHORA o pierde tu premio para siempre!"
+                },
+                phishing_social: {
+                    en: "⚠️ Instagram Security Alert ⚠️\n\nWe detected an unusual login attempt to your account from:\nLocation: Lagos, Nigeria\nDevice: Unknown Android Device\nTime: 2 hours ago\n\nThis wasn't you? Secure your account immediately:\nhttp://instagram-security-check.com/verify/account\n\nIf you don't verify within 12 hours, your account will be permanently deleted to prevent unauthorized access.\n\nInstagram Security Team\n---\nThis is an automated security notification.",
+                    es: "⚠️ Alerta de Seguridad de Instagram ⚠️\n\nDetectamos un intento de inicio de sesión inusual en tu cuenta desde:\nUbicación: Lagos, Nigeria\nDispositivo: Dispositivo Android Desconocido\nHora: Hace 2 horas\n\n¿No fuiste tú? Asegura tu cuenta inmediatamente:\nhttp://instagram-seguridad-verificar.com/verificar/cuenta\n\nSi no verificas en 12 horas, tu cuenta será eliminada permanentemente para prevenir acceso no autorizado.\n\nEquipo de Seguridad de Instagram\n---\nEsta es una notificación de seguridad automatizada."
+                },
+                phishing_urgency: {
+                    en: "⚠️⚠️⚠️ FINAL NOTICE - IMMEDIATE ACTION REQUIRED ⚠️⚠️⚠️\n\nYour Microsoft Office 365 subscription will EXPIRE TODAY at 11:59 PM!\n\nAll your files, emails, and documents will be DELETED if you don't renew NOW!\n\n❌ Time remaining: 4 hours 23 minutes\n❌ Files at risk: 15,847 documents\n❌ Emails to be deleted: 9,234 messages\n\nRENEW IMMEDIATELY to avoid data loss:\n🔗 http://microsoft-office-renewal.net/urgent/renew\n\nCredit card required for verification. Act now!\n\nMicrosoft Billing Department",
+                    es: "⚠️⚠️⚠️ AVISO FINAL - ACCIÓN INMEDIATA REQUERIDA ⚠️⚠️⚠️\n\n¡Tu suscripción a Microsoft Office 365 EXPIRARÁ HOY a las 11:59 PM!\n\n¡Todos tus archivos, correos y documentos serán ELIMINADOS si no renuevas AHORA!\n\n❌ Tiempo restante: 4 horas 23 minutos\n❌ Archivos en riesgo: 15,847 documentos\n❌ Correos a eliminar: 9,234 mensajes\n\nRENUEVA INMEDIATAMENTE para evitar pérdida de datos:\n🔗 http://microsoft-office-renovacion.net/urgente/renovar\n\nTarjeta de crédito requerida para verificación. ¡Actúa ahora!\n\nDepartamento de Facturación de Microsoft"
+                },
+                legitimate_work: {
+                    en: "Subject: Team Meeting Tomorrow - Project Update\n\nHi everyone,\n\nJust a friendly reminder about our weekly team meeting tomorrow (Tuesday) at 10:00 AM in Conference Room 3.\n\nAgenda:\n- Q4 progress review\n- Upcoming deadlines discussion\n- Resource allocation for next sprint\n\nPlease bring your monthly reports. If you can't attend, let me know by EOD today.\n\nBest regards,\nJohn Smith\nProject Manager\nTech Solutions Inc.",
+                    es: "Asunto: Reunión de Equipo Mañana - Actualización de Proyecto\n\nHola a todos,\n\nSolo un recordatorio amistoso sobre nuestra reunión semanal de equipo mañana (martes) a las 10:00 AM en la Sala de Conferencias 3.\n\nAgenda:\n- Revisión de progreso del Q4\n- Discusión de fechas límite próximas\n- Asignación de recursos para el siguiente sprint\n\nPor favor traigan sus reportes mensuales. Si no pueden asistir, avísenme antes del fin del día.\n\nSaludos,\nJuan Pérez\nGerente de Proyecto\nSoluciones Tecnológicas S.A."
+                },
+                legitimate_service: {
+                    en: "Order Confirmation - Amazon.com\n\nHello,\n\nThank you for your order! Your package has been shipped and is on its way.\n\nOrder #: 123-4567890-1234567\nShipping Address: 123 Main St, Anytown, ST 12345\nEstimated Delivery: November 5, 2025\n\nYou can track your package at: amazon.com/orders\n(Please log into your account to view tracking details)\n\nItems ordered:\n- Wireless Mouse - $25.99\n- USB-C Cable (2-pack) - $12.99\n\nThank you for shopping with Amazon!\n\nThe Amazon Team",
+                    es: "Confirmación de Pedido - Amazon.com.mx\n\nHola,\n\n¡Gracias por tu pedido! Tu paquete ha sido enviado y está en camino.\n\nPedido #: 123-4567890-1234567\nDirección de Envío: Calle Principal 123, Ciudad, CP 12345\nEntrega Estimada: 5 de noviembre, 2025\n\nPuedes rastrear tu paquete en: amazon.com.mx/pedidos\n(Por favor inicia sesión en tu cuenta para ver detalles de rastreo)\n\nArtículos ordenados:\n- Mouse Inalámbrico - $25.99\n- Cable USB-C (paquete de 2) - $12.99\n\n¡Gracias por comprar en Amazon!\n\nEl Equipo de Amazon"
+                }
             };
 
             // --- Translations ---
@@ -323,6 +373,13 @@
                     clearButton: "Clear Text",
                     langToggleButton: "Español", // Show Spanish option when in English
                     textareaPlaceholder: "Paste the full email content here, not just the address...",
+                    exampleDefault: "-- Select an example to test --",
+                    exampleBank: "🏦 Phishing: Fake Bank Alert",
+                    examplePrize: "🎁 Phishing: Fake Prize/Lottery",
+                    exampleSocial: "📱 Phishing: Social Media Alert",
+                    exampleUrgency: "⚠️ Phishing: Urgent Action Required",
+                    exampleWork: "✅ Legitimate: Work Meeting",
+                    exampleService: "📦 Legitimate: Order Confirmation",
                 },
                 es: {
                     mainHeading: "Detector de Phishing",
@@ -331,6 +388,13 @@
                     clearButton: "Limpiar Texto",
                     langToggleButton: "English", // Show English option when in Spanish
                     textareaPlaceholder: "Pegue aquí el contenido completo del correo electrónico, no sólo la dirección...",
+                    exampleDefault: "-- Seleccione un ejemplo para probar --",
+                    exampleBank: "🏦 Phishing: Alerta Bancaria Falsa",
+                    examplePrize: "🎁 Phishing: Premio/Lotería Falsa",
+                    exampleSocial: "📱 Phishing: Alerta de Redes Sociales",
+                    exampleUrgency: "⚠️ Phishing: Acción Urgente Requerida",
+                    exampleWork: "✅ Legítimo: Reunión de Trabajo",
+                    exampleService: "📦 Legítimo: Confirmación de Pedido",
                 }
             };
 
@@ -351,6 +415,15 @@
                 // Update placeholder
                 elements.emailTextarea.placeholder = translations[lang].textareaPlaceholder;
 
+                // Update example selector options
+                elements.exampleOptionDefault.innerText = translations[lang].exampleDefault;
+                elements.exampleOptionBank.innerText = translations[lang].exampleBank;
+                elements.exampleOptionPrize.innerText = translations[lang].examplePrize;
+                elements.exampleOptionSocial.innerText = translations[lang].exampleSocial;
+                elements.exampleOptionUrgency.innerText = translations[lang].exampleUrgency;
+                elements.exampleOptionWork.innerText = translations[lang].exampleWork;
+                elements.exampleOptionService.innerText = translations[lang].exampleService;
+
                 // Store preference
                 localStorage.setItem('preferredLang', lang);
                 // Set lang attribute on HTML tag for potential CSS use or accessibility
@@ -365,6 +438,17 @@
                 const newLang = currentLang === 'en' ? 'es' : 'en';
                 // Set the new language
                 setLanguage(newLang);
+            });
+
+            // --- Example Selector Handler ---
+            elements.exampleSelector.addEventListener('change', function() {
+                const selectedExample = this.value;
+                if (selectedExample) {
+                    const currentLang = localStorage.getItem('preferredLang') || 'en';
+                    elements.emailTextarea.value = examples[selectedExample][currentLang];
+                    // Reset selector to default
+                    this.value = '';
+                }
             });
 
             // --- Initial Language Load ---
@@ -441,8 +525,24 @@
                         urls: 'URLs Found',
                         excessiveCaps: 'Excessive Caps',
                         urgentLanguage: 'Urgent Language',
+                        threatsDetected: 'Threats Detected',
+                        riskScore: 'Risk Score',
+                        keywordMatches: 'Phishing Keywords',
+                        emojiCount: 'Emojis',
+                        exclamationMarks: 'Exclamation Marks',
+                        uppercaseRatio: 'Uppercase Ratio',
+                        advancedFlags: 'Advanced Analysis',
+                        suspiciousTLD: 'Suspicious Domain',
+                        urlShortener: 'URL Shortener',
+                        ipInUrl: 'IP in URL',
+                        urgencyTactics: 'Urgency Tactics',
+                        credentialRequest: 'Requests Credentials',
+                        unrealisticOffer: 'Unrealistic Offer',
+                        brandTypo: 'Brand Misspelling',
+                        genericGreeting: 'Generic Greeting',
                         yes: 'Yes',
-                        no: 'No'
+                        no: 'No',
+                        none: 'None'
                     },
                     es: {
                         phishing: 'Phishing Detectado',
@@ -453,8 +553,24 @@
                         urls: 'URLs Encontradas',
                         excessiveCaps: 'Mayúsculas Excesivas',
                         urgentLanguage: 'Lenguaje Urgente',
+                        threatsDetected: 'Amenazas Detectadas',
+                        riskScore: 'Puntuación de Riesgo',
+                        keywordMatches: 'Palabras Clave de Phishing',
+                        emojiCount: 'Emojis',
+                        exclamationMarks: 'Signos de Exclamación',
+                        uppercaseRatio: 'Ratio de Mayúsculas',
+                        advancedFlags: 'Análisis Avanzado',
+                        suspiciousTLD: 'Dominio Sospechoso',
+                        urlShortener: 'Acortador de URL',
+                        ipInUrl: 'IP en URL',
+                        urgencyTactics: 'Tácticas de Urgencia',
+                        credentialRequest: 'Solicita Credenciales',
+                        unrealisticOffer: 'Oferta Irreal',
+                        brandTypo: 'Marca Mal Escrita',
+                        genericGreeting: 'Saludo Genérico',
                         yes: 'Sí',
-                        no: 'No'
+                        no: 'No',
+                        none: 'Ninguna'
                     }
                 };
 
@@ -462,6 +578,41 @@
                 const resultTitle = isPhishing ? t.phishing : t.legitimate;
                 const confidence = (data.confidence * 100).toFixed(1);
                 const confidenceColor = isPhishing ? '#e94560' : '#14dd7a';
+                
+                // Build threats list HTML
+                let threatsHTML = '';
+                if (data.threats_detected && data.threats_detected.length > 0) {
+                    threatsHTML = '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatsDetected + ':</span><ul style="margin: 5px 0 0 20px; color: #e94560;">';
+                    data.threats_detected.forEach(threat => {
+                        threatsHTML += '<li>' + threat + '</li>';
+                    });
+                    threatsHTML += '</ul></div>';
+                } else {
+                    threatsHTML = '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatsDetected + ':</span><span class="detail-value" style="color: #14dd7a;">' + t.none + '</span></div>';
+                }
+                
+                // Build advanced flags HTML
+                let flagsHTML = '';
+                if (data.flags) {
+                    const flagsToShow = [
+                        { key: 'suspicious_tld', label: t.suspiciousTLD },
+                        { key: 'url_shortener', label: t.urlShortener },
+                        { key: 'ip_in_url', label: t.ipInUrl },
+                        { key: 'urgency_tactics', label: t.urgencyTactics },
+                        { key: 'credential_request', label: t.credentialRequest },
+                        { key: 'unrealistic_offer', label: t.unrealisticOffer },
+                        { key: 'brand_typo', label: t.brandTypo },
+                        { key: 'generic_greeting', label: t.genericGreeting }
+                    ];
+                    
+                    flagsHTML = '<div style="grid-column: 1 / -1; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);"><strong>' + t.advancedFlags + '</strong></div>';
+                    flagsToShow.forEach(flag => {
+                        const value = data.flags[flag.key];
+                        const valueText = value ? t.yes : t.no;
+                        const valueColor = value ? '#e94560' : '#14dd7a';
+                        flagsHTML += '<div class="detail-row"><span class="detail-label">' + flag.label + ':</span><span class="detail-value" style="color: ' + valueColor + ';">' + valueText + '</span></div>';
+                    });
+                }
 
                 resultArea.innerHTML = `
                     <div class="result ${resultClass}">
@@ -477,6 +628,11 @@
                             <div class="confidence-bar">
                                 <div class="confidence-fill" style="width: ${confidence}%; background-color: ${confidenceColor};"></div>
                             </div>
+                            ${threatsHTML}
+                            <div class="detail-row">
+                                <span class="detail-label">${t.riskScore}:</span>
+                                <span class="detail-value">${data.analysis.risk_score}</span>
+                            </div>
                             <div class="detail-row">
                                 <span class="detail-label">${t.textLength}:</span>
                                 <span class="detail-value">${data.analysis.text_length}</span>
@@ -487,16 +643,25 @@
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">${t.urls}:</span>
-                                <span class="detail-value">${data.analysis.suspicious_patterns.urls}</span>
+                                <span class="detail-value">${data.analysis.url_count}</span>
                             </div>
                             <div class="detail-row">
-                                <span class="detail-label">${t.excessiveCaps}:</span>
-                                <span class="detail-value">${data.analysis.suspicious_patterns.excessive_caps ? t.yes : t.no}</span>
+                                <span class="detail-label">${t.keywordMatches}:</span>
+                                <span class="detail-value">${data.analysis.phishing_keywords}</span>
                             </div>
                             <div class="detail-row">
-                                <span class="detail-label">${t.urgentLanguage}:</span>
-                                <span class="detail-value">${data.analysis.suspicious_patterns.urgent_language ? t.yes : t.no}</span>
+                                <span class="detail-label">${t.uppercaseRatio}:</span>
+                                <span class="detail-value">${(data.analysis.uppercase_ratio * 100).toFixed(1)}%</span>
                             </div>
+                            <div class="detail-row">
+                                <span class="detail-label">${t.exclamationMarks}:</span>
+                                <span class="detail-value">${data.analysis.exclamation_marks}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">${t.emojiCount}:</span>
+                                <span class="detail-value">${data.analysis.emoji_count}</span>
+                            </div>
+                            ${flagsHTML}
                         </div>
                     </div>
                 `;
