@@ -452,8 +452,8 @@
             });
 
             // --- Initial Language Load ---
-            // Get language from storage or default to English
-            const initialLang = localStorage.getItem('preferredLang') || 'en';
+            // Get language from storage or default to Spanish (for .lat domain)
+            const initialLang = localStorage.getItem('preferredLang') || 'es';
             setLanguage(initialLang);
 
             // --- Form Submission with AJAX ---
@@ -464,9 +464,13 @@
                 e.preventDefault(); // Prevent default form submission
 
                 const emailText = document.getElementById('email_text').value.trim();
+                const currentLang = localStorage.getItem('preferredLang') || 'es';
                 
                 if (!emailText) {
-                    showError('Please enter some email text to analyze');
+                    const emptyMessage = currentLang === 'es' 
+                        ? 'Por favor ingrese un texto de correo para analizar'
+                        : 'Please enter some email text to analyze';
+                    showError(emptyMessage);
                     return;
                 }
 
@@ -487,7 +491,10 @@
                     if (response.ok) {
                         showResult(data);
                     } else {
-                        showError(data.error || 'An error occurred during analysis');
+                        const errorMessage = currentLang === 'es'
+                            ? data.error || 'Ocurrió un error durante el análisis'
+                            : data.error || 'An error occurred during analysis';
+                        showError(errorMessage);
                     }
                 } catch (error) {
                     console.error('Error:', error);
@@ -532,7 +539,9 @@
                         exclamationMarks: 'Exclamation Marks',
                         uppercaseRatio: 'Uppercase Ratio',
                         advancedFlags: 'Advanced Analysis',
+                        advancedAnalysis: 'Advanced Analysis',
                         suspiciousTLD: 'Suspicious Domain',
+                        suspiciousDomain: 'Suspicious Domain',
                         urlShortener: 'URL Shortener',
                         ipInUrl: 'IP in URL',
                         urgencyTactics: 'Urgency Tactics',
@@ -542,7 +551,9 @@
                         genericGreeting: 'Generic Greeting',
                         yes: 'Yes',
                         no: 'No',
-                        none: 'None'
+                        none: 'None',
+                        characters: 'characters',
+                        words: 'words'
                     },
                     es: {
                         phishing: 'Phishing Detectado',
@@ -555,12 +566,14 @@
                         urgentLanguage: 'Lenguaje Urgente',
                         threatsDetected: 'Amenazas Detectadas',
                         riskScore: 'Puntuación de Riesgo',
-                        keywordMatches: 'Palabras Clave de Phishing',
+                        keywordMatches: 'Palabras Clave',
                         emojiCount: 'Emojis',
                         exclamationMarks: 'Signos de Exclamación',
                         uppercaseRatio: 'Ratio de Mayúsculas',
                         advancedFlags: 'Análisis Avanzado',
+                        advancedAnalysis: 'Análisis Avanzado',
                         suspiciousTLD: 'Dominio Sospechoso',
+                        suspiciousDomain: 'Dominio Sospechoso',
                         urlShortener: 'Acortador de URL',
                         ipInUrl: 'IP en URL',
                         urgencyTactics: 'Tácticas de Urgencia',
@@ -570,7 +583,9 @@
                         genericGreeting: 'Saludo Genérico',
                         yes: 'Sí',
                         no: 'No',
-                        none: 'Ninguna'
+                        none: 'Ninguna',
+                        characters: 'caracteres',
+                        words: 'palabras'
                     }
                 };
 
@@ -579,12 +594,56 @@
                 const confidence = (data.confidence * 100).toFixed(1);
                 const confidenceColor = isPhishing ? '#e94560' : '#14dd7a';
                 
+                // Threat translations
+                const threatTranslations = {
+                    en: {
+                        'Suspicious domain extension': 'Suspicious domain extension',
+                        'URL shortener detected': 'URL shortener detected',
+                        'IP address in URL': 'IP address in URL',
+                        'Urgent language tactics': 'Urgent language tactics',
+                        'Requests credentials': 'Requests credentials',
+                        'Too-good-to-be-true offer': 'Too-good-to-be-true offer',
+                        'Brand name misspelling': 'Brand name misspelling',
+                        'Generic greeting': 'Generic greeting',
+                        'Excessive capitalization': 'Excessive capitalization',
+                        'phishing keywords': 'phishing keywords'
+                    },
+                    es: {
+                        'Suspicious domain extension': 'Extensión de dominio sospechosa',
+                        'URL shortener detected': 'Acortador de URL detectado',
+                        'IP address in URL': 'Dirección IP en la URL',
+                        'Urgent language tactics': 'Tácticas de lenguaje urgente',
+                        'Requests credentials': 'Solicita credenciales',
+                        'Too-good-to-be-true offer': 'Oferta demasiado buena para ser verdad',
+                        'Brand name misspelling': 'Nombre de marca mal escrito',
+                        'Generic greeting': 'Saludo genérico',
+                        'Excessive capitalization': 'Uso excesivo de mayúsculas',
+                        'phishing keywords': 'palabras clave de phishing'
+                    }
+                };
+                
+                // Function to translate threat messages
+                function translateThreat(threat, lang) {
+                    // Handle dynamic messages like "7 phishing keywords"
+                    const keywordMatch = threat.match(/^(\d+)\s+phishing keywords$/);
+                    if (keywordMatch) {
+                        const count = keywordMatch[1];
+                        return lang === 'es' 
+                            ? `${count} palabras clave de phishing`
+                            : `${count} phishing keywords`;
+                    }
+                    
+                    // Use translation table or return original if not found
+                    return threatTranslations[lang][threat] || threat;
+                }
+                
                 // Build threats list HTML
                 let threatsHTML = '';
                 if (data.threats_detected && data.threats_detected.length > 0) {
                     threatsHTML = '<div class="detail-row" style="grid-column: 1 / -1;"><span class="detail-label">' + t.threatsDetected + ':</span><ul style="margin: 5px 0 0 20px; color: #e94560;">';
                     data.threats_detected.forEach(threat => {
-                        threatsHTML += '<li>' + threat + '</li>';
+                        const translatedThreat = translateThreat(threat, currentLang);
+                        threatsHTML += '<li>' + translatedThreat + '</li>';
                     });
                     threatsHTML += '</ul></div>';
                 } else {
@@ -669,11 +728,14 @@
 
             // --- Show Error ---
             function showError(message) {
+                const currentLang = localStorage.getItem('preferredLang') || 'es';
+                const errorTitle = currentLang === 'es' ? 'Error' : 'Error';
+                
                 resultArea.innerHTML = `
                     <div class="result error">
                         <div class="result-header">
                             <span class="result-icon">❌</span>
-                            <span>Error</span>
+                            <span>${errorTitle}</span>
                         </div>
                         <div class="result-details">
                             ${message}
