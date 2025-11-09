@@ -1,0 +1,1016 @@
+{
+  "report_metadata": {
+    "project_name": "Sistema de detección de phishing con XAI",
+    "original_version_date": "12 de mayo de 2025",
+    "new_version_date": "8 de noviembre de 2025",
+    "comparison_objective": "Documentar y cuantificar las mejoras implementadas en la aplicación desde su versión inicial, enfocándose en rendimiento, funcionalidad y la experiencia del usuario.",
+    "analysis_date": "2025-11-08",
+    "repository": "Charly-bite/Phishing-tool-XAI",
+    "branch": "main"
+  },
+  "key_comparison_points": [
+    {
+      "area": "Arquitectura y Despliegue",
+      "original_state": "Fase 1 (Offline) para entrenamiento. Fase 2 (Online) con Flask, Gunicorn, Nginx y Proxy Inverso en OCI (según diagrama Fig. 4).",
+      "changes_implemented": {
+        "two_phase_architecture_maintained": true,
+        "technology_stack_changes": {
+          "flask": "Mantenido - Sin cambios",
+          "fastapi": "No implementado",
+          "gunicorn": "No configurado en el código actual",
+          "nginx": "No configurado en el código actual",
+          "production_deployment": "No configurado - Sigue usando Flask development server (app.run(debug=True))"
+        },
+        "scalability_improvements": {
+          "load_balancer": false,
+          "caching": false,
+          "production_config": false
+        },
+        "cicd_automation": {
+          "implemented": false,
+          "github_actions": false,
+          "jenkins": false,
+          "deployment_automation": false
+        },
+        "new_features": {
+          "portable_usb_package": true,
+          "monitoring_scripts": true,
+          "scripts_added": [
+            "monitor_training.sh",
+            "track_progress.sh",
+            "check_training.sh",
+            "status.sh"
+          ]
+        }
+      },
+      "new_version_description": "La arquitectura de dos fases (Offline/Online) se mantiene intacta. Flask sigue siendo el framework web utilizado. NO se implementaron mejoras de producción como Gunicorn, Nginx o proxy inverso - el código aún usa el servidor de desarrollo de Flask. NO hay automatización CI/CD. Se agregó funcionalidad de empaquetado portable (USB/) y scripts de monitoreo del entrenamiento. La aplicación NO está lista para despliegue en producción a gran escala.",
+      "status": "PARCIALMENTE_MEJORADO",
+      "pending_improvements": [
+        "Configurar Gunicorn como servidor WSGI",
+        "Implementar Nginx como reverse proxy",
+        "Configurar CI/CD pipeline",
+        "Agregar load balancing",
+        "Implementar caching (Redis/Memcached)",
+        "Configuración para producción con variables de entorno"
+      ]
+    },
+    {
+      "area": "Dataset y Preprocesamiento de Datos",
+      "original_state": "Dataset de Kaggle con 82,500 emails (42,891 phishing, 39,595 legítimos). Preprocesamiento incluía limpieza, extracción de features (URLs, urgencia, legibilidad) y TF-IDF.",
+      "changes_implemented": {
+        "dataset": {
+          "same_base_dataset": true,
+          "source": "Kaggle - Phish No More (Enron, CEAS, Ling, Nazario, Nigerian Fraud, SpamAssassin)",
+          "total_emails": 82500,
+          "phishing": 42891,
+          "legitimate": 39595,
+          "phishtank_integrated": false
+        },
+        "preprocessing_improvements": {
+          "multilingual_support": {
+            "implemented": true,
+            "languages": ["English", "Spanish"],
+            "details": "Keywords de urgencia y URLs sospechosas expandidos para ambos idiomas"
+          },
+          "text_cleaning": {
+            "html_removal": "Mantenido con BeautifulSoup",
+            "encoding_handling": "Mejorado - UTF-8 con fallback a latin-1",
+            "csv_parsing": "Mejorado - Manejo robusto de errores con on_bad_lines='warn'"
+          },
+          "feature_engineering": {
+            "numeric_features_maintained": true,
+            "features_list": [
+              "num_links",
+              "has_suspicious_url",
+              "urgency_count",
+              "readability_score"
+            ],
+            "improvements": {
+              "urgency_keywords_english": [
+                "urgent",
+                "immediately",
+                "action required",
+                "verify",
+                "password",
+                "alert",
+                "warning",
+                "limited time",
+                "expire",
+                "suspended",
+                "locked",
+                "important",
+                "final notice",
+                "response required",
+                "security update",
+                "confirm account",
+                "validate",
+                "due date",
+                "restricted",
+                "compromised",
+                "unauthorized"
+              ],
+              "urgency_keywords_spanish": [
+                "urgente",
+                "inmediatamente",
+                "acción requerida",
+                "verifique",
+                "contraseña",
+                "alerta",
+                "advertencia",
+                "tiempo limitado",
+                "expira",
+                "suspendida",
+                "bloqueada",
+                "importante",
+                "último aviso",
+                "requiere respuesta",
+                "actualización de seguridad",
+                "confirmar cuenta",
+                "validar",
+                "fecha límite",
+                "restringido",
+                "comprometida",
+                "no autorizado"
+              ],
+              "suspicious_url_keywords": "Expandidos para español e inglés",
+              "readability": "Se mantiene Flesch Reading Ease (limitación: optimizado para inglés)"
+            }
+          }
+        },
+        "vectorization_method": {
+          "original": "TF-IDF (sparse vectorization)",
+          "new": "Sentence Transformers - Dense Embeddings",
+          "model_name": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+          "embedding_dimension": 768,
+          "this_is_major_change": true,
+          "impact": "Cambio arquitectónico CRÍTICO - De representación dispersa a densa, permite capturar semántica profunda y contexto multilingüe"
+        },
+        "total_features": {
+          "numeric": 4,
+          "embeddings": 768,
+          "total": 772,
+          "comparison": "Original ~10,000-50,000 (TF-IDF sparse) vs Nuevo 772 (dense embeddings)"
+        },
+        "data_persistence": {
+          "implemented": true,
+          "format": "Parquet",
+          "path": "phishing_results_embeddings/processed_data.parquet",
+          "benefit": "Evita reprocesar datos en ejecuciones posteriores"
+        }
+      },
+      "new_version_description": "Se mantiene el mismo dataset base de Kaggle (82,500 emails). NO se integró PhishTank. MEJORA CRÍTICA: Cambio de TF-IDF a Sentence Transformers con embeddings multilingües de 768 dimensiones - esto es un cambio arquitectónico MAYOR que permite mejor comprensión semántica. Soporte multilingüe agregado (español/inglés) en keywords de urgencia y URLs. Feature engineering mejorado con más keywords. Se implementó persistencia de datos procesados en formato Parquet para optimización.",
+      "status": "SIGNIFICATIVAMENTE_MEJORADO",
+      "pending_improvements": [
+        "Integrar PhishTank para datos actualizados",
+        "Agregar más idiomas",
+        "Implementar análisis de headers de email",
+        "Extraer metadata temporal (hora de envío, etc.)"
+      ]
+    },
+    {
+      "area": "Modelo de Machine Learning",
+      "original_state": "Tres modelos comparados: Regresión Logística, Árbol de Decisión y un Híbrido NN. El Híbrido NN mostró el mejor rendimiento general (según Fig. 6).",
+      "changes_implemented": {
+        "models_compared": {
+          "logistic_regression": {
+            "maintained": true,
+            "changes": "Ahora entrena con embeddings + features numéricas (772 dims total)",
+            "hyperparameters": {
+              "max_iter": 2000,
+              "class_weight": "balanced",
+              "solver": "liblinear",
+              "random_state": 42,
+              "C": 1.0
+            }
+          },
+          "decision_tree": {
+            "maintained": true,
+            "changes": "Ahora entrena con embeddings + features numéricas (772 dims total)",
+            "hyperparameters": {
+              "max_depth": 10,
+              "class_weight": "balanced",
+              "random_state": 42,
+              "min_samples_split": 10,
+              "min_samples_leaf": 5
+            }
+          },
+          "hybrid_nn": {
+            "maintained": true,
+            "architecture_improved": true,
+            "original_architecture": "TF-IDF features + numeric features → Dense layers",
+            "new_architecture": {
+              "input_type": "Dual-input",
+              "input_1": {
+                "name": "embedding_features_input",
+                "shape": 768,
+                "processing": [
+                  "Dense(128, activation='relu')",
+                  "Dropout(0.4)",
+                  "Dense(64, activation='relu')"
+                ]
+              },
+              "input_2": {
+                "name": "structural_features_input",
+                "shape": 4,
+                "processing": [
+                  "Dense(32, activation='relu')"
+                ]
+              },
+              "concatenation": "Merge embeddings (64) + structural (32)",
+              "final_layers": [
+                "Dense(64, activation='relu')",
+                "Dropout(0.4)",
+                "Dense(1, activation='sigmoid')"
+              ],
+              "optimizer": "Adam(learning_rate=0.001)",
+              "loss": "binary_crossentropy",
+              "metrics": [
+                "accuracy",
+                "precision",
+                "recall"
+              ]
+            },
+            "training": {
+              "epochs": 15,
+              "batch_size": 64,
+              "validation_split": 0.15,
+              "early_stopping": {
+                "monitor": "val_loss",
+                "patience": 3,
+                "restore_best_weights": true
+              }
+            }
+          }
+        },
+        "new_models": {
+          "transformer": false,
+          "lstm": false,
+          "bert": false,
+          "other": false
+        },
+        "hyperparameter_tuning": {
+          "grid_search": false,
+          "optuna": false,
+          "random_search": false,
+          "manual_tuning_only": true
+        },
+        "reinforcement_learning": false,
+        "model_selection": {
+          "implemented": true,
+          "method": "Automatic selection based on F1-score",
+          "function": "select_best_model()",
+          "saves_best_only": true,
+          "benefit": "Optimiza espacio en disco guardando solo el mejor modelo"
+        }
+      },
+      "new_version_description": "Se mantienen los 3 modelos comparados (LR, DT, HybridNN). MEJORA PRINCIPAL: La arquitectura del HybridNN cambió significativamente - ahora usa una arquitectura dual-input que procesa embeddings (768 dims) y features numéricas (4 dims) por separado antes de concatenar. Esto aprovecha mejor la naturaleza diferente de los datos. Los modelos sklearn (LR, DT) ahora entrenan con 772 features en total. Se implementó selección automática del mejor modelo basada en F1-score. NO se implementaron modelos completamente nuevos (Transformers, LSTM) ni tuning exhaustivo (GridSearch, Optuna). NO se aplicó aprendizaje por refuerzo.",
+      "status": "MEJORADO",
+      "model_performance": {
+        "note": "Las métricas cuantitativas requieren ejecutar el entrenamiento completo",
+        "expected_metrics_location": "phishing_results_embeddings/results.json",
+        "baseline_to_beat": {
+          "accuracy": "> 0.95",
+          "f1_score": "> 0.95",
+          "precision": "> 0.95",
+          "recall": "> 0.95"
+        },
+        "expected_impact": "Potencialmente MEJOR debido a embeddings semánticos profundos que capturan mejor el contexto"
+      },
+      "pending_improvements": [
+        "Implementar GridSearch o Optuna para tuning automático",
+        "Evaluar modelos transformer end-to-end (BERT, RoBERTa)",
+        "Implementar LSTM para capturar secuencias",
+        "Aplicar técnicas de ensemble (voting, stacking)",
+        "Implementar aprendizaje por refuerzo",
+        "Cross-validation k-fold para robustez"
+      ]
+    },
+    {
+      "area": "Explicabilidad (XAI)",
+      "original_state": "Integración de SHAP y LIME para explicar las decisiones del modelo (Fig. 8). Se mencionó la latencia como un desafío.",
+      "changes_implemented": {
+        "shap": {
+          "maintained": true,
+          "improvements": {
+            "explainer_selection": {
+              "logistic_regression": "shap.LinearExplainer",
+              "decision_tree": "shap.TreeExplainer with tree_path_dependent",
+              "hybrid_nn": "shap.DeepExplainer"
+            },
+            "background_data": {
+              "samples": 500,
+              "selection": "Random subset from training data"
+            },
+            "imputation": "Handles NaN/Inf in background data and sample instances",
+            "visualizations": [
+              "Waterfall plot (PNG)",
+              "Force plot (HTML interactive)",
+              "Summary plot (PNG fallback)"
+            ]
+          }
+        },
+        "lime": {
+          "maintained": true,
+          "improvements": {
+            "custom_wrapper": {
+              "implemented": true,
+              "class": "PredictProbaWrapper",
+              "functionality": [
+                "Accepts raw text from LIME perturbations",
+                "Computes embeddings in real-time for perturbed texts",
+                "Combines with fixed numeric features from original instance",
+                "Supports both sklearn and Keras models",
+                "Handles edge cases (NaN, dimension mismatches)"
+              ]
+            },
+            "configuration": {
+              "num_features": 15,
+              "num_samples": 1000,
+              "class_names": [
+                "Legitimate",
+                "Phishing"
+              ]
+            },
+            "output": "HTML interactive report"
+          }
+        },
+        "optimization": {
+          "kernel_explainer": false,
+          "caching": false,
+          "batch_processing": false,
+          "latency_likely_worse": true,
+          "reason": "LIME must compute embeddings for ~1000 perturbed text samples per explanation, which is computationally expensive"
+        },
+        "explanation_scope": {
+          "all_models": false,
+          "best_model_only": true,
+          "benefit": "Reduces computation time and storage"
+        },
+        "user_interface_integration": {
+          "implemented": false,
+          "current_state": "Explanations saved as files only (HTML, PNG)",
+          "ui_shows": "Only prediction + confidence percentage",
+          "missing_features": [
+            "Key words visualization in UI",
+            "Interactive explanation widget",
+            "Feature importance display",
+            "Real-time XAI for user"
+          ]
+        }
+      },
+      "new_version_description": "SHAP y LIME se mantienen con MEJORAS SIGNIFICATIVAS en implementación. Se creó PredictProbaWrapper customizado para LIME que maneja embeddings correctamente - computa embeddings para textos perturbados en tiempo real. SHAP ahora usa explainers específicos por tipo de modelo (Linear/Tree/Deep). Background data de 500 muestras. Visualizaciones mejoradas (waterfall, force, summary plots). PROBLEMA CRÍTICO: La latencia probablemente EMPEORÓ - LIME debe computar embeddings para ~1000 muestras perturbadas, sin optimizaciones como caching. Las explicaciones NO se muestran en la interfaz web - solo se guardan como archivos. Los usuarios no ven por qué se tomó una decisión.",
+      "status": "MEJORADO_CON_PENDIENTES_CRÍTICOS",
+      "latency_analysis": {
+        "components": [
+          {
+            "step": "Text preprocessing",
+            "impact": "Low"
+          },
+          {
+            "step": "Feature extraction (4 numeric)",
+            "impact": "Low"
+          },
+          {
+            "step": "Embedding computation (1 instance)",
+            "impact": "Medium (~100-500ms)"
+          },
+          {
+            "step": "Model prediction",
+            "impact": "Low"
+          },
+          {
+            "step": "LIME explanation (if requested)",
+            "impact": "VERY HIGH (~1000 embedding computations = 100-500 seconds)",
+            "note": "This would block the user interface if done synchronously"
+          },
+          {
+            "step": "SHAP explanation (if requested)",
+            "impact": "HIGH (depends on explainer type)"
+          }
+        ],
+        "production_latency_estimate": {
+          "prediction_only": "500ms - 2s",
+          "with_lime": "100s - 500s (impractical for real-time)",
+          "with_shap": "10s - 60s (varies by model)"
+        }
+      },
+      "pending_improvements": [
+        "Implementar XAI en la interfaz web",
+        "Optimizar LIME con caching de embeddings",
+        "Usar KernelExplainer como alternativa",
+        "Explicaciones asíncronas con workers",
+        "Mostrar top-K palabras clave en UI",
+        "Precomputar explicaciones para casos comunes",
+        "Implementar explicaciones rápidas (reglas simples) para UI"
+      ]
+    },
+    {
+      "area": "Métricas de Rendimiento",
+      "original_state": {
+        "metrics": "Accuracy, F1 Score, Precision, Recall (ver Fig. 6). El modelo HybridNN tenía scores > 0.95 en todas las métricas.",
+        "training_graph": "Curvas de pérdida y precisión de entrenamiento/validación (Fig. 7) mostrando convergencia en ~10 épocas."
+      },
+      "new_version_metrics": {
+        "training_configuration": {
+          "epochs_max": 15,
+          "early_stopping_patience": 3,
+          "batch_size": 64,
+          "validation_split": 0.15,
+          "expected_convergence": "3-10 épocas con early stopping"
+        },
+        "metrics_computed": [
+          "accuracy",
+          "precision",
+          "recall",
+          "f1_score"
+        ],
+        "additional_metrics_for_keras": [
+          "keras_test_loss",
+          "keras_test_accuracy",
+          "keras_test_precision",
+          "keras_test_recall"
+        ],
+        "actual_values": {
+          "status": "REQUIRES_TRAINING_EXECUTION",
+          "location": "phishing_results_embeddings/results.json",
+          "note": "Run: python main_script.py --data-dir ./data --output-dir './saved data' to generate metrics"
+        },
+        "prediction_latency_ms": {
+          "status": "NOT_BENCHMARKED",
+          "estimated_components": {
+            "text_cleaning": "10-50ms",
+            "feature_extraction": "10-30ms",
+            "embedding_computation": "100-500ms (depends on text length and model)",
+            "scaling_numeric_features": "1-5ms",
+            "model_prediction": "5-50ms",
+            "total_estimated": "126-635ms per email"
+          },
+          "note": "Latency likely HIGHER than original due to embedding computation"
+        },
+        "resource_consumption": {
+          "memory": {
+            "embedding_model": "~400-500MB",
+            "trained_model": "~50-200MB (depends on selected model)",
+            "runtime_features": "~100MB (for batch processing)",
+            "total_estimated": "~550-800MB",
+            "comparison": "HIGHER than original TF-IDF approach"
+          },
+          "cpu": {
+            "embedding_computation": "CPU-intensive or GPU if available",
+            "note": "Sentence Transformers can leverage GPU for faster inference"
+          },
+          "disk": {
+            "processed_data": "Parquet file (~100-500MB depending on dataset)",
+            "saved_model": "~50-200MB",
+            "embeddings_in_features": "Dense 768-dim per sample (more storage than sparse TF-IDF)"
+          }
+        },
+        "visualizations_generated": [
+          {
+            "file": "hybrid_nn_training_history.png",
+            "content": "Training/validation loss and accuracy curves"
+          },
+          {
+            "file": "f1_score_comparison.png",
+            "content": "Bar chart comparing F1 scores of all models"
+          },
+          {
+            "file": "explanations/[best_model]/shap_waterfall.png",
+            "content": "SHAP waterfall plot"
+          },
+          {
+            "file": "explanations/[best_model]/shap_force_plot.html",
+            "content": "Interactive SHAP force plot"
+          },
+          {
+            "file": "explanations/[best_model]/lime_explanation.html",
+            "content": "Interactive LIME explanation"
+          }
+        ]
+      },
+      "comparison_notes": "NO se pueden comparar métricas cuantitativas sin ejecutar el entrenamiento actual. El código está configurado para calcular las mismas métricas (accuracy, precision, recall, f1_score). EXPECTATIVA: Las métricas deberían ser IGUALES O MEJORES que el baseline (>0.95) debido a embeddings semánticos más ricos. TRADE-OFF: Mayor precisión esperada a costa de mayor latencia y consumo de memoria. La convergencia puede ser más rápida (3-10 épocas) o similar con early stopping. Se generan más visualizaciones que antes.",
+      "status": "PENDING_QUANTITATIVE_EVALUATION",
+      "action_required": "Ejecutar entrenamiento completo y documentar métricas reales"
+    },
+    {
+      "area": "Funcionalidad y Experiencia de Usuario (UI/UX)",
+      "original_state": "Aplicación web simple (www.dory.lat) con un área de texto para pegar el email y un botón para analizar (Fig. 5). No mostraba la explicabilidad.",
+      "changes_implemented": {
+        "interface_improvements": {
+          "new_clear_button": {
+            "implemented": true,
+            "functionality": "Clears textarea and results with JavaScript",
+            "styling": "Orange button with hover effect"
+          },
+          "visual_design": {
+            "responsive": true,
+            "color_coding": {
+              "phishing": "Red background (#f2dede)",
+              "legitimate": "Green background (#dff0d8)",
+              "error": "Red alert (#f8d7da)",
+              "model_error": "Yellow warning (#fff3cd)"
+            },
+            "button_layout": "Flexbox with gap, side-by-side buttons"
+          },
+          "error_handling": {
+            "model_loading_errors": "Displayed to user with warning message",
+            "empty_input": "Validation message",
+            "prediction_errors": "Error display in result area"
+          }
+        },
+        "current_features": {
+          "paste_text": true,
+          "analyze_button": true,
+          "clear_button": true,
+          "result_display": "Phishing/Legitimate + Confidence %",
+          "error_messages": true
+        },
+        "missing_proposed_features": {
+          "browser_extension": false,
+          "image_logo_analysis": false,
+          "file_upload": false,
+          "url_scanning": false,
+          "email_headers_analysis": false,
+          "batch_processing": false
+        },
+        "xai_in_ui": {
+          "implemented": false,
+          "current_display": "Only: '⚠️ This email appears to be {Phishing|Legitimate} (Confidence: XX.XX%)'",
+          "missing_elements": [
+            "Key words that influenced decision",
+            "SHAP visualization embedded",
+            "LIME explanation summary",
+            "Feature importance display",
+            "Why this was flagged explanation",
+            "Similar email examples"
+          ]
+        },
+        "user_workflow": {
+          "steps": [
+            "1. User pastes email content",
+            "2. Click 'Analyze Email'",
+            "3. View result (Phishing/Legitimate) + confidence",
+            "4. Optionally click 'Clear Text' to analyze another email"
+          ],
+          "simplicity": "High - very straightforward",
+          "educational_value": "Low - no explanation of why decision was made"
+        }
+      },
+      "new_version_description": "La interfaz web mantiene el mismo nivel de funcionalidad básica. MEJORAS MENORES: Se agregó botón 'Clear Text' con JavaScript, mejor manejo de errores visuales, diseño responsive mejorado. FUNCIONALIDADES FUTURAS NO IMPLEMENTADAS: NO hay extensión de navegador, NO hay análisis de imágenes/logos, NO hay opción de subir archivo, NO hay escaneo de URLs. CRÍTICO: Las explicaciones XAI NO se muestran en la interfaz - los usuarios solo ven predicción y confianza, sin entender POR QUÉ el modelo tomó esa decisión. Esto limita severamente la utilidad educativa y la confianza del usuario.",
+      "status": "MEJORAS_COSMÉTICAS_SIN_AVANCES_FUNCIONALES",
+      "pending_improvements": [
+        {
+          "priority": "CRITICAL",
+          "feature": "XAI Integration in UI",
+          "description": "Show top influential words/phrases with color coding"
+        },
+        {
+          "priority": "HIGH",
+          "feature": "Browser Extension",
+          "description": "Chrome/Firefox extension for real-time email scanning"
+        },
+        {
+          "priority": "HIGH",
+          "feature": "File Upload",
+          "description": "Allow users to upload .eml or .msg files"
+        },
+        {
+          "priority": "MEDIUM",
+          "feature": "URL Scanner",
+          "description": "Extract and analyze URLs separately with threat intel"
+        },
+        {
+          "priority": "MEDIUM",
+          "feature": "Batch Processing",
+          "description": "Upload multiple emails and get CSV report"
+        },
+        {
+          "priority": "LOW",
+          "feature": "Image Analysis",
+          "description": "OCR and logo detection for phishing indicators"
+        },
+        {
+          "priority": "LOW",
+          "feature": "Email Headers",
+          "description": "Analyze SPF, DKIM, DMARC headers"
+        }
+      ]
+    },
+    {
+      "area": "Nuevos Desafíos y Futuro Trabajo",
+      "original_state": "Integrar PhishTank, crear extensión de navegador, análisis de imágenes y entrenamiento por refuerzo.",
+      "original_future_work_status": {
+        "phishtank_integration": {
+          "completed": false,
+          "status": "NOT_STARTED",
+          "description": "Dataset no integrado"
+        },
+        "browser_extension": {
+          "completed": false,
+          "status": "NOT_STARTED",
+          "description": "No hay extensión desarrollada"
+        },
+        "image_logo_analysis": {
+          "completed": false,
+          "status": "NOT_STARTED",
+          "description": "No implementado"
+        },
+        "reinforcement_learning": {
+          "completed": false,
+          "status": "NOT_STARTED",
+          "description": "No aplicado"
+        }
+      },
+      "new_functionality_implemented": [
+        {
+          "feature": "Multilingual Support",
+          "status": "COMPLETED",
+          "languages": [
+            "English",
+            "Spanish"
+          ],
+          "impact": "Allows detection of phishing in Spanish-speaking markets"
+        },
+        {
+          "feature": "Semantic Embeddings",
+          "status": "COMPLETED",
+          "model": "paraphrase-multilingual-mpnet-base-v2",
+          "impact": "Deep semantic understanding vs surface-level TF-IDF"
+        },
+        {
+          "feature": "Improved Model Architecture",
+          "status": "COMPLETED",
+          "model": "Dual-input HybridNN",
+          "impact": "Better separation of semantic and structural features"
+        },
+        {
+          "feature": "Automatic Best Model Selection",
+          "status": "COMPLETED",
+          "benefit": "Saves only best model, optimizes disk space"
+        },
+        {
+          "feature": "Portable USB Package",
+          "status": "COMPLETED",
+          "directory": "USB/",
+          "benefit": "Easy deployment on systems without internet"
+        },
+        {
+          "feature": "Training Monitoring Scripts",
+          "status": "COMPLETED",
+          "scripts": [
+            "monitor_training.sh",
+            "track_progress.sh",
+            "check_training.sh",
+            "status.sh"
+          ],
+          "benefit": "Better visibility into long-running training processes"
+        },
+        {
+          "feature": "Data Persistence",
+          "status": "COMPLETED",
+          "format": "Parquet",
+          "benefit": "Avoid reprocessing on subsequent runs"
+        },
+        {
+          "feature": "Enhanced XAI Implementation",
+          "status": "COMPLETED",
+          "improvements": "Custom wrappers for embeddings, better explainers"
+        }
+      ],
+      "new_technical_challenges": [
+        {
+          "challenge": "Embedding Computation Latency",
+          "severity": "HIGH",
+          "description": "Sentence Transformers add 100-500ms per prediction, making real-time UX challenging",
+          "mitigation_strategies": [
+            "Implement model quantization",
+            "Use ONNX runtime for faster inference",
+            "Cache embeddings for common phrases",
+            "Batch predictions",
+            "Use GPU acceleration"
+          ]
+        },
+        {
+          "challenge": "Memory Footprint",
+          "severity": "MEDIUM",
+          "description": "Embedding model (~400MB) + dense features increase RAM usage",
+          "mitigation_strategies": [
+            "Model quantization to int8",
+            "Use smaller embedding models (e.g., MiniLM-L6)",
+            "Lazy loading of embedding model",
+            "Consider serverless deployment with cold start optimization"
+          ]
+        },
+        {
+          "challenge": "Production Deployment",
+          "severity": "HIGH",
+          "description": "Application not configured for production (still uses Flask dev server)",
+          "mitigation_strategies": [
+            "Configure Gunicorn/uWSGI",
+            "Set up Nginx reverse proxy",
+            "Implement health checks",
+            "Add monitoring (Prometheus, Grafana)",
+            "Containerize with Docker",
+            "Deploy to Kubernetes or cloud services"
+          ]
+        },
+        {
+          "challenge": "XAI User Experience",
+          "severity": "HIGH",
+          "description": "Explanations not visible to end users, limiting trust and educational value",
+          "mitigation_strategies": [
+            "Integrate SHAP/LIME visualizations in web UI",
+            "Implement async explanation generation",
+            "Show top-K influential words",
+            "Create simplified explanations for non-technical users",
+            "Add 'Explain' button with progressive disclosure"
+          ]
+        },
+        {
+          "challenge": "Scalability",
+          "severity": "MEDIUM",
+          "description": "No load balancing, caching, or horizontal scaling configured",
+          "mitigation_strategies": [
+            "Implement Redis for caching predictions",
+            "Add load balancer (Nginx, HAProxy)",
+            "Horizontal pod autoscaling in Kubernetes",
+            "Use CDN for static assets",
+            "Implement rate limiting"
+          ]
+        }
+      ],
+      "new_roadmap": {
+        "short_term": [
+          {
+            "priority": 1,
+            "task": "Integrate XAI in Web UI",
+            "estimated_effort": "2-3 weeks",
+            "impact": "HIGH"
+          },
+          {
+            "priority": 2,
+            "task": "Production Deployment Setup (Gunicorn + Nginx)",
+            "estimated_effort": "1 week",
+            "impact": "HIGH"
+          },
+          {
+            "priority": 3,
+            "task": "Optimize Embedding Latency",
+            "estimated_effort": "2 weeks",
+            "impact": "HIGH"
+          },
+          {
+            "priority": 4,
+            "task": "Add File Upload Feature",
+            "estimated_effort": "1 week",
+            "impact": "MEDIUM"
+          }
+        ],
+        "medium_term": [
+          {
+            "priority": 5,
+            "task": "Develop Browser Extension (Chrome/Firefox)",
+            "estimated_effort": "4-6 weeks",
+            "impact": "HIGH"
+          },
+          {
+            "priority": 6,
+            "task": "Integrate PhishTank Real-time Feed",
+            "estimated_effort": "2-3 weeks",
+            "impact": "MEDIUM"
+          },
+          {
+            "priority": 7,
+            "task": "Implement REST API (FastAPI)",
+            "estimated_effort": "2 weeks",
+            "impact": "MEDIUM"
+          },
+          {
+            "priority": 8,
+            "task": "Add URL Real-time Analysis with Threat Intel",
+            "estimated_effort": "3 weeks",
+            "impact": "MEDIUM"
+          },
+          {
+            "priority": 9,
+            "task": "Containerization and CI/CD Pipeline",
+            "estimated_effort": "2 weeks",
+            "impact": "MEDIUM"
+          }
+        ],
+        "long_term": [
+          {
+            "priority": 10,
+            "task": "Image and Logo Analysis (OCR + Vision Models)",
+            "estimated_effort": "6-8 weeks",
+            "impact": "HIGH"
+          },
+          {
+            "priority": 11,
+            "task": "Reinforcement Learning for Adaptive Detection",
+            "estimated_effort": "8-12 weeks",
+            "impact": "HIGH"
+          },
+          {
+            "priority": 12,
+            "task": "Email Header Analysis (SPF, DKIM, DMARC)",
+            "estimated_effort": "3-4 weeks",
+            "impact": "MEDIUM"
+          },
+          {
+            "priority": 13,
+            "task": "Multi-language Expansion (French, German, Chinese)",
+            "estimated_effort": "4 weeks",
+            "impact": "MEDIUM"
+          },
+          {
+            "priority": 14,
+            "task": "Mobile Application (iOS/Android)",
+            "estimated_effort": "12-16 weeks",
+            "impact": "MEDIUM"
+          }
+        ]
+      },
+      "new_version_description": "De los trabajos futuros originales, NINGUNO se completó (PhishTank, extensión, imágenes, RL). Sin embargo, se implementaron MEJORAS SIGNIFICATIVAS no planificadas: soporte multilingüe, embeddings semánticos, arquitectura dual-input, selección automática de modelos, empaquetado portable, y scripts de monitoreo. NUEVOS DESAFÍOS: latencia de embeddings, huella de memoria, deployment de producción, XAI no visible para usuarios, y escalabilidad. NUEVO ROADMAP define 14 tareas priorizadas en corto (XAI en UI, producción, optimización), mediano (extensión, PhishTank, API) y largo plazo (imágenes, RL, headers, multi-idioma).",
+      "status": "EVOLUCIÓN_DIFERENTE_A_LA_PLANEADA"
+    }
+  ],
+  "executive_summary": {
+    "overall_assessment": "MEJORAS_ARQUITECTÓNICAS_SIGNIFICATIVAS_CON_FUNCIONALIDADES_PENDIENTES",
+    "major_improvements": [
+      {
+        "improvement": "Sentence Transformers (TF-IDF → Embeddings)",
+        "impact": "CRITICAL",
+        "description": "Cambio arquitectónico fundamental que permite comprensión semántica profunda y soporte multilingüe"
+      },
+      {
+        "improvement": "Dual-Input HybridNN Architecture",
+        "impact": "HIGH",
+        "description": "Mejor separación y procesamiento de features semánticas vs estructurales"
+      },
+      {
+        "improvement": "Multilingual Support (EN/ES)",
+        "impact": "HIGH",
+        "description": "Expande el mercado objetivo a usuarios hispanohablantes"
+      },
+      {
+        "improvement": "Enhanced XAI Implementation",
+        "impact": "MEDIUM",
+        "description": "Mejores explainers y custom wrappers para embeddings, aunque no visible en UI"
+      },
+      {
+        "improvement": "Automatic Model Selection",
+        "impact": "MEDIUM",
+        "description": "Automatiza y optimiza el proceso de deployment"
+      }
+    ],
+    "critical_gaps": [
+      {
+        "gap": "XAI Not Visible in User Interface",
+        "severity": "CRITICAL",
+        "impact": "Users don't understand why decisions are made, limiting trust and educational value"
+      },
+      {
+        "gap": "No Production Deployment Configuration",
+        "severity": "CRITICAL",
+        "impact": "Application cannot be deployed at scale (still uses Flask dev server)"
+      },
+      {
+        "gap": "High Prediction Latency",
+        "severity": "HIGH",
+        "impact": "Embeddings add 100-500ms per prediction, impacting real-time UX"
+      },
+      {
+        "gap": "Original Future Work Not Completed",
+        "severity": "MEDIUM",
+        "impact": "PhishTank, browser extension, image analysis, and RL not implemented"
+      },
+      {
+        "gap": "No Advanced Features in UI",
+        "severity": "MEDIUM",
+        "impact": "Missing file upload, URL scanning, batch processing"
+      }
+    ],
+    "performance_expectations": {
+      "model_accuracy": "Expected EQUAL or BETTER than baseline (>0.95) due to richer semantic features",
+      "prediction_latency": "Expected WORSE (~500ms vs ~50ms original) due to embedding computation",
+      "memory_usage": "Expected HIGHER (~600MB vs ~200MB) due to embedding model",
+      "training_time": "Similar or faster with early stopping",
+      "note": "Quantitative metrics require full training execution"
+    },
+    "recommended_next_steps": [
+      {
+        "step": 1,
+        "action": "Execute full training to obtain quantitative metrics",
+        "command": "python main_script.py --data-dir ./data --output-dir './saved data'",
+        "purpose": "Establish performance baseline for new architecture"
+      },
+      {
+        "step": 2,
+        "action": "Integrate XAI visualizations in web UI",
+        "priority": "CRITICAL",
+        "estimated_effort": "2-3 weeks"
+      },
+      {
+        "step": 3,
+        "action": "Configure production deployment (Gunicorn + Nginx)",
+        "priority": "CRITICAL",
+        "estimated_effort": "1 week"
+      },
+      {
+        "step": 4,
+        "action": "Optimize embedding computation latency",
+        "priority": "HIGH",
+        "techniques": [
+          "Model quantization",
+          "ONNX runtime",
+          "GPU acceleration",
+          "Caching"
+        ]
+      },
+      {
+        "step": 5,
+        "action": "Develop browser extension",
+        "priority": "HIGH",
+        "estimated_effort": "4-6 weeks"
+      }
+    ],
+    "architectural_evolution": {
+      "from": "TF-IDF + Simple NN + Basic XAI",
+      "to": "Semantic Embeddings + Dual-Input NN + Enhanced XAI",
+      "philosophy": "Shifted from surface-level features to deep semantic understanding",
+      "trade_offs": {
+        "gains": [
+          "Better semantic understanding",
+          "Multilingual capability",
+          "More robust to paraphrasing",
+          "Better feature representation"
+        ],
+        "costs": [
+          "Higher latency",
+          "Higher memory footprint",
+          "More complex deployment",
+          "Longer inference time"
+        ]
+      }
+    },
+    "comparison_with_original_goals": {
+      "maintained": [
+        "Two-phase architecture (Offline/Online)",
+        "Flask web framework",
+        "SHAP + LIME explanations",
+        "Three model comparison (LR, DT, HybridNN)"
+      ],
+      "improved": [
+        "Text representation (TF-IDF → Embeddings)",
+        "Model architecture (Single → Dual-input)",
+        "Multilingual support",
+        "XAI implementation quality",
+        "Data persistence",
+        "Error handling"
+      ],
+      "not_completed": [
+        "PhishTank integration",
+        "Browser extension",
+        "Image/logo analysis",
+        "Reinforcement learning",
+        "Production deployment (Gunicorn, Nginx, OCI)",
+        "XAI in user interface"
+      ],
+      "unexpected_additions": [
+        "Portable USB package",
+        "Training monitoring scripts",
+        "Automatic model selection",
+        "Parquet data persistence",
+        "Spanish language support"
+      ]
+    },
+    "final_verdict": "La versión actual representa una EVOLUCIÓN ARQUITECTÓNICA SIGNIFICATIVA en el core del modelo (embeddings semánticos, arquitectura dual-input, multilingüe) que promete mejor rendimiento predictivo. Sin embargo, FALTAN COMPONENTES CRÍTICOS para producción (deployment, XAI en UI, optimización de latencia) y las funcionalidades futuras originales no se completaron. El proyecto evolucionó en una dirección diferente pero técnicamente sólida, priorizando mejoras internas del modelo sobre features de usuario."
+  },
+  "appendix": {
+    "files_analyzed": [
+      "/home/byte/Phishing-tool-XAI/app.py",
+      "/home/byte/Phishing-tool-XAI/main_script.py",
+      "/home/byte/Phishing-tool-XAI/templates/index.html",
+      "/home/byte/Phishing-tool-XAI/requirements.txt",
+      "/home/byte/Phishing-tool-XAI/README.md",
+      "/home/byte/Phishing-tool-XAI/instructions.txt"
+    ],
+    "key_code_changes": {
+      "embedding_model": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+      "embedding_dimension": 768,
+      "total_features": 772,
+      "hybrid_nn_inputs": 2,
+      "training_epochs": 15,
+      "early_stopping_patience": 3,
+      "shap_background_samples": 500,
+      "lime_num_samples": 1000
+    },
+    "repository_info": {
+      "name": "Phishing-tool-XAI",
+      "owner": "Charly-bite",
+      "branch": "main",
+      "analysis_date": "2025-11-08"
+    }
+  }
+}

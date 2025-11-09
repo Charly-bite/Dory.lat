@@ -62,16 +62,29 @@
             --gray-text: #888;
             --feedback-text: #ccc;
             
+            /* Result backgrounds */
+            --result-phishing-bg: var(--accent-danger-bg);
+            --result-phishing-text: var(--accent-danger-light);
+            --result-legitimate-bg: var(--accent-success-bg);
+            --result-legitimate-text: var(--accent-success-light);
+            --result-warning-bg: var(--accent-warning-bg);
+            --result-warning-text: var(--accent-warning-light);
+            
+            /* Additional UI elements */
+            --confidence-bg: rgba(255, 255, 255, 0.1);
+            --spinner-bg: rgba(255, 255, 255, 0.2);
+            --accent-success-hover: #0fa368;
+            
             /* Theme transition */
             --transition-speed: 0.3s;
         }
         
         /* Light Theme */
         [data-theme="light"] {
-            --bg-primary: #f5f7fa;
-            --bg-secondary: rgba(255, 255, 255, 0.9);
-            --bg-gradient-start: #e8eaf6;
-            --bg-gradient-end: #c5cae9;
+            --bg-primary: #e3f2fd; /* Lighter blue background like in the image */
+            --bg-secondary: rgba(255, 255, 255, 0.95);
+            --bg-gradient-start: #e3f2fd;
+            --bg-gradient-end: #bbdefb;
             --bg-input: #ffffff;
             --bg-select: #ffffff;
             
@@ -110,6 +123,19 @@
             --overlay-bg: rgba(0, 0, 0, 0.05);
             --gray-text: #666;
             --feedback-text: #555;
+            
+            /* Result backgrounds for light theme */
+            --result-phishing-bg: #ffebee;
+            --result-phishing-text: #c62828;
+            --result-legitimate-bg: #e8f5e9;
+            --result-legitimate-text: #2e7d32;
+            --result-warning-bg: #fff3e0;
+            --result-warning-text: #e65100;
+            
+            /* Additional UI elements for light theme */
+            --confidence-bg: rgba(0, 0, 0, 0.05);
+            --spinner-bg: rgba(0, 0, 0, 0.1);
+            --accent-success-hover: #2e7d32;
         }
         
         /* Smooth transitions for theme changes */
@@ -160,6 +186,27 @@
             font-weight: 400;
             text-align: left; /* Align label text left */
         }
+        select {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            background-color: var(--bg-select);
+            color: var(--text-select);
+            border: 1px solid var(--border-primary);
+            font-size: 1rem;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+        select:hover {
+            border-color: var(--accent-success);
+        }
+        select:focus {
+            outline: none;
+            border-color: var(--accent-success);
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+        }
         textarea {
             width: 100%;
             min-height: 180px; /* Increased height */
@@ -172,6 +219,12 @@
             background-color: var(--bg-input);
             color: var(--text-primary);
             font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-success);
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
         }
         textarea::placeholder { /* Style the placeholder text */
             color: var(--text-placeholder);
@@ -194,32 +247,37 @@
             flex-grow: 1; /* Make buttons share space */
         }
         .analyze-button {
-            background-color: var(--accent-danger);
+            background-color: #4caf50; /* Green color like in the image */
             color: white;
         }
         .analyze-button:hover {
-            background-color: var(--accent-danger-hover);
+            background-color: #45a049;
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px var(--shadow-hover);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
         }
         .clear-button {
-            background-color: var(--btn-clear);
+            background-color: #2196f3; /* Blue color like in the image */
             color: white;
         }
         .clear-button:hover {
-            background-color: var(--btn-clear-hover);
+            background-color: #1976d2;
             transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
         }
         .lang-button { /* Style for language button */
             background-color: transparent;
-            color: var(--btn-outline);
-            border: 1px solid var(--btn-outline);
+            color: var(--text-primary);
+            border: 2px solid var(--border-primary);
             max-width: 150px; /* Adjust width if needed */
             flex-grow: 0; /* Don't let it grow like others */
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
         }
         .lang-button:hover {
-            background-color: var(--btn-outline);
-            color: var(--bg-primary);
+            background-color: var(--bg-input);
+            border-color: var(--accent-success);
+            transform: translateY(-2px);
         }
         .result {
             margin-top: 25px;
@@ -386,9 +444,9 @@
             position: fixed;
             top: 20px;
             right: 80px;
-            background-color: var(--bg-input);
-            border: 1px solid var(--border-primary);
-            color: var(--text-primary);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
             border-radius: 50%;
             width: 50px;
             height: 50px;
@@ -398,14 +456,42 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 12px var(--shadow-primary);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
             z-index: 1000;
+            /* Make it relative for badge positioning */
+            position: fixed;
         }
         .history-button:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px var(--shadow-hover);
-            background-color: var(--accent-danger);
+            transform: scale(1.1) translateY(-2px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.6);
+        }
+        .history-button:active {
+            transform: scale(0.95);
+        }
+        .history-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #ff4757;
             color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(255, 71, 87, 0.5);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
         }
         
         /* Modal overlay */
@@ -483,10 +569,22 @@
             padding: 15px;
             margin-bottom: 15px;
             transition: all 0.3s ease;
+            animation: slideIn 0.3s ease-out;
         }
         .history-item:hover {
             border-color: var(--accent-danger);
-            box-shadow: 0 2px 8px var(--shadow-hover);
+            box-shadow: 0 4px 12px var(--shadow-hover);
+            transform: translateY(-2px);
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
         .history-item-header {
             display: flex;
@@ -604,6 +702,414 @@
             font-size: 0.9rem;
             opacity: 0.8;
         }
+        
+        /* File Upload Styles */
+        .file-upload-section {
+            margin-bottom: 20px;
+        }
+        .file-upload-wrapper {
+            width: 100%;
+        }
+        .file-upload-area {
+            border: 2px dashed var(--border-primary);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: var(--bg-input);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .file-upload-area:hover {
+            border-color: var(--accent-success);
+            background-color: var(--accent-success-bg);
+        }
+        .file-upload-area.dragover {
+            border-color: var(--accent-success);
+            background-color: var(--accent-success-bg);
+            transform: scale(1.02);
+        }
+        .file-upload-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.7;
+        }
+        .file-upload-text {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .file-upload-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .file-upload-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .file-preview {
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 15px;
+            background-color: var(--bg-input);
+            margin-top: 10px;
+        }
+        .file-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .file-preview-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .file-preview-name::before {
+            content: "📄";
+        }
+        .file-preview-remove {
+            background-color: var(--accent-danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .file-preview-remove:hover {
+            background-color: var(--accent-danger-hover);
+            transform: scale(1.1);
+        }
+        .file-preview-info {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        
+        /* Examples Section Styles */
+        .examples-section {
+            margin-bottom: 20px;
+            background-color: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-primary);
+            overflow: hidden;
+        }
+        
+        .examples-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+            cursor: pointer;
+        }
+        
+        .examples-header h3 {
+            margin: 0;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .examples-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .examples-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .examples-content {
+            padding: 20px;
+        }
+        
+        .examples-description {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+        
+        .examples-categories {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .example-category {
+            background-color: var(--bg-primary);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid var(--border-primary);
+        }
+        
+        .category-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-primary);
+        }
+        
+        .category-icon {
+            font-size: 1.3rem;
+        }
+        
+        .phishing-category {
+            color: #f44336;
+        }
+        
+        .legitimate-category {
+            color: #4caf50;
+        }
+        
+        .example-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        
+        .example-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background-color: var(--bg-secondary);
+            border: 2px solid var(--border-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            font-family: inherit;
+        }
+        
+        .example-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .phishing-btn {
+            border-color: #f44336;
+        }
+        
+        .phishing-btn:hover {
+            background: linear-gradient(135deg, rgba(244, 67, 54, 0.1), rgba(244, 67, 54, 0.05));
+            border-color: #f44336;
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.2);
+        }
+        
+        .legitimate-btn {
+            border-color: #4caf50;
+        }
+        
+        .legitimate-btn:hover {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(76, 175, 80, 0.05));
+            border-color: #4caf50;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+        }
+        
+        .example-emoji {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+        
+        .example-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .example-name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+        
+        .example-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        /* URL Analysis Styles */
+        .url-analysis-container {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 25px;
+            animation: slideIn 0.3s ease-out;
+        }
+        .url-analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-primary);
+        }
+        .url-analysis-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+        }
+        .url-count-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        .url-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .url-item {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .url-item:hover {
+            border-color: var(--accent-danger);
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px var(--shadow-hover);
+        }
+        .url-risk-indicator {
+            width: 8px;
+            height: 100%;
+            min-height: 40px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .url-risk-indicator.high {
+            background-color: #ff4757;
+        }
+        .url-risk-indicator.medium {
+            background-color: #ffa502;
+        }
+        .url-risk-indicator.low {
+            background-color: #26de81;
+        }
+        .url-content {
+            flex-grow: 1;
+            min-width: 0;
+        }
+        .url-text {
+            color: var(--text-primary);
+            word-break: break-all;
+            font-size: 0.95rem;
+            margin-bottom: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        .url-flags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .url-flag {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .url-flag.suspicious-domain {
+            background-color: rgba(255, 71, 87, 0.15);
+            color: #ff4757;
+        }
+        .url-flag.shortened {
+            background-color: rgba(255, 165, 2, 0.15);
+            color: #ffa502;
+        }
+        .url-flag.ip-address {
+            background-color: rgba(255, 71, 87, 0.15);
+            color: #ff4757;
+        }
+        .url-flag.suspicious-tld {
+            background-color: rgba(255, 165, 2, 0.15);
+            color: #ffa502;
+        }
+        .url-flag.phishing-keywords {
+            background-color: rgba(255, 71, 87, 0.15);
+            color: #ff4757;
+        }
+        .url-flag.long-subdomain {
+            background-color: rgba(255, 165, 2, 0.15);
+            color: #ffa502;
+        }
+        .url-flag.http-not-secure {
+            background-color: rgba(255, 165, 2, 0.15);
+            color: #ffa502;
+        }
+        .url-flag.safe {
+            background-color: rgba(38, 222, 129, 0.15);
+            color: #26de81;
+        }
+        .url-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .url-action-btn {
+            background-color: transparent;
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        .url-action-btn:hover {
+            background-color: var(--accent-danger);
+            color: white;
+            border-color: var(--accent-danger);
+        }
+        .url-empty {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
     </style>
 </head>
 <body class="no-transition">
@@ -638,17 +1144,133 @@
              <!-- Added ID for translation -->
             <label for="email_text" id="textarea-label">Enter the email text below:</label>
             
-            <!-- Example Selector -->
-            <div style="margin-bottom: 15px;">
-                <select id="example-selector" style="width: 100%; padding: 12px; border-radius: 8px; background-color: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-primary); font-size: 1rem; cursor: pointer;">
-                    <option value="" id="example-option-default">-- Select an example to test --</option>
-                    <option value="phishing_bank" id="example-option-bank">🏦 Phishing: Fake Bank Alert</option>
-                    <option value="phishing_prize" id="example-option-prize">🎁 Phishing: Fake Prize/Lottery</option>
-                    <option value="phishing_social" id="example-option-social">📱 Phishing: Social Media Alert</option>
-                    <option value="phishing_urgency" id="example-option-urgency">⚠️ Phishing: Urgent Action Required</option>
-                    <option value="legitimate_work" id="example-option-work">✅ Legitimate: Work Meeting</option>
-                    <option value="legitimate_service" id="example-option-service">📦 Legitimate: Order Confirmation</option>
-                </select>
+            <!-- File Upload Section -->
+            <div class="file-upload-section" id="file-upload-section">
+                <div class="file-upload-wrapper">
+                    <input type="file" id="file-input" accept=".eml,.msg,.txt,.html" style="display: none;">
+                    <div class="file-upload-area" id="file-upload-area">
+                        <div class="file-upload-icon">📎</div>
+                        <div class="file-upload-text">
+                            <span class="file-upload-title" id="file-upload-title">Click or drag to upload email file</span>
+                            <span class="file-upload-subtitle" id="file-upload-subtitle">Supported: .eml, .msg, .txt, .html</span>
+                        </div>
+                    </div>
+                    <div class="file-preview" id="file-preview" style="display: none;">
+                        <div class="file-preview-header">
+                            <span class="file-preview-name" id="file-preview-name"></span>
+                            <button type="button" class="file-preview-remove" id="file-preview-remove">✕</button>
+                        </div>
+                        <div class="file-preview-info" id="file-preview-info"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Example Selector Section -->
+            <div class="examples-section">
+                <div class="examples-header">
+                    <h3 id="examples-header-title">📚 Try Example Emails</h3>
+                    <button type="button" class="examples-toggle" id="examples-toggle" onclick="toggleExamples()">
+                        <span id="examples-toggle-text">Show Examples</span> <span id="examples-toggle-icon">▼</span>
+                    </button>
+                </div>
+                
+                <div class="examples-content" id="examples-content" style="display: none;">
+                    <p class="examples-description" id="examples-description">
+                        Learn to identify phishing by testing real examples. Click any category below:
+                    </p>
+                    
+                    <div class="examples-categories">
+                        <!-- Phishing Examples -->
+                        <div class="example-category">
+                            <div class="category-title phishing-category">
+                                <span class="category-icon">🚨</span>
+                                <span id="category-phishing-title">Phishing Examples</span>
+                            </div>
+                            <div class="example-buttons">
+                                <button type="button" class="example-btn phishing-btn" onclick="loadExample('phishing_bank')">
+                                    <span class="example-emoji">🏦</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-bank-name">Fake Bank</span>
+                                        <span class="example-desc" id="example-bank-desc">Urgent account verification</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="example-btn phishing-btn" onclick="loadExample('phishing_prize')">
+                                    <span class="example-emoji">🎁</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-prize-name">Fake Prize</span>
+                                        <span class="example-desc" id="example-prize-desc">You won a lottery</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="example-btn phishing-btn" onclick="loadExample('phishing_social')">
+                                    <span class="example-emoji">📱</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-social-name">Social Media</span>
+                                        <span class="example-desc" id="example-social-desc">Account security alert</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="example-btn phishing-btn" onclick="loadExample('phishing_urgency')">
+                                    <span class="example-emoji">⚠️</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-urgency-name">Urgent Action</span>
+                                        <span class="example-desc" id="example-urgency-desc">Immediate response needed</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="example-btn phishing-btn" onclick="loadExample('phishing_shipping')">
+                                    <span class="example-emoji">📦</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-shipping-name">Fake Delivery</span>
+                                        <span class="example-desc" id="example-shipping-desc">Package delivery issue</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="example-btn phishing-btn" onclick="loadExample('phishing_tax')">
+                                    <span class="example-emoji">💰</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-tax-name">Tax Refund</span>
+                                        <span class="example-desc" id="example-tax-desc">Government refund scam</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Legitimate Examples -->
+                        <div class="example-category">
+                            <div class="category-title legitimate-category">
+                                <span class="category-icon">✅</span>
+                                <span id="category-legitimate-title">Legitimate Examples</span>
+                            </div>
+                            <div class="example-buttons">
+                                <button type="button" class="example-btn legitimate-btn" onclick="loadExample('legitimate_work')">
+                                    <span class="example-emoji">💼</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-work-name">Work Meeting</span>
+                                        <span class="example-desc" id="example-work-desc">Team meeting reminder</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="example-btn legitimate-btn" onclick="loadExample('legitimate_service')">
+                                    <span class="example-emoji">🛒</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-service-name">Order Confirmed</span>
+                                        <span class="example-desc" id="example-service-desc">Purchase confirmation</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="example-btn legitimate-btn" onclick="loadExample('legitimate_newsletter')">
+                                    <span class="example-emoji">📰</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-newsletter-name">Newsletter</span>
+                                        <span class="example-desc" id="example-newsletter-desc">Company updates</span>
+                                    </span>
+                                </button>
+                                <button type="button" class="example-btn legitimate-btn" onclick="loadExample('legitimate_receipt')">
+                                    <span class="example-emoji">🧾</span>
+                                    <span class="example-text">
+                                        <span class="example-name" id="example-receipt-name">Receipt</span>
+                                        <span class="example-desc" id="example-receipt-desc">Payment receipt</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Added placeholder attribute -->
@@ -676,12 +1298,108 @@
             {% endif %}
         </div>
 
+        <!-- URL Analysis Section -->
+        <div id="url-analysis-section" style="display: none;">
+            <div class="url-analysis-container">
+                <div class="url-analysis-header">
+                    <h3 id="url-analysis-title">🔗 URLs Detected</h3>
+                    <span id="url-count-badge" class="url-count-badge">0</span>
+                </div>
+                <div id="url-list" class="url-list">
+                    <!-- URLs will be inserted here -->
+                </div>
+            </div>
+        </div>
+
         <div class="footer">
             Contact: <a href="mailto:carlos.aceves6195@alumnos.udg.mx">carlos.aceves6195@alumnos.udg.mx</a>
         </div>
     </div>
 
     <script>
+        // --- Security: HTML Sanitization Functions ---
+        /**
+         * Sanitizes HTML to prevent XSS attacks
+         * @param {string} str - The string to sanitize
+         * @returns {string} - Sanitized string safe for innerHTML
+         */
+        function sanitizeHTML(str) {
+            if (!str) return '';
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+        
+        /**
+         * Creates safe HTML elements with text content
+         * @param {string} tag - HTML tag name
+         * @param {string} text - Text content
+         * @param {string} className - Optional CSS class
+         * @returns {HTMLElement} - Safe DOM element
+         */
+        function createSafeElement(tag, text, className = '') {
+            const element = document.createElement(tag);
+            element.textContent = text;
+            if (className) element.className = className;
+            return element;
+        }
+        
+        /**
+         * Truncates text to maximum length
+         * @param {string} text - Text to truncate
+         * @param {number} maxLength - Maximum length
+         * @returns {string} - Truncated text
+         */
+        function truncateText(text, maxLength) {
+            if (!text || text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '... [truncated]';
+        }
+        
+        // --- Conditional Logging (Production-Safe) ---
+        // Set to false for production deployment
+        const DEBUG_MODE = true; // Change to false in production
+        
+        const logger = {
+            info: DEBUG_MODE ? console.log.bind(console) : function() {},
+            warn: DEBUG_MODE ? console.warn.bind(console) : function() {},
+            error: DEBUG_MODE ? console.error.bind(console) : function() {},
+            debug: DEBUG_MODE ? console.debug.bind(console) : function() {}
+        };
+        
+        // --- localStorage Encryption Functions ---
+        /**
+         * Obfuscates data before storing (basic protection)
+         * For production, consider using Web Crypto API for real encryption
+         * @param {object} data - Data to obfuscate
+         * @returns {string} - Obfuscated string
+         */
+        function obfuscateData(data) {
+            try {
+                const jsonStr = JSON.stringify(data);
+                // Simple base64 encoding (not true encryption, but better than plain text)
+                return btoa(encodeURIComponent(jsonStr));
+            } catch (error) {
+                logger.error('Error obfuscating data:', error);
+                return null;
+            }
+        }
+        
+        /**
+         * Deobfuscates data from storage
+         * @param {string} obfuscatedStr - Obfuscated string
+         * @returns {object} - Original data
+         */
+        function deobfuscateData(obfuscatedStr) {
+            try {
+                if (!obfuscatedStr) return null;
+                const jsonStr = decodeURIComponent(atob(obfuscatedStr));
+                return JSON.parse(jsonStr);
+            } catch (error) {
+                logger.error('Error deobfuscating data:', error);
+                return null;
+            }
+        }
+        
         // Wait for the HTML to be fully loaded
         document.addEventListener('DOMContentLoaded', function() {
             
@@ -723,26 +1441,66 @@
             // --- History Management Functions ---
             const HISTORY_KEY = 'dory_analysis_history';
             const MAX_HISTORY_ITEMS = 10;
+            const MAX_EMAIL_LENGTH = 5000; // 5KB per email
+            const MAX_STORAGE_SIZE = 1000000; // ~1MB total storage
             
-            // Get history from localStorage
+            // ENCRYPTION: Get history from localStorage with decryption
             function getHistory() {
                 try {
-                    const history = localStorage.getItem(HISTORY_KEY);
-                    return history ? JSON.parse(history) : [];
+                    const obfuscatedData = localStorage.getItem(HISTORY_KEY);
+                    if (!obfuscatedData) return [];
+                    
+                    // Try to deobfuscate (encrypted format)
+                    let parsed = deobfuscateData(obfuscatedData);
+                    
+                    // Fallback: try plain JSON (for backward compatibility)
+                    if (!parsed) {
+                        try {
+                            parsed = JSON.parse(obfuscatedData);
+                            // If successful, re-save in encrypted format
+                            if (Array.isArray(parsed)) {
+                                const encrypted = obfuscateData(parsed);
+                                if (encrypted) {
+                                    localStorage.setItem(HISTORY_KEY, encrypted);
+                                }
+                            }
+                        } catch (e) {
+                            logger.warn('Could not parse as plain JSON either');
+                            parsed = null;
+                        }
+                    }
+                    
+                    // Validate that it's an array
+                    if (!Array.isArray(parsed)) {
+                        logger.warn('Invalid history format, resetting...');
+                        localStorage.removeItem(HISTORY_KEY);
+                        return [];
+                    }
+                    
+                    return parsed;
                 } catch (error) {
-                    console.error('Error reading history:', error);
+                    logger.error('Error reading history:', error);
+                    // Clear corrupted data
+                    try {
+                        localStorage.removeItem(HISTORY_KEY);
+                    } catch (e) {
+                        logger.error('Cannot clear storage:', e);
+                    }
                     return [];
                 }
             }
             
-            // Save analysis to history
+            // Save analysis to history with size limits and sanitization
             function saveToHistory(emailText, prediction, confidence, data) {
                 try {
+                    // Sanitize and truncate email text for storage
+                    const truncatedEmail = truncateText(emailText, MAX_EMAIL_LENGTH);
+                    
                     const history = getHistory();
                     const newEntry = {
                         id: Date.now(),
                         timestamp: new Date().toISOString(),
-                        email_text: emailText,
+                        email_text: truncatedEmail, // Use truncated version
                         prediction: prediction,
                         confidence: confidence,
                         is_phishing: data.is_phishing,
@@ -759,10 +1517,52 @@
                         history.splice(MAX_HISTORY_ITEMS);
                     }
                     
-                    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-                    console.log('Analysis saved to history');
+                    // ENCRYPTION: Obfuscate before saving
+                    const obfuscatedHistory = obfuscateData(history);
+                    
+                    if (!obfuscatedHistory) {
+                        logger.error('Failed to obfuscate history data');
+                        return;
+                    }
+                    
+                    // Check storage size before saving
+                    if (obfuscatedHistory.length > MAX_STORAGE_SIZE) {
+                        logger.warn('History too large, reducing to 5 items...');
+                        history.splice(5); // Keep only 5 most recent
+                        const reducedObfuscated = obfuscateData(history);
+                        if (reducedObfuscated) {
+                            localStorage.setItem(HISTORY_KEY, reducedObfuscated);
+                        }
+                    } else {
+                        localStorage.setItem(HISTORY_KEY, obfuscatedHistory);
+                    }
+                    
+                    updateHistoryBadge();
+                    
                 } catch (error) {
-                    console.error('Error saving to history:', error);
+                    // Handle QuotaExceededError
+                    if (error.name === 'QuotaExceededError') {
+                        logger.error('Storage quota exceeded, clearing old history...');
+                        const currentLang = localStorage.getItem('preferredLang') || 'es';
+                        const message = currentLang === 'es' 
+                            ? 'Almacenamiento lleno. Limpiando historial antiguo...'
+                            : 'Storage full. Clearing old history...';
+                        alert(message);
+                        
+                        // Try to save with reduced history
+                        try {
+                            const reducedHistory = [newEntry]; // Keep only current item
+                            const obfuscated = obfuscateData(reducedHistory);
+                            if (obfuscated) {
+                                localStorage.setItem(HISTORY_KEY, obfuscated);
+                            }
+                            updateHistoryBadge();
+                        } catch (e) {
+                            logger.error('Cannot save even reduced history:', e);
+                        }
+                    } else {
+                        logger.error('Error saving to history:', error);
+                    }
                 }
             }
             
@@ -772,9 +1572,10 @@
                     let history = getHistory();
                     history = history.filter(item => item.id !== id);
                     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+                    updateHistoryBadge();
                     renderHistory();
                 } catch (error) {
-                    console.error('Error deleting history item:', error);
+                    logger.error('Error deleting history item:', error);
                 }
             }
             
@@ -787,6 +1588,7 @@
                 
                 if (confirm(confirmMsg)) {
                     localStorage.removeItem(HISTORY_KEY);
+                    updateHistoryBadge();
                     renderHistory();
                 }
             }
@@ -812,7 +1614,7 @@
                     document.body.removeChild(link);
                     URL.revokeObjectURL(url);
                 } catch (error) {
-                    console.error('Error exporting history:', error);
+                    logger.error('Error exporting history:', error);
                 }
             }
             
@@ -833,7 +1635,7 @@
                         // document.getElementById('email-form').dispatchEvent(new Event('submit'));
                     }
                 } catch (error) {
-                    console.error('Error loading history item:', error);
+                    logger.error('Error loading history item:', error);
                 }
             }
             
@@ -844,10 +1646,14 @@
                 const historyCount = document.getElementById('history-count');
                 const currentLang = localStorage.getItem('preferredLang') || 'es';
                 
-                // Update count
+                // Calculate statistics
+                const phishingCount = history.filter(item => item.is_phishing).length;
+                const legitimateCount = history.length - phishingCount;
+                
+                // Update count with statistics
                 const countText = currentLang === 'es' 
-                    ? `${history.length} análisis` 
-                    : `${history.length} analyses`;
+                    ? `${history.length} análisis total | 🔴 ${phishingCount} phishing | 🟢 ${legitimateCount} legítimos` 
+                    : `${history.length} analyses | 🔴 ${phishingCount} phishing | 🟢 ${legitimateCount} legitimate`;
                 historyCount.textContent = countText;
                 
                 // Render items or empty state
@@ -860,7 +1666,9 @@
                         </div>
                     `;
                 } else {
-                    let html = '';
+                    // Clear existing content
+                    historyList.innerHTML = '';
+                    
                     history.forEach(item => {
                         const date = new Date(item.timestamp);
                         const dateStr = date.toLocaleString(currentLang === 'es' ? 'es-ES' : 'en-US', {
@@ -876,54 +1684,472 @@
                             ? (currentLang === 'es' ? '⚠️ Phishing' : '⚠️ Phishing')
                             : (currentLang === 'es' ? '✓ Legítimo' : '✓ Legitimate');
                         
-                        const preview = item.email_text.substring(0, 150) + (item.email_text.length > 150 ? '...' : '');
+                        // SECURITY: Sanitize email preview
+                        const sanitizedPreview = sanitizeHTML(item.email_text);
+                        const preview = sanitizedPreview.substring(0, 150) + (sanitizedPreview.length > 150 ? '...' : '');
                         
                         const loadBtnText = currentLang === 'es' ? '📝 Cargar' : '📝 Load';
                         const deleteBtnText = currentLang === 'es' ? '🗑️ Borrar' : '🗑️ Delete';
                         
-                        html += `
-                            <div class="history-item">
-                                <div class="history-item-header">
-                                    <span class="history-item-date">${dateStr}</span>
-                                    <span class="history-item-result ${resultClass}">${resultText}</span>
-                                </div>
-                                <div class="history-item-preview">${preview}</div>
-                                <div class="history-item-actions">
-                                    <button class="history-item-btn load" onclick="loadHistoryItem(${item.id})">
-                                        ${loadBtnText}
-                                    </button>
-                                    <button class="history-item-btn delete" onclick="deleteHistoryItem(${item.id})">
-                                        ${deleteBtnText}
-                                    </button>
-                                </div>
-                            </div>
-                        `;
+                        // Create history item using DOM methods (safer than innerHTML)
+                        const historyItemDiv = document.createElement('div');
+                        historyItemDiv.className = 'history-item';
+                        
+                        // Create header
+                        const headerDiv = document.createElement('div');
+                        headerDiv.className = 'history-item-header';
+                        
+                        const dateSpan = document.createElement('span');
+                        dateSpan.className = 'history-item-date';
+                        dateSpan.textContent = dateStr;
+                        
+                        const resultSpan = document.createElement('span');
+                        resultSpan.className = `history-item-result ${resultClass}`;
+                        resultSpan.textContent = resultText;
+                        
+                        headerDiv.appendChild(dateSpan);
+                        headerDiv.appendChild(resultSpan);
+                        
+                        // Create preview
+                        const previewDiv = document.createElement('div');
+                        previewDiv.className = 'history-item-preview';
+                        previewDiv.textContent = preview;
+                        
+                        // Create actions
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.className = 'history-item-actions';
+                        
+                        const loadBtn = document.createElement('button');
+                        loadBtn.className = 'history-item-btn load';
+                        loadBtn.textContent = loadBtnText;
+                        loadBtn.onclick = () => loadHistoryItem(item.id);
+                        
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'history-item-btn delete';
+                        deleteBtn.textContent = deleteBtnText;
+                        deleteBtn.onclick = () => deleteHistoryItem(item.id);
+                        
+                        actionsDiv.appendChild(loadBtn);
+                        actionsDiv.appendChild(deleteBtn);
+                        
+                        // Assemble the item
+                        historyItemDiv.appendChild(headerDiv);
+                        historyItemDiv.appendChild(previewDiv);
+                        historyItemDiv.appendChild(actionsDiv);
+                        
+                        // Add to history list
+                        historyList.appendChild(historyItemDiv);
                     });
-                    historyList.innerHTML = html;
+                }
+            }
+            
+            // Update history badge count
+            function updateHistoryBadge() {
+                const history = getHistory();
+                const historyButton = document.getElementById('history-button');
+                
+                // Remove old badge if exists
+                const oldBadge = historyButton.querySelector('.history-badge');
+                if (oldBadge) {
+                    oldBadge.remove();
+                }
+                
+                // Add new badge if there's history
+                if (history.length > 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'history-badge';
+                    badge.textContent = history.length;
+                    historyButton.appendChild(badge);
+                }
+            }
+            
+            // MEMORY LEAK FIX: Named function for modal click handler
+            function handleModalOutsideClick(e) {
+                if (e.target === this) {
+                    closeHistoryModal();
                 }
             }
             
             // Open history modal
             function openHistoryModal() {
                 renderHistory();
-                document.getElementById('history-modal').classList.add('active');
+                const modal = document.getElementById('history-modal');
+                modal.classList.add('active');
+                
+                // Add listener only when modal opens
+                modal.addEventListener('click', handleModalOutsideClick);
             }
             
             // Close history modal
             function closeHistoryModal() {
-                document.getElementById('history-modal').classList.remove('active');
+                const modal = document.getElementById('history-modal');
+                modal.classList.remove('active');
+                
+                // Remove listener when modal closes (prevent memory leak)
+                modal.removeEventListener('click', handleModalOutsideClick);
             }
             
             // History button click handler
             const historyButton = document.getElementById('history-button');
-            historyButton.addEventListener('click', openHistoryModal);
+            if (historyButton) {
+                historyButton.addEventListener('click', openHistoryModal);
+            }
             
-            // Close modal when clicking outside
-            document.getElementById('history-modal').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    closeHistoryModal();
-                }
+            // Initialize badge on load
+            updateHistoryBadge();
+
+            // --- File Upload Functionality ---
+            const fileInput = document.getElementById('file-input');
+            const fileUploadArea = document.getElementById('file-upload-area');
+            const filePreview = document.getElementById('file-preview');
+            const filePreviewName = document.getElementById('file-preview-name');
+            const filePreviewInfo = document.getElementById('file-preview-info');
+            const filePreviewRemove = document.getElementById('file-preview-remove');
+            const emailTextarea = document.getElementById('email_text');
+
+            // Click to upload
+            fileUploadArea.addEventListener('click', () => {
+                fileInput.click();
             });
+
+            // MEMORY LEAK FIX: Named handlers for drag and drop
+            function handleDragOver(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                fileUploadArea.classList.add('dragover');
+            }
+            
+            function handleDragLeave(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                fileUploadArea.classList.remove('dragover');
+            }
+            
+            function handleDrop(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                fileUploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            }
+            
+            function handleRemoveFile(e) {
+                e.stopPropagation();
+                removeFile();
+            }
+            
+            // Attach event listeners (only once)
+            if (fileInput) {
+                fileInput.addEventListener('change', handleFileSelect);
+            }
+            
+            if (fileUploadArea) {
+                fileUploadArea.addEventListener('dragover', handleDragOver);
+                fileUploadArea.addEventListener('dragleave', handleDragLeave);
+                fileUploadArea.addEventListener('drop', handleDrop);
+            }
+            
+            if (filePreviewRemove) {
+                filePreviewRemove.addEventListener('click', handleRemoveFile);
+            }
+
+            // Handle file selection
+            function handleFileSelect(e) {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            }
+
+            // Process the file
+            function handleFile(file) {
+                // Validate file type
+                const validExtensions = ['.eml', '.msg', '.txt', '.html', '.htm'];
+                const fileName = file.name.toLowerCase();
+                const isValid = validExtensions.some(ext => fileName.endsWith(ext));
+
+                if (!isValid) {
+                    const currentLang = localStorage.getItem('preferredLang') || 'es';
+                    const errorMsg = currentLang === 'es' 
+                        ? 'Tipo de archivo no válido. Por favor sube archivos .eml, .msg, .txt o .html'
+                        : 'Invalid file type. Please upload .eml, .msg, .txt or .html files';
+                    alert(errorMsg);
+                    return;
+                }
+
+                // Check file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    const currentLang = localStorage.getItem('preferredLang') || 'es';
+                    const errorMsg = currentLang === 'es'
+                        ? 'El archivo es demasiado grande. Máximo 5MB'
+                        : 'File is too large. Maximum 5MB';
+                    alert(errorMsg);
+                    return;
+                }
+
+                // Read file content
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    
+                    // Set textarea content
+                    emailTextarea.value = content;
+                    
+                    // Show preview
+                    showFilePreview(file, content);
+                };
+                reader.onerror = function() {
+                    const currentLang = localStorage.getItem('preferredLang') || 'es';
+                    const errorMsg = currentLang === 'es'
+                        ? 'Error al leer el archivo'
+                        : 'Error reading file';
+                    alert(errorMsg);
+                };
+                reader.readAsText(file);
+            }
+
+            // Show file preview
+            function showFilePreview(file, content) {
+                const currentLang = localStorage.getItem('preferredLang') || 'es';
+                
+                // Hide upload area, show preview
+                fileUploadArea.style.display = 'none';
+                filePreview.style.display = 'block';
+                
+                // Set file name
+                filePreviewName.textContent = file.name;
+                
+                // Set file info
+                const fileSize = (file.size / 1024).toFixed(2);
+                const lines = content.split('\n').length;
+                const chars = content.length;
+                
+                const infoText = currentLang === 'es'
+                    ? `Tamaño: ${fileSize} KB | Líneas: ${lines} | Caracteres: ${chars}`
+                    : `Size: ${fileSize} KB | Lines: ${lines} | Characters: ${chars}`;
+                
+                filePreviewInfo.textContent = infoText;
+            }
+
+            // Remove file
+            function removeFile() {
+                // Reset file input
+                fileInput.value = '';
+                
+                // Clear textarea
+                emailTextarea.value = '';
+                
+                // Hide preview, show upload area
+                filePreview.style.display = 'none';
+                fileUploadArea.style.display = 'flex';
+            }
+
+            // --- URL Analysis Functionality ---
+            
+            // REDOS PROTECTION: Extract URLs from text with safety limits
+            function extractURLs(text) {
+                // Limit text length to prevent ReDoS
+                const MAX_TEXT_LENGTH = 50000;
+                if (text.length > MAX_TEXT_LENGTH) {
+                    logger.warn('Text too long for URL extraction, truncating...');
+                    text = text.substring(0, MAX_TEXT_LENGTH);
+                }
+                
+                // Simplified regex - less complex, safer against ReDoS
+                // Matches http(s):// URLs and www. URLs with max length limit
+                const urlRegex = /https?:\/\/[^\s<>"']{1,500}|www\.[^\s<>"']{1,500}/gi;
+                const matches = text.match(urlRegex) || [];
+                
+                // Limit number of URLs processed
+                const MAX_URLS = 50;
+                const limitedMatches = matches.slice(0, MAX_URLS);
+                
+                if (matches.length > MAX_URLS) {
+                    logger.warn(`Found ${matches.length} URLs, processing only first ${MAX_URLS}`);
+                }
+                
+                // Clean and normalize URLs
+                return limitedMatches.map(url => {
+                    url = url.trim();
+                    
+                    // Remove trailing punctuation
+                    url = url.replace(/[.,;:!?)]+$/, '');
+                    
+                    // Add http:// if missing
+                    if (!url.match(/^https?:\/\//i)) {
+                        url = 'http://' + url;
+                    }
+                    return url;
+                }).filter((url, index, self) => self.indexOf(url) === index); // Remove duplicates
+            }
+            
+            // SECURITY: Analyze URL for suspicious characteristics with validation
+            function analyzeURL(url) {
+                const analysis = {
+                    url: url,
+                    riskLevel: 'low',
+                    riskScore: 0,
+                    flags: []
+                };
+                
+                try {
+                    // Validate URL length
+                    if (url.length > 2000) {
+                        analysis.riskScore += 30;
+                        analysis.flags.push({ type: 'high', text: 'Extremely long URL' });
+                        analysis.riskLevel = 'high';
+                        return analysis;
+                    }
+                    
+                    const urlObj = new URL(url);
+                    const domain = urlObj.hostname.toLowerCase();
+                    const path = urlObj.pathname.toLowerCase();
+                    const fullURL = url.toLowerCase();
+                    
+                    // Check for IP address instead of domain
+                    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(domain)) {
+                        analysis.flags.push({ type: 'ip-address', text: '⚠️ IP Address' });
+                        analysis.riskScore += 30;
+                    }
+                    
+                    // Check for suspicious TLDs
+                    const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.club', '.work', '.date', '.racing', '.download'];
+                    if (suspiciousTLDs.some(tld => domain.endsWith(tld))) {
+                        analysis.flags.push({ type: 'suspicious-tld', text: '⚠️ Suspicious TLD' });
+                        analysis.riskScore += 20;
+                    }
+                    
+                    // Check for phishing keywords in URL
+                    const phishingKeywords = ['verify', 'account', 'update', 'secure', 'banking', 'login', 'signin', 'suspended', 'locked', 'confirm', 'password', 'credential'];
+                    if (phishingKeywords.some(keyword => fullURL.includes(keyword))) {
+                        analysis.flags.push({ type: 'phishing-keywords', text: '🚨 Phishing Keywords' });
+                        analysis.riskScore += 25;
+                    }
+                    
+                    // Check for suspicious domain keywords
+                    const suspiciousDomainKeywords = ['paypal', 'amazon', 'microsoft', 'google', 'apple', 'facebook', 'instagram', 'netflix', 'bank', 'secure', 'account', 'verify'];
+                    const hasSuspiciousDomain = suspiciousDomainKeywords.some(keyword => {
+                        return domain.includes(keyword) && !domain.includes(keyword + '.com') && !domain.endsWith(keyword + '.com');
+                    });
+                    if (hasSuspiciousDomain) {
+                        analysis.flags.push({ type: 'suspicious-domain', text: '🚨 Suspicious Domain' });
+                        analysis.riskScore += 35;
+                    }
+                    
+                    // Check for URL shorteners
+                    const shorteners = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd', 'buff.ly', 'adf.ly', 'bit.do', 'cutt.ly', 'short.io'];
+                    if (shorteners.some(shortener => domain.includes(shortener))) {
+                        analysis.flags.push({ type: 'shortened', text: '⚠️ Shortened URL' });
+                        analysis.riskScore += 15;
+                    }
+                    
+                    // Check for long subdomains (often used in phishing)
+                    const subdomains = domain.split('.');
+                    if (subdomains.length > 4) {
+                        analysis.flags.push({ type: 'long-subdomain', text: '⚠️ Long Subdomain' });
+                        analysis.riskScore += 15;
+                    }
+                    
+                    // Check for HTTP instead of HTTPS
+                    if (urlObj.protocol === 'http:') {
+                        analysis.flags.push({ type: 'http-not-secure', text: '⚠️ Not HTTPS' });
+                        analysis.riskScore += 10;
+                    }
+                    
+                    // Determine risk level
+                    if (analysis.riskScore >= 50) {
+                        analysis.riskLevel = 'high';
+                    } else if (analysis.riskScore >= 25) {
+                        analysis.riskLevel = 'medium';
+                    } else {
+                        analysis.riskLevel = 'low';
+                        if (analysis.flags.length === 0) {
+                            analysis.flags.push({ type: 'safe', text: '✅ Looks Safe' });
+                        }
+                    }
+                    
+                } catch (error) {
+                    logger.error('Error analyzing URL:', error);
+                    analysis.flags.push({ type: 'suspicious-domain', text: '⚠️ Invalid URL' });
+                    analysis.riskLevel = 'medium';
+                }
+                
+                return analysis;
+            }
+            
+            // Display URLs in the UI
+            function displayURLs(text) {
+                const urls = extractURLs(text);
+                const urlSection = document.getElementById('url-analysis-section');
+                const urlList = document.getElementById('url-list');
+                const urlCountBadge = document.getElementById('url-count-badge');
+                const currentLang = localStorage.getItem('preferredLang') || 'es';
+                
+                if (urls.length === 0) {
+                    urlSection.style.display = 'none';
+                    return;
+                }
+                
+                // Update count
+                urlCountBadge.textContent = urls.length;
+                
+                // Analyze and display each URL
+                let html = '';
+                urls.forEach((url, index) => {
+                    const analysis = analyzeURL(url);
+                    
+                    const flagsHTML = analysis.flags.map(flag => 
+                        `<span class="url-flag ${flag.type}">${flag.text}</span>`
+                    ).join('');
+                    
+                    html += `
+                        <div class="url-item">
+                            <div class="url-risk-indicator ${analysis.riskLevel}"></div>
+                            <div class="url-content">
+                                <div class="url-text">${url}</div>
+                                <div class="url-flags">${flagsHTML}</div>
+                            </div>
+                            <div class="url-actions">
+                                <button class="url-action-btn" onclick="copyURL('${url.replace(/'/g, "\\'")}')">
+                                    ${currentLang === 'es' ? '📋 Copiar' : '📋 Copy'}
+                                </button>
+                                <button class="url-action-btn" onclick="openURL('${url.replace(/'/g, "\\'")}')">
+                                    ${currentLang === 'es' ? '🔗 Abrir' : '🔗 Open'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                urlList.innerHTML = html;
+                urlSection.style.display = 'block';
+            }
+            
+            // Copy URL to clipboard
+            window.copyURL = function(url) {
+                navigator.clipboard.writeText(url).then(() => {
+                    const currentLang = localStorage.getItem('preferredLang') || 'es';
+                    const message = currentLang === 'es' ? 'URL copiada al portapapeles' : 'URL copied to clipboard';
+                    alert(message);
+                }).catch(err => {
+                    logger.error('Error copying URL:', err);
+                });
+            };
+            
+            // Open URL (with warning)
+            window.openURL = function(url) {
+                const currentLang = localStorage.getItem('preferredLang') || 'es';
+                const warningMsg = currentLang === 'es'
+                    ? '⚠️ ADVERTENCIA: Esta URL puede ser peligrosa. ¿Estás seguro de que quieres abrirla?'
+                    : '⚠️ WARNING: This URL may be dangerous. Are you sure you want to open it?';
+                    
+                if (confirm(warningMsg)) {
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                }
+            };
 
             // --- Elements to Translate ---
             const elements = {
@@ -944,6 +2170,9 @@
                 historyModalTitle: document.getElementById('history-modal-title'),
                 exportBtnText: document.getElementById('export-btn-text'),
                 clearBtnText: document.getElementById('clear-btn-text'),
+                fileUploadTitle: document.getElementById('file-upload-title'),
+                fileUploadSubtitle: document.getElementById('file-upload-subtitle'),
+                urlAnalysisTitle: document.getElementById('url-analysis-title'),
             };
 
             // --- Example Emails ---
@@ -964,6 +2193,14 @@
                     en: "⚠️⚠️⚠️ FINAL NOTICE - IMMEDIATE ACTION REQUIRED ⚠️⚠️⚠️\n\nYour Microsoft Office 365 subscription will EXPIRE TODAY at 11:59 PM!\n\nAll your files, emails, and documents will be DELETED if you don't renew NOW!\n\n❌ Time remaining: 4 hours 23 minutes\n❌ Files at risk: 15,847 documents\n❌ Emails to be deleted: 9,234 messages\n\nRENEW IMMEDIATELY to avoid data loss:\n🔗 http://microsoft-office-renewal.net/urgent/renew\n\nCredit card required for verification. Act now!\n\nMicrosoft Billing Department",
                     es: "⚠️⚠️⚠️ AVISO FINAL - ACCIÓN INMEDIATA REQUERIDA ⚠️⚠️⚠️\n\n¡Tu suscripción a Microsoft Office 365 EXPIRARÁ HOY a las 11:59 PM!\n\n¡Todos tus archivos, correos y documentos serán ELIMINADOS si no renuevas AHORA!\n\n❌ Tiempo restante: 4 horas 23 minutos\n❌ Archivos en riesgo: 15,847 documentos\n❌ Correos a eliminar: 9,234 mensajes\n\nRENUEVA INMEDIATAMENTE para evitar pérdida de datos:\n🔗 http://microsoft-office-renovacion.net/urgente/renovar\n\nTarjeta de crédito requerida para verificación. ¡Actúa ahora!\n\nDepartamento de Facturación de Microsoft"
                 },
+                phishing_shipping: {
+                    en: "📦 DHL Express - Package Delivery Failed\n\nTracking Number: DHL847291034\n\nDear Customer,\n\nWe attempted to deliver your package but FAILED due to incomplete address information.\n\nYour package contains: 1 item from Apple Store\nCurrent location: Warehouse - Will be returned in 48 hours\n\n⚠️ URGENT: Update your delivery address to avoid return:\n🔗 http://dhl-delivery-update.com/track/847291034\n\nAdditional delivery fee required: $3.99\nEnter your credit card to confirm delivery.\n\n❌ Package will be destroyed if not claimed within 2 days!\n\nDHL Customer Service\nDo not reply to this email.",
+                    es: "📦 DHL Express - Entrega de Paquete Fallida\n\nNúmero de Rastreo: DHL847291034\n\nEstimado Cliente,\n\nIntentamos entregar su paquete pero FALLÓ debido a información de dirección incompleta.\n\nSu paquete contiene: 1 artículo de Apple Store\nUbicación actual: Almacén - Será devuelto en 48 horas\n\n⚠️ URGENTE: Actualice su dirección de entrega para evitar devolución:\n🔗 http://dhl-entrega-actualizar.com/rastreo/847291034\n\nTarifa adicional de entrega requerida: $3.99\nIngrese su tarjeta de crédito para confirmar entrega.\n\n❌ ¡El paquete será destruido si no se reclama en 2 días!\n\nServicio al Cliente DHL\nNo responda a este correo."
+                },
+                phishing_tax: {
+                    en: "💰 IRS Tax Refund Notification\n\nDear Taxpayer,\n\nGood news! You are eligible for a tax refund of $1,847.00 from your 2024 tax return.\n\nRefund Amount: $1,847.00\nTax Year: 2024\nStatus: APPROVED - Pending Action\n\n✅ Claim your refund now (expires in 72 hours):\n🔗 http://irs-refund-claim.gov.us/refund?id=2024847291\n\nYou will need to provide:\n- Full Social Security Number\n- Date of Birth\n- Bank Account Details for direct deposit\n\n⏰ Hurry! Unclaimed refunds are forfeited after 3 days.\n\nThis is an official notification from the Internal Revenue Service.\nReference: IRS-2024-REF-847291\n\nDo not reply to this email.",
+                    es: "💰 Notificación de Reembolso del SAT\n\nEstimado Contribuyente,\n\n¡Buenas noticias! Es elegible para un reembolso de impuestos de $1,847.00 de su declaración de 2024.\n\nMonto del Reembolso: $1,847.00\nAño Fiscal: 2024\nEstado: APROBADO - Acción Pendiente\n\n✅ Reclame su reembolso ahora (expira en 72 horas):\n🔗 http://sat-reembolso-reclamar.gob.mx/reembolso?id=2024847291\n\nNecesitará proporcionar:\n- Número completo de RFC\n- Fecha de Nacimiento\n- Detalles de Cuenta Bancaria para depósito directo\n\n⏰ ¡Apúrese! Los reembolsos no reclamados se pierden después de 3 días.\n\nEsta es una notificación oficial del Servicio de Administración Tributaria.\nReferencia: SAT-2024-REMB-847291\n\nNo responda a este correo."
+                },
                 legitimate_work: {
                     en: "Subject: Team Meeting Tomorrow - Project Update\n\nHi everyone,\n\nJust a friendly reminder about our weekly team meeting tomorrow (Tuesday) at 10:00 AM in Conference Room 3.\n\nAgenda:\n- Q4 progress review\n- Upcoming deadlines discussion\n- Resource allocation for next sprint\n\nPlease bring your monthly reports. If you can't attend, let me know by EOD today.\n\nBest regards,\nJohn Smith\nProject Manager\nTech Solutions Inc.",
                     es: "Asunto: Reunión de Equipo Mañana - Actualización de Proyecto\n\nHola a todos,\n\nSolo un recordatorio amistoso sobre nuestra reunión semanal de equipo mañana (martes) a las 10:00 AM en la Sala de Conferencias 3.\n\nAgenda:\n- Revisión de progreso del Q4\n- Discusión de fechas límite próximas\n- Asignación de recursos para el siguiente sprint\n\nPor favor traigan sus reportes mensuales. Si no pueden asistir, avísenme antes del fin del día.\n\nSaludos,\nJuan Pérez\nGerente de Proyecto\nSoluciones Tecnológicas S.A."
@@ -971,6 +2208,14 @@
                 legitimate_service: {
                     en: "Order Confirmation - Amazon.com\n\nHello,\n\nThank you for your order! Your package has been shipped and is on its way.\n\nOrder #: 123-4567890-1234567\nShipping Address: 123 Main St, Anytown, ST 12345\nEstimated Delivery: November 5, 2025\n\nYou can track your package at: amazon.com/orders\n(Please log into your account to view tracking details)\n\nItems ordered:\n- Wireless Mouse - $25.99\n- USB-C Cable (2-pack) - $12.99\n\nThank you for shopping with Amazon!\n\nThe Amazon Team",
                     es: "Confirmación de Pedido - Amazon.com.mx\n\nHola,\n\n¡Gracias por tu pedido! Tu paquete ha sido enviado y está en camino.\n\nPedido #: 123-4567890-1234567\nDirección de Envío: Calle Principal 123, Ciudad, CP 12345\nEntrega Estimada: 5 de noviembre, 2025\n\nPuedes rastrear tu paquete en: amazon.com.mx/pedidos\n(Por favor inicia sesión en tu cuenta para ver detalles de rastreo)\n\nArtículos ordenados:\n- Mouse Inalámbrico - $25.99\n- Cable USB-C (paquete de 2) - $12.99\n\n¡Gracias por comprar en Amazon!\n\nEl Equipo de Amazon"
+                },
+                legitimate_newsletter: {
+                    en: "📰 Weekly Tech Newsletter - November 2025\n\nHello Tech Enthusiasts!\n\nWelcome to this week's edition of our technology newsletter.\n\n🔹 Top Stories This Week:\n- New AI developments in machine learning\n- Cybersecurity best practices for 2025\n- Cloud computing trends analysis\n\n📚 Featured Article:\n\"Understanding Modern Authentication Methods\"\nRead more on our blog: techinsights.com/blog/authentication\n\n🎓 Upcoming Webinar:\nDate: November 15, 2025\nTopic: Data Privacy in the Digital Age\nRegister: techinsights.com/webinars\n\nYou're receiving this because you subscribed to Tech Insights Newsletter.\nUnsubscribe: techinsights.com/unsubscribe\n\nBest regards,\nThe Tech Insights Team",
+                    es: "📰 Boletín Semanal de Tecnología - Noviembre 2025\n\n¡Hola Entusiastas de la Tecnología!\n\nBienvenidos a la edición de esta semana de nuestro boletín de tecnología.\n\n🔹 Historias Principales de Esta Semana:\n- Nuevos desarrollos en IA y aprendizaje automático\n- Mejores prácticas de ciberseguridad para 2025\n- Análisis de tendencias en computación en la nube\n\n📚 Artículo Destacado:\n\"Entendiendo los Métodos Modernos de Autenticación\"\nLee más en nuestro blog: techinsights.com/blog/autenticacion\n\n🎓 Webinar Próximo:\nFecha: 15 de noviembre, 2025\nTema: Privacidad de Datos en la Era Digital\nRegistrarse: techinsights.com/webinars\n\nEstás recibiendo esto porque te suscribiste al Boletín de Tech Insights.\nDarse de baja: techinsights.com/cancelar-suscripcion\n\nSaludos cordiales,\nEl Equipo de Tech Insights"
+                },
+                legitimate_receipt: {
+                    en: "🧾 Payment Receipt - Stripe\n\nTransaction Successful\n\nThank you for your payment!\n\nReceipt #: rcpt_1234567890\nDate: November 9, 2025\nTime: 10:45 AM EST\n\nBilled to:\nJohn Smith\njohn.smith@email.com\n\nPayment Details:\n- Monthly Subscription: $29.99\n- Tax: $2.40\n- Total: $32.39\n\nPayment Method: •••• •••• •••• 4242\nStatus: Paid ✓\n\nYour subscription is active until December 9, 2025.\n\nView invoice: stripe.com/invoices/inv_1234567890\n(Login required to view full details)\n\nQuestions? Contact support@company.com\n\nStripe Payments - Secure Payment Processing\nThis email confirms a payment processed through Stripe.",
+                    es: "🧾 Recibo de Pago - Stripe\n\nTransacción Exitosa\n\n¡Gracias por su pago!\n\nRecibo #: rcpt_1234567890\nFecha: 9 de noviembre, 2025\nHora: 10:45 AM\n\nFacturado a:\nJuan Pérez\njuan.perez@email.com\n\nDetalles del Pago:\n- Suscripción Mensual: $29.99\n- Impuesto: $2.40\n- Total: $32.39\n\nMétodo de Pago: •••• •••• •••• 4242\nEstado: Pagado ✓\n\nSu suscripción está activa hasta el 9 de diciembre, 2025.\n\nVer factura: stripe.com/facturas/inv_1234567890\n(Se requiere inicio de sesión para ver detalles completos)\n\n¿Preguntas? Contacte a soporte@empresa.com\n\nStripe Payments - Procesamiento Seguro de Pagos\nEste correo confirma un pago procesado a través de Stripe."
                 }
             };
 
@@ -983,16 +2228,40 @@
                     clearButton: "Clear Text",
                     langToggleButton: "Español", // Show Spanish option when in English
                     textareaPlaceholder: "Paste the full email content here, not just the address...",
-                    exampleDefault: "-- Select an example to test --",
-                    exampleBank: "🏦 Phishing: Fake Bank Alert",
-                    examplePrize: "🎁 Phishing: Fake Prize/Lottery",
-                    exampleSocial: "📱 Phishing: Social Media Alert",
-                    exampleUrgency: "⚠️ Phishing: Urgent Action Required",
-                    exampleWork: "✅ Legitimate: Work Meeting",
-                    exampleService: "📦 Legitimate: Order Confirmation",
                     historyModalTitle: "Analysis History",
                     exportBtnText: "Export JSON",
                     clearBtnText: "Clear All",
+                    fileUploadTitle: "Click or drag to upload email file",
+                    fileUploadSubtitle: "Supported: .eml, .msg, .txt, .html",
+                    urlAnalysisTitle: "🔗 URLs Detected",
+                    // Examples Section
+                    examplesHeaderTitle: "📚 Try Example Emails",
+                    examplesToggleShow: "Show Examples",
+                    examplesToggleHide: "Hide Examples",
+                    examplesDescription: "Learn to identify phishing by testing real examples. Click any category below:",
+                    categoryPhishingTitle: "Phishing Examples",
+                    categoryLegitimateTitle: "Legitimate Examples",
+                    // Example names and descriptions
+                    exampleBankName: "Fake Bank",
+                    exampleBankDesc: "Urgent account verification",
+                    examplePrizeName: "Fake Prize",
+                    examplePrizeDesc: "You won a lottery",
+                    exampleSocialName: "Social Media",
+                    exampleSocialDesc: "Account security alert",
+                    exampleUrgencyName: "Urgent Action",
+                    exampleUrgencyDesc: "Immediate response needed",
+                    exampleShippingName: "Fake Delivery",
+                    exampleShippingDesc: "Package delivery issue",
+                    exampleTaxName: "Tax Refund",
+                    exampleTaxDesc: "Government refund scam",
+                    exampleWorkName: "Work Meeting",
+                    exampleWorkDesc: "Team meeting reminder",
+                    exampleServiceName: "Order Confirmed",
+                    exampleServiceDesc: "Purchase confirmation",
+                    exampleNewsletterName: "Newsletter",
+                    exampleNewsletterDesc: "Company updates",
+                    exampleReceiptName: "Receipt",
+                    exampleReceiptDesc: "Payment receipt",
                 },
                 es: {
                     mainHeading: "Detector de Phishing",
@@ -1001,23 +2270,47 @@
                     clearButton: "Limpiar Texto",
                     langToggleButton: "English", // Show English option when in Spanish
                     textareaPlaceholder: "Pegue aquí el contenido completo del correo electrónico, no sólo la dirección...",
-                    exampleDefault: "-- Seleccione un ejemplo para probar --",
-                    exampleBank: "🏦 Phishing: Alerta Bancaria Falsa",
-                    examplePrize: "🎁 Phishing: Premio/Lotería Falsa",
-                    exampleSocial: "📱 Phishing: Alerta de Redes Sociales",
-                    exampleUrgency: "⚠️ Phishing: Acción Urgente Requerida",
-                    exampleWork: "✅ Legítimo: Reunión de Trabajo",
-                    exampleService: "📦 Legítimo: Confirmación de Pedido",
                     historyModalTitle: "Historial de Análisis",
                     exportBtnText: "Exportar JSON",
+                    fileUploadTitle: "Haz clic o arrastra para subir archivo de correo",
+                    fileUploadSubtitle: "Soportados: .eml, .msg, .txt, .html",
                     clearBtnText: "Limpiar Todo",
+                    urlAnalysisTitle: "🔗 URLs Detectadas",
+                    // Examples Section
+                    examplesHeaderTitle: "📚 Probar Correos de Ejemplo",
+                    examplesToggleShow: "Mostrar Ejemplos",
+                    examplesToggleHide: "Ocultar Ejemplos",
+                    examplesDescription: "Aprende a identificar phishing probando ejemplos reales. Haz clic en cualquier categoría:",
+                    categoryPhishingTitle: "Ejemplos de Phishing",
+                    categoryLegitimateTitle: "Ejemplos Legítimos",
+                    // Example names and descriptions
+                    exampleBankName: "Banco Falso",
+                    exampleBankDesc: "Verificación urgente de cuenta",
+                    examplePrizeName: "Premio Falso",
+                    examplePrizeDesc: "Ganaste una lotería",
+                    exampleSocialName: "Redes Sociales",
+                    exampleSocialDesc: "Alerta de seguridad de cuenta",
+                    exampleUrgencyName: "Acción Urgente",
+                    exampleUrgencyDesc: "Respuesta inmediata requerida",
+                    exampleShippingName: "Entrega Falsa",
+                    exampleShippingDesc: "Problema de entrega de paquete",
+                    exampleTaxName: "Reembolso Fiscal",
+                    exampleTaxDesc: "Estafa de reembolso gubernamental",
+                    exampleWorkName: "Reunión de Trabajo",
+                    exampleWorkDesc: "Recordatorio de reunión de equipo",
+                    exampleServiceName: "Pedido Confirmado",
+                    exampleServiceDesc: "Confirmación de compra",
+                    exampleNewsletterName: "Boletín",
+                    exampleNewsletterDesc: "Actualizaciones de empresa",
+                    exampleReceiptName: "Recibo",
+                    exampleReceiptDesc: "Recibo de pago",
                 }
             };
 
             // --- Function to Set Language ---
             function setLanguage(lang) {
                 if (!translations[lang]) {
-                    console.error("Language not supported:", lang);
+                    logger.error("Language not supported:", lang);
                     return;
                 }
 
@@ -1031,19 +2324,67 @@
                 // Update placeholder
                 elements.emailTextarea.placeholder = translations[lang].textareaPlaceholder;
 
-                // Update example selector options
-                elements.exampleOptionDefault.innerText = translations[lang].exampleDefault;
-                elements.exampleOptionBank.innerText = translations[lang].exampleBank;
-                elements.exampleOptionPrize.innerText = translations[lang].examplePrize;
-                elements.exampleOptionSocial.innerText = translations[lang].exampleSocial;
-                elements.exampleOptionUrgency.innerText = translations[lang].exampleUrgency;
-                elements.exampleOptionWork.innerText = translations[lang].exampleWork;
-                elements.exampleOptionService.innerText = translations[lang].exampleService;
+                // Update examples section translations
+                const examplesHeaderTitle = document.getElementById('examples-header-title');
+                const examplesToggleText = document.getElementById('examples-toggle-text');
+                const examplesDescription = document.getElementById('examples-description');
+                const categoryPhishingTitle = document.getElementById('category-phishing-title');
+                const categoryLegitimateTitle = document.getElementById('category-legitimate-title');
+                
+                if (examplesHeaderTitle) examplesHeaderTitle.innerText = translations[lang].examplesHeaderTitle;
+                if (examplesToggleText) {
+                    const isVisible = document.getElementById('examples-content').style.display !== 'none';
+                    examplesToggleText.innerText = isVisible ? translations[lang].examplesToggleHide : translations[lang].examplesToggleShow;
+                }
+                if (examplesDescription) examplesDescription.innerText = translations[lang].examplesDescription;
+                if (categoryPhishingTitle) categoryPhishingTitle.innerText = translations[lang].categoryPhishingTitle;
+                if (categoryLegitimateTitle) categoryLegitimateTitle.innerText = translations[lang].categoryLegitimateTitle;
+                
+                // Update example button names and descriptions
+                const exampleElements = {
+                    'example-bank-name': 'exampleBankName',
+                    'example-bank-desc': 'exampleBankDesc',
+                    'example-prize-name': 'examplePrizeName',
+                    'example-prize-desc': 'examplePrizeDesc',
+                    'example-social-name': 'exampleSocialName',
+                    'example-social-desc': 'exampleSocialDesc',
+                    'example-urgency-name': 'exampleUrgencyName',
+                    'example-urgency-desc': 'exampleUrgencyDesc',
+                    'example-shipping-name': 'exampleShippingName',
+                    'example-shipping-desc': 'exampleShippingDesc',
+                    'example-tax-name': 'exampleTaxName',
+                    'example-tax-desc': 'exampleTaxDesc',
+                    'example-work-name': 'exampleWorkName',
+                    'example-work-desc': 'exampleWorkDesc',
+                    'example-service-name': 'exampleServiceName',
+                    'example-service-desc': 'exampleServiceDesc',
+                    'example-newsletter-name': 'exampleNewsletterName',
+                    'example-newsletter-desc': 'exampleNewsletterDesc',
+                    'example-receipt-name': 'exampleReceiptName',
+                    'example-receipt-desc': 'exampleReceiptDesc'
+                };
+                
+                Object.keys(exampleElements).forEach(elementId => {
+                    const element = document.getElementById(elementId);
+                    const translationKey = exampleElements[elementId];
+                    if (element && translations[lang][translationKey]) {
+                        element.innerText = translations[lang][translationKey];
+                    }
+                });
                 
                 // Update history modal translations
                 elements.historyModalTitle.innerText = translations[lang].historyModalTitle;
                 elements.exportBtnText.innerText = translations[lang].exportBtnText;
                 elements.clearBtnText.innerText = translations[lang].clearBtnText;
+                
+                // Update file upload translations
+                elements.fileUploadTitle.innerText = translations[lang].fileUploadTitle;
+                elements.fileUploadSubtitle.innerText = translations[lang].fileUploadSubtitle;
+                
+                // Update URL analysis translations
+                if (elements.urlAnalysisTitle) {
+                    elements.urlAnalysisTitle.innerText = translations[lang].urlAnalysisTitle;
+                }
 
                 // Store preference
                 localStorage.setItem('preferredLang', lang);
@@ -1098,6 +2439,9 @@
                     return;
                 }
 
+                // Extract and display URLs immediately
+                displayURLs(emailText);
+
                 // Show loading state
                 showLoading();
 
@@ -1131,7 +2475,7 @@
                         showError(errorMessage);
                     }
                 } catch (error) {
-                    console.error('Error:', error);
+                    logger.error('Error:', error);
                     showError('Failed to connect to the server. Please try again.');
                 }
             });
@@ -1482,7 +2826,7 @@
             // --- Submit Feedback Function ---
             window.submitFeedback = async function(feedbackType) {
                 if (!lastPredictionData) {
-                    console.error('No prediction data available');
+                    logger.error('No prediction data available');
                     return;
                 }
 
@@ -1532,7 +2876,7 @@
                         alert(translations[currentLang].error);
                     }
                 } catch (error) {
-                    console.error('Feedback error:', error);
+                    logger.error('Feedback error:', error);
                     alert(translations[currentLang].error);
                 }
             };
@@ -1546,6 +2890,64 @@
             const resultArea = document.getElementById('result-area');
             if (resultArea) {
                 resultArea.innerHTML = ''; // Clear previous results
+            }
+            // Clear file upload if exists
+            const fileInput = document.getElementById('file-input');
+            const filePreview = document.getElementById('file-preview');
+            const fileUploadArea = document.getElementById('file-upload-area');
+            if (fileInput) {
+                fileInput.value = '';
+            }
+            if (filePreview && fileUploadArea) {
+                filePreview.style.display = 'none';
+                fileUploadArea.style.display = 'flex';
+            }
+            // Clear URL analysis
+            const urlSection = document.getElementById('url-analysis-section');
+            if (urlSection) {
+                urlSection.style.display = 'none';
+            }
+        }
+        
+        // --- Examples Section Functions ---
+        function toggleExamples() {
+            const content = document.getElementById('examples-content');
+            const toggleText = document.getElementById('examples-toggle-text');
+            const toggleIcon = document.getElementById('examples-toggle-icon');
+            const currentLang = localStorage.getItem('preferredLang') || 'es';
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                toggleText.innerText = translations[currentLang].examplesToggleHide;
+                toggleIcon.innerText = '▲';
+            } else {
+                content.style.display = 'none';
+                toggleText.innerText = translations[currentLang].examplesToggleShow;
+                toggleIcon.innerText = '▼';
+            }
+        }
+        
+        function loadExample(exampleKey) {
+            const currentLang = localStorage.getItem('preferredLang') || 'es';
+            const exampleText = examples[exampleKey]?.[currentLang];
+            
+            if (exampleText) {
+                const textarea = document.getElementById('email_text');
+                textarea.value = exampleText;
+                
+                // Smooth scroll to textarea
+                textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Add a highlight animation
+                textarea.style.transition = 'background-color 0.5s ease';
+                const originalBg = textarea.style.backgroundColor;
+                textarea.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+                
+                setTimeout(() => {
+                    textarea.style.backgroundColor = originalBg;
+                }, 1000);
+            } else {
+                logger.error('Example not found:', exampleKey);
             }
         }
     </script>
