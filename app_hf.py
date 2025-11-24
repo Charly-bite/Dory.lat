@@ -517,13 +517,35 @@ def predict():
     - Form: subject=...&body=...
     """
     try:
+        # Debug logging
+        print(f"DEBUG: Request content type: {request.content_type}")
+        if request.is_json:
+            print(f"DEBUG: JSON data: {request.get_json()}")
+        else:
+            print(f"DEBUG: Form data: {request.form}")
+
         # Check if JSON or form data
         if request.is_json:
             data = request.get_json()
-            # Combine subject and body from JSON
-            subject = data.get('subject', '')
-            body = data.get('body', '')
-            full_text = f"{subject}\n{body}".strip()
+            
+            # Robustness: Handle case where get_json() returns None
+            if data is None:
+                try:
+                    import json
+                    data = json.loads(request.get_data(as_text=True))
+                    print(f"DEBUG: Manually parsed JSON: {data}")
+                except Exception as e:
+                    print(f"DEBUG: Failed to manually parse JSON: {e}")
+                    data = {}
+
+            # Try to get email_text first (standard for this app)
+            if 'email_text' in data:
+                full_text = data['email_text'].strip()
+            else:
+                # Fallback to subject/body (for API compatibility)
+                subject = data.get('subject', '')
+                body = data.get('body', '')
+                full_text = f"{subject}\n{body}".strip()
         else:
             # Handle form data from HTML form
             # The form sends 'email_text' as a single field
@@ -536,7 +558,8 @@ def predict():
                 full_text = f"{subject}\n{body}".strip()
         
         if not full_text:
-            return jsonify({'error': 'No text provided'}), 400
+            received_keys = list(data.keys()) if request.is_json and data else list(request.form.keys())
+            return jsonify({'error': f'No text provided. Received keys: {received_keys}. Content-Type: {request.content_type}'}), 400
         
         logger.info("Processing prediction request...")
         

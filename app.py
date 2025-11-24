@@ -100,7 +100,7 @@ except ImportError:
 
 
 import logging
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify
 from scipy.sparse import issparse
 
 
@@ -507,18 +507,27 @@ def predict():
     # 0. Check if prediction is possible based on loaded artifacts
     if not (loaded_keras_model is not None and numeric_preprocessor is not None and EXPECTED_NUMERIC_COLS is not None and len(EXPECTED_NUMERIC_COLS) > 0 and embedding_model is not None and EMBEDDING_DIM > 0):
         logger.error("App is not ready for predictions due to missing artifacts.")
+        if request.is_json:
+             return jsonify({'error': 'App not fully initialized. Missing models or data.'}), 500
         return render_template('index.html',
                                prediction_text='Error: App not fully initialized. Missing models or data. Check server logs.',
                                email_text=request.form.get('email_text', ''),
                                model_error=model_load_error_str)
 
     try:
-        email_text = request.form.get('email_text', '') # Use .get for safety
+        if request.is_json:
+            data = request.get_json()
+            email_text = data.get('email_text', '')
+        else:
+            email_text = request.form.get('email_text', '') # Use .get for safety
+            
         logger.info(f"Received prediction request for email (first 100 chars): '{email_text[:100]}...'")
 
         # Handle empty input gracefully
         if not email_text or not email_text.strip():
              logger.warning("Received empty input text.")
+             if request.is_json:
+                 return jsonify({'error': 'Please provide email content to analyze.'}), 400
              return render_template('index.html',
                                     prediction_text='Please provide email content to analyze.',
                                     email_text='',
@@ -529,6 +538,8 @@ def predict():
         cleaned_text = clean_email_input(email_text)
         if not cleaned_text or not cleaned_text.strip():
              logger.warning("Input email resulted in empty cleaned text.")
+             if request.is_json:
+                 return jsonify({'error': 'Input email content is empty or invalid after cleaning.'}), 400
              return render_template('index.html',
                                     prediction_text='Input email content is empty or invalid after cleaning.',
                                     email_text=email_text,
@@ -545,6 +556,8 @@ def predict():
         embedding_features = compute_embeddings([cleaned_text], embedding_model) # Compute for a list containing the single cleaned text
         if embedding_features is None or embedding_features.shape[0] == 0 or embedding_features.shape[1] != EMBEDDING_DIM:
              logger.error(f"Embedding computation failed or returned unexpected shape {embedding_features.shape}. Expected (1, {EMBEDDING_DIM}).")
+             if request.is_json:
+                 return jsonify({'error': 'Failed to compute text embeddings.'}), 500
              return render_template('index.html', prediction_text='Error: Failed to compute text embeddings.', email_text=email_text, model_error=model_load_error_str)
 
 
@@ -604,6 +617,8 @@ def predict():
         except Exception as input_check_e:
             logger.error(f"Failed Keras input check: {input_check_e}")
             # Proceeding might lead to Keras error, better to return error
+            if request.is_json:
+                 return jsonify({'error': 'Keras input setup failed.'}), 500
             return render_template('index.html', prediction_text=f'Error: Keras input setup failed. Check logs.', email_text=email_text, model_error=model_load_error_str)
 
 
@@ -630,6 +645,32 @@ def predict():
         # Confidence based on the probability of the predicted class
         confidence = proba_phishing if final_prediction == 1 else (1 - proba_phishing)
 
+        if request.is_json:
+            response_data = {
+                'is_phishing': bool(final_prediction == 1),
+                'prediction': 'PHISHING' if final_prediction == 1 else 'LEGITIMATE',
+                'confidence': float(confidence),
+                'risk_score': int(proba_phishing * 100),
+                'threats_detected': [],
+                'google_safe_browsing': None,
+                'flags': {},
+                'analysis': {
+                    'text_length': len(email_text),
+                    'word_count': len(cleaned_text.split()),
+                    'url_count': int(raw_numeric_features_dict.get('num_links', 0)),
+                    'phishing_keywords': 0,
+                    'uppercase_ratio': 0,
+                    'exclamation_marks': 0,
+                    'emoji_count': 0
+                }
+            }
+            if raw_numeric_features_dict.get('has_suspicious_url', 0) > 0:
+                response_data['threats_detected'].append('Suspicious URL detected')
+            if raw_numeric_features_dict.get('urgency_count', 0) > 0:
+                response_data['threats_detected'].append('Urgency tactics detected')
+            
+            return jsonify(response_data)
+
         return render_template('index.html',
                                prediction_text=f'Result: {result_text} (Confidence: {confidence:.2%})',
                                email_text=email_text,
@@ -637,6 +678,8 @@ def predict():
 
     except Exception as e:
         logger.error(f"Error during prediction processing: {e}", exc_info=True)
+        if request.is_json:
+             return jsonify({'error': 'Error during prediction processing.'}), 500
         return render_template('index.html',
                                prediction_text=f'Error during prediction processing. Check server logs.',
                                email_text=request.form.get('email_text', ''),

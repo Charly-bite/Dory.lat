@@ -1,0 +1,79 @@
+{
+  "project_name": "Dory - Phishing Email Detector",
+  "version": "2.3-stable",
+  "description": "A multi-layered phishing email detection system combining heuristics, Google Safe Browsing, and user feedback.",
+  "repository": "https://github.com/Charly-bite/dory-lat-app",
+  "tech_stack": {
+    "backend": "Flask (Python 3.11+)",
+    "frontend": "HTML5, CSS3, Vanilla JavaScript",
+    "database": "SQLite (feedback.db)",
+    "deployment": "Render.com (Dockerized)"
+  },
+  "configuration": {
+    "env_variables": [
+      "PORT",
+      "PYTHON_VERSION",
+      "GOOGLE_SAFE_BROWSING_API_KEY",
+      "HF_API_TOKEN",
+      "ADMIN_USERNAME",
+      "ADMIN_PASSWORD"
+    ],
+    "endpoints": {
+      "predict": "/predict (POST)",
+      "feedback": "/feedback (POST)",
+      "health": "/health (GET)",
+      "admin_feedback": "/admin/feedback (GET)",
+      "admin_export": "/admin/feedback/export (GET)"
+    }
+  },
+  "frontend_context": {
+    "themes": {
+      "dark": {
+        "bg_primary": "#1a1a2e",
+        "bg_secondary": "rgba(26, 26, 46, 0.8)",
+        "text_primary": "#ffffff",
+        "accent_danger": "#e94560",
+        "accent_success": "#14dd7a",
+        "accent_warning": "#ffc107"
+      },
+      "light": {
+        "bg_primary": "#e3f2fd",
+        "bg_secondary": "rgba(255, 255, 255, 0.95)",
+        "text_primary": "#1a1a2e",
+        "accent_danger": "#d32f2f",
+        "accent_success": "#388e3c",
+        "accent_warning": "#f57c00"
+      }
+    },
+    "features": [
+      "Bilingual Support (EN/ES)",
+      "Theme Toggle (Dark/Light)",
+      "Analysis History (localStorage)",
+      "File Upload (.eml, .msg, .txt, .html)",
+      "URL Analysis",
+      "Example Emails"
+    ],
+    "assets": {
+      "favicons": [
+        "Favicon Gabo 16x16.png",
+        "Favicon Gabo 32x32.png",
+        "Favicon Gabo 128x128.png",
+        "Favicon Gabo 512x512.png"
+      ],
+      "fonts": "Poppins (Google Fonts)"
+    }
+  },
+  "backend_context": {
+    "detection_layers": [
+      "Google Safe Browsing (Tier 1)",
+      "Heuristics Engine (Tiers 1-4)",
+      "User Feedback System"
+    ],
+    "heuristics": {
+      "tier_1": ["Safe Browsing", "IP in URL", "Credential Request"],
+      "tier_2": ["Brand Typos", "Multiple URLs", "Suspicious TLD", "Urgency", "Unrealistic Offers"],
+      "tier_3": ["URL Shorteners", "Phishing Keywords", "Generic Greeting"],
+      "tier_4": ["Excessive Caps", "Excessive Punctuation", "Emoji Spam"]
+    }
+  }
+}
