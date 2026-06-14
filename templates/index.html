@@ -17,28 +17,26 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         /* === CSS Variables for Theme System === */
         :root {
             /* Dark Theme (Default) */
-            --bg-primary: #0f172a;
-            /* Darker, richer blue */
-            --bg-secondary: rgba(30, 41, 59, 0.7);
-            /* Glassmorphism effect */
-            --bg-gradient-start: #0f172a;
-            --bg-gradient-end: #1e293b;
-            --bg-input: rgba(15, 23, 42, 0.6);
-            --bg-select: rgba(15, 23, 42, 0.6);
+            --bg-primary: #020617;
+            --bg-secondary: rgba(15, 23, 42, 0.65); /* Glassmorphism Slate */
+            --bg-gradient-start: #1e1b4b;
+            --bg-gradient-end: #0b0f19;
+            --bg-input: rgba(30, 41, 59, 0.8);
+            --bg-select: rgba(30, 41, 59, 0.8);
 
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --text-placeholder: #64748b;
             --text-select: #e2e8f0;
 
-            --border-primary: rgba(148, 163, 184, 0.1);
-            --border-secondary: rgba(148, 163, 184, 0.2);
-            --border-focus: #3b82f6;
+            --border-primary: rgba(255, 255, 255, 0.1);
+            --border-secondary: rgba(255, 255, 255, 0.15);
+            --border-focus: #60a5fa;
 
             --accent-danger: #ef4444;
             --accent-danger-hover: #dc2626;
@@ -56,41 +54,41 @@
 
             --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
 
-            --radius-md: 0.5rem;
-            --radius-lg: 0.75rem;
+            --radius-md: 10px;
+            --radius-lg: 16px;
 
-            --transition-speed: 0.2s;
+            --transition-speed: 0.3s;
         }
 
         /* Light Theme */
         [data-theme="light"] {
-            --bg-primary: #f0f9ff;
-            --bg-secondary: rgba(255, 255, 255, 0.8);
-            --bg-gradient-start: #f0f9ff;
-            --bg-gradient-end: #e0f2fe;
-            --bg-input: #ffffff;
-            --bg-select: #ffffff;
+            --bg-primary: #f8fafc;
+            --bg-secondary: rgba(255, 255, 255, 0.65); /* Light glass */
+            --bg-gradient-start: #e0f2fe;
+            --bg-gradient-end: #bae6fd;
+            --bg-input: rgba(255, 255, 255, 0.9);
+            --bg-select: rgba(255, 255, 255, 0.9);
 
             --text-primary: #0f172a;
             --text-secondary: #475569;
             --text-placeholder: #94a3b8;
             --text-select: #1e293b;
 
-            --border-primary: #e2e8f0;
-            --border-secondary: #cbd5e1;
+            --border-primary: rgba(148, 163, 184, 0.3);
+            --border-secondary: rgba(148, 163, 184, 0.4);
 
             --accent-danger: #ef4444;
             --accent-danger-hover: #dc2626;
-            --accent-danger-bg: #fee2e2;
+            --accent-danger-bg: rgba(254, 226, 226, 0.5);
 
             --accent-success: #10b981;
             --accent-success-hover: #059669;
-            --accent-success-bg: #d1fae5;
+            --accent-success-bg: rgba(209, 250, 229, 0.5);
 
             --accent-warning: #f59e0b;
-            --accent-warning-bg: #fef3c7;
+            --accent-warning-bg: rgba(254, 243, 199, 0.5);
 
             --btn-primary: #3b82f6;
             --btn-primary-hover: #2563eb;
@@ -102,10 +100,9 @@
         }
 
         body {
-            font-family: 'Inter', 'Poppins', sans-serif;
-            /* Prefer Inter for modern look */
+            font-family: 'Outfit', 'Inter', sans-serif;
             background-color: var(--bg-primary);
-            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            background: radial-gradient(circle at center, var(--bg-gradient-start), var(--bg-gradient-end), var(--bg-primary));
             color: var(--text-primary);
             margin: 0;
             padding: 20px;
@@ -113,21 +110,18 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            /* Align to top instead of center */
             padding-top: 40px;
-            /* Add top padding */
         }
 
         .container {
             background-color: var(--bg-secondary);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             padding: 2rem;
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-lg);
             width: 100%;
             max-width: 900px;
-            /* Wider container */
             border: 1px solid var(--border-primary);
             position: relative;
         }
@@ -289,13 +283,12 @@
             width: 100%;
             flex-grow: 1;
             min-height: 250px;
-            /* Taller default */
             padding: 1rem;
             border: 1px solid var(--border-primary);
             border-radius: var(--radius-md);
             background-color: var(--bg-input);
             color: var(--text-primary);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Outfit', sans-serif;
             font-size: 0.95rem;
             resize: vertical;
             line-height: 1.6;
@@ -334,13 +327,15 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--btn-primary), var(--btn-primary-hover));
+            background: linear-gradient(135deg, #60a5fa, #8b5cf6);
             color: white;
-            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 4px 15px rgba(96, 165, 250, 0.4);
         }
 
         .btn-primary:hover {
-            box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+            box-shadow: 0 6px 20px rgba(96, 165, 250, 0.6);
         }
 
         .btn-secondary {
@@ -527,7 +522,8 @@
             margin: 0;
             color: white;
             font-size: 1.1rem;
-            font-weight: 600;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
         }
 
         .examples-toggle {
