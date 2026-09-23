@@ -9,7 +9,7 @@
 export default {
   async email(message, env, ctx) {
     const supervisoryAddress = "carlos.aceves6195@alumnos.udg.mx";
-    const doryInboundUrl = env.DORY_INBOUND_URL || "https://engine.dory.mx/api/mail/inbound";
+    const doryInboundUrl = env.DORY_INBOUND_URL || "https://dory.mx/api/mail/inbound";
     const dorySecretKey = env.DORY_SECRET_KEY || "dory-sec-defense-key-2026";
 
     console.log(`[Dory Router] Inbound email from '${message.from}' to '${message.to}'`);
