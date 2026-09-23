@@ -351,6 +351,169 @@
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
         }
 
+        /* Privacy Shield Control */
+        .privacy-toggle-badge {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            border-radius: 9999px;
+            padding: 0.25rem 0.75rem;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+        }
+
+        .privacy-toggle-badge:hover {
+            border-color: rgba(16, 185, 129, 0.7);
+            background: rgba(16, 185, 129, 0.22);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .privacy-toggle-badge input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #10b981;
+            width: 15px;
+            height: 15px;
+            margin: 0 0.45rem 0 0;
+        }
+
+        .privacy-toggle-badge label {
+            cursor: pointer;
+            margin: 0;
+            color: #10b981;
+            font-weight: 700;
+            font-size: 0.78rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            letter-spacing: 0.02em;
+        }
+
+        .privacy-toggle-badge.inactive {
+            background: rgba(148, 163, 184, 0.1);
+            border-color: rgba(148, 163, 184, 0.25);
+            box-shadow: none;
+        }
+
+        .privacy-toggle-badge.inactive input[type="checkbox"] {
+            accent-color: #94a3b8;
+        }
+
+        .privacy-toggle-badge.inactive label {
+            color: var(--text-secondary);
+        }
+
+        .live-pii-notice {
+            margin-top: 0.65rem;
+            padding: 0.6rem 0.95rem;
+            border-radius: var(--radius-md);
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(96, 165, 250, 0.35);
+            color: #93c5fd;
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .btn-preview-link {
+            background: rgba(96, 165, 250, 0.15);
+            border: 1px solid rgba(96, 165, 250, 0.45);
+            color: #93c5fd;
+            border-radius: 6px;
+            padding: 0.25rem 0.65rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-preview-link:hover {
+            background: rgba(96, 165, 250, 0.3);
+            color: #fff;
+            border-color: #60a5fa;
+        }
+
+        .live-pii-preview-box {
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px dashed rgba(96, 165, 250, 0.4);
+            border-radius: var(--radius-md);
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        /* Privacy Audit Card in Results */
+        .privacy-audit-card {
+            margin-top: 15px;
+            padding: 1.1rem 1.25rem;
+            border-radius: var(--radius-md);
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .privacy-audit-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.6rem;
+        }
+
+        .privacy-audit-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #34d399;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .privacy-pill-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            margin-top: 0.5rem;
+        }
+
+        .privacy-pill {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #a7f3d0;
+            padding: 0.22rem 0.65rem;
+            border-radius: 9999px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .privacy-preview-box {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 140px;
+            overflow-y: auto;
+        }
+
         /* Action Buttons */
         .action-buttons {
             display: grid;
@@ -1251,9 +1414,27 @@
 
                 <!-- Textarea -->
                 <div class="input-group">
-                    <label for="email_text" id="textarea-label" data-i18n="enter_text">Ingresa el texto del correo abajo:</label>
+                    <div class="textarea-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <label for="email_text" id="textarea-label" data-i18n="enter_text" style="margin-bottom: 0;">Ingresa el texto del correo abajo:</label>
+                        <div class="privacy-toggle-badge" id="privacy-toggle-badge" title="Sanitiza información sensible (tarjetas, CLABE, RFC, contraseñas, teléfonos) antes de enviarla a la IA">
+                            <input type="checkbox" id="privacy-toggle" checked>
+                            <label for="privacy-toggle" id="privacy-toggle-label">
+                                <span>🛡️</span>
+                                <span id="privacy-toggle-text" data-i18n="privacy_toggle_title">Escudo PII Activo</span>
+                            </label>
+                        </div>
+                    </div>
                     <textarea id="email_text" placeholder="Pega aquí el contenido completo del correo (asunto, cuerpo, enlaces) o arrastra un archivo arriba..."
                         data-i18n-placeholder="placeholder"></textarea>
+                    <!-- Live PII Detection Notification -->
+                    <div id="live-pii-notice" class="live-pii-notice" style="display: none;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="font-size: 1.1rem;">🛡️</span>
+                            <span id="live-pii-text">Datos sensibles detectados (serán anonimizados antes del análisis).</span>
+                        </div>
+                        <button type="button" id="btn-preview-sanitized" class="btn-preview-link">Ver previa protegida</button>
+                    </div>
+                    <div id="live-pii-preview-box" class="live-pii-preview-box" style="display: none;"></div>
                 </div>
 
                 <!-- Action Buttons -->
@@ -1299,6 +1480,14 @@
                             <span id="example-social-name" data-i18n="ex_social_name">Redes Sociales</span>
                         </div>
                         <div class="example-item-desc" id="example-social-desc" data-i18n="ex_social_desc">Alerta de seguridad de cuenta</div>
+                    </button>
+
+                    <button class="example-item" onclick="loadExample('phishing_pii')" style="border-color: rgba(16, 185, 129, 0.35);">
+                        <div class="example-item-title">
+                            <span>🛡️</span>
+                            <span id="example-pii-name" data-i18n="ex_pii_name" style="color: #34d399;">Phishing + Datos PII</span>
+                        </div>
+                        <div class="example-item-desc" id="example-pii-desc" data-i18n="ex_pii_desc">Prueba con tarjeta, CLABE y RFC</div>
                     </button>
 
                     <div class="category-title" id="category-legit-title" data-i18n="legit_cat"
@@ -1606,7 +1795,11 @@
                 th_score: "Score",
                 th_reply: "Reply",
                 th_actions: "Action",
-                close_btn: "Close"
+                close_btn: "Close",
+                privacy_toggle_title: "PII Shield Active",
+                privacy_toggle_inactive: "PII Shield Inactive",
+                ex_pii_name: "Phishing + PII Data",
+                ex_pii_desc: "Card, CLABE, RFC & Password"
             },
             es: {
                 title: "Detector de Phishing",
@@ -1678,13 +1871,21 @@
                 th_subject: "Asunto",
                 th_verdict: "Diagnóstico",
                 th_score: "Score",
-                th_reply: "Respuesta",
+                th_reply: "Reply",
                 th_actions: "Acción",
-                close_btn: "Cerrar"
+                close_btn: "Cerrar",
+                privacy_toggle_title: "Escudo PII Activo",
+                privacy_toggle_inactive: "Escudo PII Inactivo",
+                ex_pii_name: "Phishing + Datos PII",
+                ex_pii_desc: "Prueba con tarjeta, CLABE y RFC"
             }
         };
 
         const examples = {
+            phishing_pii: {
+                es: "URGENTE: Regularización Fiscal Inmediata SAT\n\nEstimado contribuyente CARLOS ALBERTO ACEVES,\n\nSe detectó una discrepancia en su ejercicio fiscal correspondiente al RFC: ACCC891024XX1.\nPara suspender el embargo de su cuenta bancaria CLABE: 012180004567890123 y evitar la inmovilización de fondos de Quimica Boss (carlos@quimicaboss.com.mx), ingrese a liquidar el saldo pendiente de $4,850.00 MXN.\n\nPago rápido en línea con tarjeta de débito/crédito verificada:\nNúmero de Tarjeta: 4532 0150 1234 5674\nContraseña temporal de acceso: password=BossSecure2026!\n\nRegularice su situación de inmediato en el portal oficial:\n👉 http://sat-tramites-gob-mx.tramites-sat.online/login?ref=891024\n\nSi tiene dudas llame al 33-1234-5678.\nServicio de Administración Tributaria",
+                en: "URGENT: Immediate Tax Regularization Notice\n\nDear taxpayer JOHN DOE,\n\nA critical discrepancy was detected in your corporate tax filing RFC: ABCD800101XYZ.\nTo prevent an immediate freeze of your registered bank CLABE account 012180004567890123 and corporate email (john@quimicaboss.com.mx), submit your overdue penalty payment of $1,250 USD.\n\nQuick online payment via verified card:\nCard Number: 4532 0150 1234 5674\nTemporary auth key: password=CorporateSecret2026!\n\nPay immediately on our portal:\n👉 http://irs-tax-clearance-official.tk/verify?case=849102\n\nSupport phone: +52 33 1234 5678\nTax Administration Office"
+            },
             phishing_bank: {
                 en: "URGENT: SECURITY ALERT\n\nDear valued customer,\n\nYour Bank of America account has been LOCKED due to suspicious activity detected from Nigeria. You must verify your identity IMMEDIATELY or your account will be permanently closed within 24 hours.\n\nClick here to verify now: http://bankofamerica-secure-login.tk/verify?id=8472910\n\nDO NOT ignore this message. Failure to act will result in permanent loss of access to your funds.\n\nBank Security Team\n(This is an automated message, do not reply)",
                 es: "URGENTE: ALERTA DE SEGURIDAD\n\nEstimado cliente,\n\nSu cuenta de Banco Santander ha sido BLOQUEADA debido a actividad sospechosa detectada desde el extranjero. Debe verificar su identidad INMEDIATAMENTE o su cuenta será cerrada permanentemente en las próximas 24 horas.\n\nHaga clic aquí para verificar ahora: http://bancosantander-verificacion.tk/login?id=8472910\n\nNO ignore este mensaje. Si no actúa, perderá acceso permanente a sus fondos.\n\nEquipo de Seguridad Bancaria\n(Este es un mensaje automatizado, no responda)"
@@ -2822,7 +3023,7 @@
                 if (sidebarHeader && t.examples_label) sidebarHeader.textContent = t.examples_label;
                 
                 // Update example buttons
-                const exampleNames = ['bank', 'prize', 'social', 'meeting', 'order'];
+                const exampleNames = ['bank', 'prize', 'social', 'pii', 'meeting', 'order'];
                 exampleNames.forEach(name => {
                     const nameElement = document.getElementById(`example-${name}-name`);
                     const descElement = document.getElementById(`example-${name}-desc`);
@@ -2830,6 +3031,14 @@
                     if (descElement && t[`ex_${name}_desc`]) descElement.textContent = t[`ex_${name}_desc`];
                 });
                 
+                // Update privacy toggle text
+                const privacyToggle = document.getElementById('privacy-toggle');
+                const privacyText = document.getElementById('privacy-toggle-text');
+                if (privacyText && t.privacy_toggle_title) {
+                    const isChecked = privacyToggle ? privacyToggle.checked : true;
+                    privacyText.textContent = isChecked ? t.privacy_toggle_title : (t.privacy_toggle_inactive || 'Escudo PII Inactivo');
+                }
+
                 // Update category titles
                 const phishingCat = document.getElementById('category-phishing-title');
                 const legitCat = document.getElementById('category-legit-title');
@@ -2871,12 +3080,18 @@
                 resultArea.innerHTML = '<div class="loading-spinner"></div><p style="text-align:center">Analyzing...</p>';
 
                 try {
+                    const privacyToggle = document.getElementById('privacy-toggle');
+                    const anonymizeActive = privacyToggle ? privacyToggle.checked : true;
+
                     const response = await fetch('/predict', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ email_text: emailText })
+                        body: JSON.stringify({ 
+                            email_text: emailText,
+                            anonymize: anonymizeActive
+                        })
                     });
 
                     if (!response.ok) {
@@ -3082,6 +3297,93 @@
                         });
                     }
 
+                    // Build Privacy Shield HTML
+                    let privacyShieldHTML = '';
+                    if (data.privacy_shield && data.privacy_shield.active) {
+                        const ps = data.privacy_shield;
+                        if (ps.has_sensitive_data) {
+                            let pillsHTML = '';
+                            const stats = ps.stats || {};
+                            const entityLabels = {
+                                es: {
+                                    CREDIT_CARD: '💳 Tarjeta de Crédito (Luhn)',
+                                    CLABE: '🏦 Cuenta CLABE (18 dígitos)',
+                                    RFC: '🆔 RFC SAT',
+                                    CURP: '👤 CURP',
+                                    PASSWORD: '🔑 Contraseña / Token',
+                                    PHONE_MX: '📞 Teléfono',
+                                    CORP_EMAIL: '🏢 Correo Corporativo',
+                                    PERSON_NAME: '👤 Nombre Personal'
+                                },
+                                en: {
+                                    CREDIT_CARD: '💳 Credit Card (Luhn Validated)',
+                                    CLABE: '🏦 CLABE Account (18 digits)',
+                                    RFC: '🆔 Tax ID (RFC)',
+                                    CURP: '👤 Population ID (CURP)',
+                                    PASSWORD: '🔑 Password / Token',
+                                    PHONE_MX: '📞 Phone Number',
+                                    CORP_EMAIL: '🏢 Corporate Email',
+                                    PERSON_NAME: '👤 Personal Name'
+                                }
+                            };
+                            const labels = entityLabels[currentLang] || entityLabels['es'];
+                            for (const [key, count] of Object.entries(stats)) {
+                                if (count > 0) {
+                                    const lbl = labels[key] || key;
+                                    pillsHTML += `<span class="privacy-pill">${lbl}: <strong>${count}</strong></span>`;
+                                }
+                            }
+
+                            const safePreview = (ps.sanitized_preview || '')
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;');
+
+                            const piiTitle = currentLang === 'es'
+                                ? `🛡️ Escudo de Privacidad: ${ps.total_redacted} dato(s) confidencial(es) anonimizados`
+                                : `🛡️ Privacy Shield: ${ps.total_redacted} sensitive item(s) sanitized`;
+                            const piiDesc = currentLang === 'es'
+                                ? 'La información confidencial fue sustituida por tokens semánticos antes de pasar al motor de IA y guardarse en auditoría.'
+                                : 'Confidential corporate data was replaced with semantic tokens before reaching the AI model or audit logs.';
+                            const togglePreviewLabel = currentLang === 'es' ? 'Ver texto anonimizado enviado a la IA' : 'View sanitized text sent to AI';
+
+                            privacyShieldHTML = `
+                            <div class="privacy-audit-card">
+                                <div class="privacy-audit-header">
+                                    <span class="privacy-audit-title">${piiTitle}</span>
+                                    <span style="font-size: 0.72rem; color: #10b981; font-weight: 700; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); padding: 0.2rem 0.55rem; border-radius: 9999px;">100% PROTEGIDO</span>
+                                </div>
+                                <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 0.5rem 0;">${piiDesc}</p>
+                                <div class="privacy-pill-group">
+                                    ${pillsHTML}
+                                </div>
+                                ${safePreview ? `
+                                <details style="margin-top: 0.65rem;">
+                                    <summary style="font-size: 0.75rem; color: #60a5fa; cursor: pointer; user-select: none; font-weight: 600;">
+                                        ${togglePreviewLabel}
+                                    </summary>
+                                    <div class="privacy-preview-box">${safePreview}...</div>
+                                </details>` : ''}
+                            </div>`;
+                        } else {
+                            const cleanMsg = currentLang === 'es'
+                                ? '🛡️ Escudo de Privacidad Activo: Sin datos personales confidenciales expuestos en este correo.'
+                                : '🛡️ Privacy Shield Active: No confidential personal data detected in this email.';
+                            privacyShieldHTML = `
+                            <div style="margin-top: 15px; padding: 0.65rem 1rem; border-radius: var(--radius-md); background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); font-size: 0.8rem; color: #34d399; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>${cleanMsg}</span>
+                            </div>`;
+                        }
+                    } else if (data.privacy_shield && !data.privacy_shield.active) {
+                        const disabledMsg = currentLang === 'es'
+                            ? '⚠️ Escudo de Privacidad Desactivado: El correo se analizó sin anonimización de datos sensibles.'
+                            : '⚠️ Privacy Shield Disabled: Email was processed without sanitizing sensitive data.';
+                        privacyShieldHTML = `
+                        <div style="margin-top: 15px; padding: 0.65rem 1rem; border-radius: var(--radius-md); background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2); font-size: 0.8rem; color: #fbbf24; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>${disabledMsg}</span>
+                        </div>`;
+                    }
+
                     resultArea.innerHTML = `
                     <div class="result-card ${resultClass}">
                         <div class="result-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; font-size: 1.2rem; font-weight: bold;">
@@ -3132,6 +3434,7 @@
                             ${safeBrowsingHTML}
                             ${flagsHTML}
                         </div>
+                        ${privacyShieldHTML}
                         <div id="feedback-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid ${getCSSVar('--border-primary')}; text-align: center;">
                             <p style="margin-bottom: 15px; color: ${getCSSVar('--text-secondary')}; font-size: 14px;">${t.feedbackQuestion}</p>
                             <div style="display: flex; gap: 15px; justify-content: center;">
@@ -3263,12 +3566,117 @@
                 console.error("Language toggle button not found");
             }
 
+            // --- Privacy Shield Event Listeners & Live Detection ---
+            const privacyToggle = document.getElementById('privacy-toggle');
+            const privacyBadge = document.getElementById('privacy-toggle-badge');
+            const privacyText = document.getElementById('privacy-toggle-text');
+            const emailTextarea = document.getElementById('email_text');
+            const liveNotice = document.getElementById('live-pii-notice');
+            const liveNoticeText = document.getElementById('live-pii-text');
+            const previewBtn = document.getElementById('btn-preview-sanitized');
+            const previewBox = document.getElementById('live-pii-preview-box');
+
+            function updatePrivacyToggleUI() {
+                const currentLang = localStorage.getItem('preferredLang') || 'es';
+                const t = translations[currentLang];
+                if (!privacyToggle || !privacyBadge || !privacyText) return;
+                if (privacyToggle.checked) {
+                    privacyBadge.classList.remove('inactive');
+                    privacyText.textContent = t.privacy_toggle_title || 'Escudo PII Activo';
+                } else {
+                    privacyBadge.classList.add('inactive');
+                    privacyText.textContent = t.privacy_toggle_inactive || 'Escudo PII Inactivo';
+                    if (liveNotice) liveNotice.style.display = 'none';
+                    if (previewBox) previewBox.style.display = 'none';
+                }
+            }
+
+            if (privacyToggle) {
+                privacyToggle.addEventListener('change', () => {
+                    updatePrivacyToggleUI();
+                    triggerLivePIICheck();
+                });
+            }
+
+            let livePIITimer = null;
+            window._lastSanitizedPreview = null;
+
+            function triggerLivePIICheck() {
+                clearTimeout(livePIITimer);
+                if (!privacyToggle || !privacyToggle.checked || !emailTextarea) {
+                    if (liveNotice) liveNotice.style.display = 'none';
+                    if (previewBox) previewBox.style.display = 'none';
+                    return;
+                }
+                const text = emailTextarea.value.trim();
+                if (text.length < 15) {
+                    if (liveNotice) liveNotice.style.display = 'none';
+                    if (previewBox) previewBox.style.display = 'none';
+                    return;
+                }
+
+                livePIITimer = setTimeout(async () => {
+                    try {
+                        const resp = await fetch('/api/privacy/anonymize', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: text })
+                        });
+                        if (resp.ok) {
+                            const pdata = await resp.json();
+                            if (pdata.has_sensitive_data) {
+                                window._lastSanitizedPreview = pdata.sanitized_text;
+                                const currentLang = localStorage.getItem('preferredLang') || 'es';
+                                const count = pdata.total_redacted_count;
+                                if (liveNoticeText) {
+                                    liveNoticeText.innerHTML = currentLang === 'es'
+                                        ? `🛡️ <strong>${count} dato(s) sensible(s) detectados</strong> (serán anonimizados antes del análisis)`
+                                        : `🛡️ <strong>${count} sensitive item(s) detected</strong> (will be sanitized before analysis)`;
+                                }
+                                if (liveNotice) liveNotice.style.display = 'flex';
+                            } else {
+                                if (liveNotice) liveNotice.style.display = 'none';
+                                if (previewBox) previewBox.style.display = 'none';
+                            }
+                        }
+                    } catch (e) {
+                        console.debug('Live PII non-critical check error:', e);
+                    }
+                }, 400);
+            }
+
+            if (emailTextarea) {
+                emailTextarea.addEventListener('input', triggerLivePIICheck);
+                emailTextarea.addEventListener('paste', () => setTimeout(triggerLivePIICheck, 50));
+            }
+
+            if (previewBtn && previewBox) {
+                previewBtn.addEventListener('click', () => {
+                    if (previewBox.style.display === 'none' || !previewBox.style.display) {
+                        previewBox.textContent = window._lastSanitizedPreview || 'Texto sanitizado...';
+                        previewBox.style.display = 'block';
+                        const currentLang = localStorage.getItem('preferredLang') || 'es';
+                        previewBtn.textContent = currentLang === 'es' ? 'Ocultar previa' : 'Hide preview';
+                    } else {
+                        previewBox.style.display = 'none';
+                        const currentLang = localStorage.getItem('preferredLang') || 'es';
+                        previewBtn.textContent = currentLang === 'es' ? 'Ver previa protegida' : 'View protected preview';
+                    }
+                });
+            }
+
         }); // End DOMContentLoaded
 
         // --- Clear Text Area Function ---
         function clearTextArea() {
             const emailText = document.getElementById('email_text');
             if (emailText) emailText.value = '';
+
+            // Clear PII live notice
+            const liveNotice = document.getElementById('live-pii-notice');
+            const previewBox = document.getElementById('live-pii-preview-box');
+            if (liveNotice) liveNotice.style.display = 'none';
+            if (previewBox) previewBox.style.display = 'none';
 
             // Clear the result area as well
             const resultArea = document.getElementById('result');
@@ -3311,6 +3719,9 @@
             if (exampleText) {
                 const textarea = document.getElementById('email_text');
                 textarea.value = exampleText;
+
+                // Trigger live PII detection
+                textarea.dispatchEvent(new Event('input'));
 
                 // Smooth scroll to textarea
                 textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });

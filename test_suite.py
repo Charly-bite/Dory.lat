@@ -403,6 +403,49 @@ class DoryTestSuite(unittest.TestCase):
         self.assertNotIn("Simulación de Autoridad Fiscal", report_safe['html'])
         print(f"  [{GREEN}PASS{RESET}] Reporte Seguro libre de factores de alerta alarmistas y falsos positivos de palabras verificados.\n")
 
+    def test_module_7_privacy_shield(self):
+        """Módulo 7: Evaluación del Escudo de Privacidad (PII & Sensitive Data Sanitizer)."""
+        print(f"\n{BOLD}[+] Módulo 7: Evaluando Escudo de Privacidad (Privacy Shield PII)...{RESET}")
+        from privacy_shield import PrivacyShield, luhn_checksum
+
+        # 1. Validación algorítmica Luhn
+        self.assertTrue(luhn_checksum("4532015112830366"))
+        self.assertFalse(luhn_checksum("1234567890123456"))
+        print(f"  [{GREEN}PASS{RESET}] Algoritmo de Luhn para validación de tarjetas verificado.")
+
+        # 2. Prueba de enmascaramiento con texto simulado
+        sample = (
+            "Estimado Juan Perez Gonzalez, su RFC ACCC891024XX1 y CURP ACCC891024HDFRRL09 están bloqueados. "
+            "Su tarjeta 4532-0151-1283-0366 y CLABE 012180004567890123 requieren validación. "
+            "Contraseña temporal: password=TempPass2026! Llame al +52 33 1234 5678 o escriba a carlos.aceves@quimicaboss.com.mx. "
+            "Portal: https://banco-login-falso.com/login"
+        )
+        res = PrivacyShield.anonymize_text(sample)
+        sanitized = res['sanitized_text']
+
+        self.assertTrue(res['has_sensitive_data'])
+        self.assertNotIn("4532-0151-1283-0366", sanitized)
+        self.assertIn("[TARJETA_PROTEGIDA]", sanitized)
+        self.assertNotIn("012180004567890123", sanitized)
+        self.assertIn("[CLABE_PROTEGIDA]", sanitized)
+        self.assertNotIn("ACCC891024XX1", sanitized)
+        self.assertIn("[RFC_PROTEGIDO]", sanitized)
+        self.assertNotIn("ACCC891024HDFRRL09", sanitized)
+        self.assertIn("[CURP_PROTEGIDO]", sanitized)
+        self.assertNotIn("TempPass2026!", sanitized)
+        self.assertIn("[PASSWORD_PROTEGIDO]", sanitized)
+        self.assertNotIn("carlos.aceves@quimicaboss.com.mx", sanitized)
+        self.assertIn("[CORREO_EMPLEADO_PROTEGIDO]", sanitized)
+        self.assertIn("https://banco-login-falso.com/login", sanitized, "Enlace de phishing debe permanecer intacto")
+        print(f"  [{GREEN}PASS{RESET}] Enmascaramiento integral exitoso ({len(res['redacted_entities'])} entidades protegidas).")
+
+        # 3. Verificación de precisión IA con texto sanitizado
+        pred = predict_phishing_hf(sanitized)
+        self.assertTrue(pred['is_phishing'])
+        self.assertGreaterEqual(pred['risk_score'], 80)
+        print(f"  [{GREEN}PASS{RESET}] Detección de Phishing intacta en texto sanitizado (Score: {pred['risk_score']}/100).\n")
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=0)
+

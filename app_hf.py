@@ -866,13 +866,44 @@ def predict():
             received_keys = list(data.keys()) if request.is_json and data else list(request.form.keys())
             return jsonify({'error': f'No text provided. Received keys: {received_keys}. Content-Type: {request.content_type}'}), 400
         
+        # Check anonymization mode (enabled by default)
+        anonymize = True
+        if request.is_json and data:
+            anonymize = data.get('anonymize', True)
+        elif 'anonymize' in request.form:
+            anonymize = request.form.get('anonymize', 'true').lower() in ('true', '1', 'yes')
+
+        text_to_analyze = full_text
+        privacy_audit = {
+            'active': False,
+            'has_sensitive_data': False,
+            'redacted_entities': [],
+            'total_redacted': 0,
+            'stats': {}
+        }
+
+        if anonymize:
+            from privacy_shield import PrivacyShield
+            shield_result = PrivacyShield.anonymize_text(full_text)
+            text_to_analyze = shield_result['sanitized_text']
+            privacy_audit = {
+                'active': True,
+                'has_sensitive_data': shield_result['has_sensitive_data'],
+                'redacted_entities': shield_result['redacted_entities'],
+                'total_redacted': shield_result['total_redacted_count'],
+                'stats': shield_result['stats'],
+                'sanitized_preview': text_to_analyze[:300] if shield_result['has_sensitive_data'] else None
+            }
+            if shield_result['has_sensitive_data']:
+                logger.info(f"🛡️ [PRIVACY SHIELD] Sanitizadas {shield_result['total_redacted_count']} entidades sensibles antes de procesar con IA.")
+
         logger.info("Processing prediction request...")
         
         # Get optional attachments
         attachments = data.get('attachments', []) if request.is_json and data else []
 
-        # Get prediction from calibrated engine
-        result = predict_phishing_hf(full_text, attachments=attachments)
+        # Get prediction from calibrated engine using sanitized text
+        result = predict_phishing_hf(text_to_analyze, attachments=attachments)
         
         is_phishing = result['is_phishing']
         confidence = float(result['confidence'])
@@ -906,6 +937,7 @@ def predict():
             'threats_detected': threats_detected,
             'google_safe_browsing': google_verdict,
             'l2_deep_inspection': result.get('l2_analysis'),
+            'privacy_shield': privacy_audit,
             'analysis': {
                 'text_length': result['features']['length'],
                 'word_count': result['features']['word_count'],
@@ -935,8 +967,8 @@ def predict():
                 'dangerous_attachment': result['features']['has_dangerous_attachment'],
                 'double_extension': result['features']['has_double_extension']
             },
-            'model': 'calibrated-heuristics-v3.1-attachments',
-            'version': '3.1'
+            'model': 'calibrated-heuristics-v3.5-privacy-shield',
+            'version': '3.5'
         }
         
         logger.info(f"Prediction: {response['prediction']} (confidence: {confidence:.2f})")
@@ -1277,6 +1309,12 @@ def mail_inbound():
         # Procesar con motor de IA y L2
         result = worker.process_single_message(raw_data)
         
+        # Sanitizar cuerpo de correo con Escudo de Privacidad antes de persistir en feedback.db
+        from privacy_shield import PrivacyShield
+        if 'email_body' in result['db_payload'] and result['db_payload']['email_body']:
+            shield_res = PrivacyShield.anonymize_text(result['db_payload']['email_body'])
+            result['db_payload']['email_body'] = shield_res['sanitized_text']
+
         # Almacenar en feedback.db
         record_id = save_incoming_report(result['db_payload'])
         
@@ -1304,8 +1342,34 @@ def mail_inbound():
         logger.error(f"Error procesando correo entrante en /api/mail/inbound: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/privacy/anonymize', methods=['POST'])
+def privacy_anonymize():
+    """
+    Endpoint de sanitización en tiempo real para previsualización PII.
+    """
+    try:
+        data = request.get_json() or {}
+        text = data.get('text', '')
+        if not text:
+            return jsonify({'error': 'No text provided'}), 400
+        
+        from privacy_shield import PrivacyShield
+        result = PrivacyShield.anonymize_text(text)
+        return jsonify({
+            'success': True,
+            'sanitized_text': result['sanitized_text'],
+            'has_sensitive_data': result['has_sensitive_data'],
+            'redacted_entities': result['redacted_entities'],
+            'stats': result['stats'],
+            'total_redacted_count': result['total_redacted_count']
+        }), 200
+    except Exception as e:
+        logger.error(f"Error in privacy_anonymize: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Development server
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
