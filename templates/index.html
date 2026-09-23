@@ -3570,7 +3570,7 @@
             const privacyToggle = document.getElementById('privacy-toggle');
             const privacyBadge = document.getElementById('privacy-toggle-badge');
             const privacyText = document.getElementById('privacy-toggle-text');
-            const emailTextarea = document.getElementById('email_text');
+            const piiEmailTextarea = document.getElementById('email_text');
             const liveNotice = document.getElementById('live-pii-notice');
             const liveNoticeText = document.getElementById('live-pii-text');
             const previewBtn = document.getElementById('btn-preview-sanitized');
@@ -3603,12 +3603,12 @@
 
             function triggerLivePIICheck() {
                 clearTimeout(livePIITimer);
-                if (!privacyToggle || !privacyToggle.checked || !emailTextarea) {
+                if (!privacyToggle || !privacyToggle.checked || !piiEmailTextarea) {
                     if (liveNotice) liveNotice.style.display = 'none';
                     if (previewBox) previewBox.style.display = 'none';
                     return;
                 }
-                const text = emailTextarea.value.trim();
+                const text = piiEmailTextarea.value.trim();
                 if (text.length < 15) {
                     if (liveNotice) liveNotice.style.display = 'none';
                     if (previewBox) previewBox.style.display = 'none';
@@ -3645,9 +3645,9 @@
                 }, 400);
             }
 
-            if (emailTextarea) {
-                emailTextarea.addEventListener('input', triggerLivePIICheck);
-                emailTextarea.addEventListener('paste', () => setTimeout(triggerLivePIICheck, 50));
+            if (piiEmailTextarea) {
+                piiEmailTextarea.addEventListener('input', triggerLivePIICheck);
+                piiEmailTextarea.addEventListener('paste', () => setTimeout(triggerLivePIICheck, 50));
             }
 
             if (previewBtn && previewBox) {
@@ -3738,6 +3738,7 @@
                 logger.error('Example not found:', exampleKey);
             }
         }
+        window.loadExample = loadExample;
 
         // --- Legacy Cleanup: Remove any old draggable coordinates stored in localStorage ---
         (function cleanupLegacyDragPositions() {
