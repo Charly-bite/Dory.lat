@@ -1,0 +1,49 @@
+{
+  "_comment": "Configuración del servicio de correo para Dory.lat. Copia este archivo como mail_config.json",
+  "imap": {
+    "server": "imap.gmail.com",
+    "port": 993,
+    "user": "seguridad-phishing@tuempresa.com",
+    "password": "tu_contraseña_o_app_password_aqui",
+    "use_ssl": true,
+    "mailbox": "INBOX"
+  },
+  "smtp": {
+    "server": "smtp.gmail.com",
+    "port": 587,
+    "user": "seguridad-phishing@tuempresa.com",
+    "password": "tu_contraseña_o_app_password_aqui",
+    "use_tls": true,
+    "use_ssl": false
+  },
+  "service": {
+    "poll_interval_seconds": 20,
+    "mark_as_read": true,
+    "move_to_folder": null,
+    "sender_display_name": "Dory Phishing Defense Bot",
+    "support_contact": "ciberseguridad@tuempresa.com"
+  },
+  "providers_reference": {
+    "gmail": {
+      "imap_server": "imap.gmail.com",
+      "imap_port": 993,
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587,
+      "note": "Requiere autenticación de 2 pasos activa y generar una 'Contraseña de Aplicación' de 16 caracteres en myaccount.google.com/apppasswords"
+    },
+    "office365": {
+      "imap_server": "outlook.office365.com",
+      "imap_port": 993,
+      "smtp_server": "smtp.office365.com",
+      "smtp_port": 587,
+      "note": "Asegurar que IMAP y SMTP AUTH estén habilitados para el buzón en el centro de administración de Exchange"
+    },
+    "cpanel_or_zimbra": {
+      "imap_server": "mail.tuempresa.com",
+      "imap_port": 993,
+      "smtp_server": "mail.tuempresa.com",
+      "smtp_port": 465,
+      "smtp_use_ssl": true
+    }
+  }
+}

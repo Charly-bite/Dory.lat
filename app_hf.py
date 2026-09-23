@@ -9,8 +9,9 @@ import sqlite3
 import json
 from datetime import datetime
 from flask import Flask, request, render_template, jsonify
-from functools import wraps
+from functools import wraps, lru_cache
 import requests
+from urllib.parse import urlparse
 
 # --- Basic Setup ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,6 +21,7 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # --- Flask App ---
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # --- HuggingFace Configuration ---
 # You'll need to set this as an environment variable in Render
@@ -38,9 +40,11 @@ GOOGLE_SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches
 DATABASE_PATH = os.path.join(APP_ROOT, 'feedback.db')
 
 def init_database():
-    """Initialize SQLite database for user feedback."""
-    conn = sqlite3.connect(DATABASE_PATH)
+    """Initialize SQLite database for user feedback and reports with WAL mode for concurrency."""
+    conn = sqlite3.connect(DATABASE_PATH, timeout=30.0)
     cursor = conn.cursor()
+    cursor.execute('PRAGMA journal_mode=WAL;')
+    cursor.execute('PRAGMA synchronous=NORMAL;')
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS feedback (
@@ -59,90 +63,295 @@ def init_database():
         )
     ''')
     
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS incoming_phishing_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            sender_email TEXT NOT NULL,
+            recipient_email TEXT,
+            subject TEXT,
+            email_body TEXT NOT NULL,
+            prediction TEXT NOT NULL,
+            risk_score INTEGER NOT NULL,
+            confidence REAL NOT NULL,
+            threats_detected TEXT,
+            urls_found TEXT,
+            reply_sent BOOLEAN DEFAULT 0,
+            reply_timestamp DATETIME,
+            processing_time_ms REAL,
+            raw_headers TEXT
+        )
+    ''')
+    
     conn.commit()
     conn.close()
-    logger.info(f"Database initialized at {DATABASE_PATH}")
+    logger.info(f"Database initialized at {DATABASE_PATH} (WAL mode enabled)")
 
 # Initialize database on startup
 init_database()
 
-# --- Simple feature extraction (lightweight, no NLTK needed for basic version) ---
-def extract_basic_features(text):
-    """Extract comprehensive features for phishing detection."""
+# =====================================================================
+# Pre-compiled Regular Expressions & Fast Set Lookups (Sub-millisecond Engine)
+# =====================================================================
+RE_URLS = re.compile(r'https?://[^\s<>"]+|www\.[^\s<>"]+', re.IGNORECASE)
+RE_IPV4_HOST = re.compile(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
+RE_IPV4_IN_URL = re.compile(r'https?://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', re.IGNORECASE)
+RE_EMOJIS = re.compile(
+    r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\U00002702-\U000027B0\U000024C2-\U0001F251]+'
+)
+RE_EXCLAMATIONS = re.compile(r'!{2,}')
+RE_QUESTIONS = re.compile(r'\?{2,}')
+RE_EMAIL_ADDRS = re.compile(r'\S+@\S+')
+RE_EXTENSIONS = re.compile(r'\.[a-z0-9]{2,5}')
+
+SUSPICIOUS_TLDS = frozenset([
+    '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.work', 
+    '.click', '.link', '.download', '.bid', '.online', '.site', 
+    '.space', '.buzz', '.club', '.live', '.icu', '.vip', '.tech', 
+    '.support', '.services', '.monster', '.review', '.country', '.kim',
+    '.vu', '.cc', '.ws', '.cfd', '.rest', '.sbs'
+])
+
+URL_SHORTENERS = frozenset([
+    'bit.ly', 'tinyurl.com', 'tiny.cc', 't.co', 'goo.gl', 'ow.ly', 
+    'is.gd', 'buff.ly', 'adf.ly', 'bit.do', 'cutt.ly', 'short.io', 'rb.gy'
+])
+
+KNOWN_TARGETS = (
+    'bbva', 'santander', 'banorte', 'citibanamex', 'banamex', 'scotiabank', 
+    'hsbc', 'azteca', 'coppel', 'bancoppel', 'mercadopago', 'mercadolibre', 
+    'paypal', 'sat', 'imss', 'infonavit', 'microsoft', 'office365', 
+    'outlook', 'google', 'apple', 'icloud', 'netflix', 'amazon', 
+    'facebook', 'instagram', 'whatsapp', 'dhl', 'fedex', 'estafeta', 'ups',
+    'cpanel', 'directadmin', 'webmail', 'zimbra', 'roundcube'
+)
+
+LEGIT_DOMAINS = frozenset([
+    'bbva.mx', 'bbva.com', 'santander.com.mx', 'santander.com', 
+    'banorte.com', 'citibanamex.com', 'banamex.com', 'scotiabank.com.mx',
+    'hsbc.com.mx', 'hsbc.com', 'bancoazteca.com.mx', 'coppel.com',
+    'mercadolibre.com.mx', 'mercadolibre.com', 'mercadopago.com.mx', 'mercadopago.com',
+    'paypal.com', 'sat.gob.mx', 'gob.mx', 'imss.gob.mx', 'microsoft.com', 
+    'office.com', 'live.com', 'google.com', 'apple.com', 'netflix.com', 
+    'amazon.com', 'amazon.com.mx', 'dhl.com', 'dhl.com.mx', 'fedex.com', 
+    'estafeta.com', 'python.org', 'cpanel.net', 'directadmin.com'
+])
+
+ACTION_PATH_KEYWORDS = (
+    'login', 'signin', 'auth', 'verify', 'verificar', 'buzon', 'buzón', 
+    'cancelar', 'reclamo', 'desbloquear', 'password', 'clave', 
+    'actualizar', 'secure', 'account', 'cuenta', 'entrega', 'rastreo'
+)
+
+SUSPICIOUS_DOMAIN_HYPHEN_KEYWORDS = (
+    'login', 'portal', 'seguridad', 'acceso', 'verificar', 'ayuda', 'soporte'
+)
+
+FISCAL_KEYWORDS = (
+    'sat', 'buzon tributario', 'buzón tributario', 'rfc', 'fiscal', 'multa', 
+    'auditoria', 'auditoría', 'requerimiento fiscal', 'declaracion anual', 
+    'credito fiscal', 'embargo precautorio', 'notificacion judicial'
+)
+
+RE_FISCAL_KEYWORDS = re.compile(
+    r'\b(sat|rfc|multa|multas|fiscal|fiscales|buz[oó]n tributario|cr[eé]dito fiscal|adeudo fiscal|requerimiento fiscal|declaraci[oó]n anual|auditor[ií]a|embargo precautorio|notificaci[oó]n judicial)\b',
+    re.IGNORECASE
+)
+
+RE_BANKING_KEYWORDS = re.compile(
+    r'\b(transferencia|transferencias|spei|saldo|tarjeta|tarjetas|debito|d[eé]bito|cr[eé]dito|credito|banco|bancari[oa]s?|dep[oó]sito|dep[oó]sitos|cargo no reconocido|transacci[oó]n|desbloquear|retenid[oa]|token|nip|cvv|clave interbancaria|compra aprobada|mercadopago|mercado pago)\b',
+    re.IGNORECASE
+)
+
+RE_CREDENTIAL_WORDS = re.compile(
+    r'\b(password|contrase[ñn]a|contrasena|social security|ssn|credit card|tarjeta|bank account|cuenta bancaria|pin|cvv|credenciales|token m[oó]vil|token movil|clave de acceso|datos de acceso|autenticaci[oó]n|autenticacion|acceso a tu buz[oó]n)\b',
+    re.IGNORECASE
+)
+
+URGENCY_PHRASES = (
+    '24 hours', '24 horas', 'immediately', 'inmediatamente', 'de inmediato', 
+    'right now', 'ahora mismo', 'expire today', 'expira hoy', 'final notice', 
+    'aviso final', 'ultimo aviso', 'último aviso', 'last chance', 'última oportunidad', 
+    'act now', 'actúa ahora', 'actua ahora', 'expira en', 'en 2 horas', 
+    'evite el bloqueo', 'evite multas', 'evite la suspensión', 'evite la suspension', 
+    'inmediata requerida', 'correos entrantes pendientes', 'perder el acceso',
+    'perderás el acceso', 'perderas el acceso', 'solicitud de autenticación', 'solicitud de autenticacion'
+)
+
+ACTION_REQUESTS = (
+    'haga clic', 'haga click', 'click aqui', 'clic aqui', 'ingrese a', 
+    'ingrese su', 'actualice sus', 'verifique su', 'cancele la', 
+    'desconoce la', 'solvente', 'reclamar', 'descargue el archivo', 
+    'para desbloquear', 'para verificar', 'continúe la verificación',
+    'continue la verificacion', 'verifique que este'
+)
+
+ALL_PHISHING_KEYWORDS = (
+    'urgente', 'verificar', 'suspender', 'bloquead', 'confirm', 'actualiz', 
+    'caduc', 'expir', 'inmediatamente', 'premio', 'ganador', 'ganaste',
+    'reclam', 'haga clic', 'click aqui', 'alert', 'seguridad', 'cuenta',
+    'tarjeta', 'contraseña', 'clave', 'pin', 'urgent', 'verify', 'suspend', 
+    'blocked', 'confirm', 'update', 'expire', 'prize', 'winner', 'won'
+)
+
+OFFER_WORDS = (
+    'free iphone', 'iphone gratis', 'won', 'ganaste', 'winner', 'ganador',
+    'prize', 'premio', 'lottery', 'lotería', 'loteria', '$1,000', '1000 usd', 'sorteo'
+)
+
+GENERIC_GREETINGS = (
+    'dear customer', 'estimado cliente', 'dear user', 'estimado usuario',
+    'dear sir', 'estimado señor', 'valued customer', 'cliente valorado'
+)
+
+BRAND_TYPOS = (
+    'paypa1', 'g00gle', 'micros0ft', 'amaz0n', 'facebok', 'faceb00k', 'appl3', 'netfIix', 'netfl1x'
+)
+
+DANGEROUS_EXTS = frozenset([
+    '.exe', '.scr', '.vbs', '.bat', '.cmd', '.ps1', '.iso', '.img', 
+    '.html', '.htm', '.hta', '.docm', '.xlsm', '.pptm', '.wsf', '.cpl', '.pif'
+])
+
+@lru_cache(maxsize=4096)
+def analyze_single_url(url: str) -> dict:
+    """Cached domain and threat analysis for a single URL string."""
+    url_lower = url.lower()
+    if any(url_lower.startswith(p) for p in ('http://', 'https://', 'www.')):
+        parsed = urlparse(url if url.startswith('http') else 'http://' + url)
+        host = parsed.netloc.split(':')[0]
+        path = parsed.path.lower()
+        fragment = (parsed.fragment or '').lower()
+    else:
+        host = url_lower
+        path = ""
+        fragment = ""
+
+    has_ip = bool(RE_IPV4_HOST.match(host) or RE_IPV4_IN_URL.search(url_lower))
+    has_tld = any(host.endswith(tld) for tld in SUSPICIOUS_TLDS)
+    has_shortener = any(shortener in host for shortener in URL_SHORTENERS)
+    has_hash_email = bool(re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', fragment))
+
+    # Impersonation
+    is_legit = (host in LEGIT_DOMAINS) or any(host.endswith('.' + legit) for legit in LEGIT_DOMAINS)
+    has_impersonation = False
+    has_suspicious_hyphen = False
+    if not is_legit:
+        for target in KNOWN_TARGETS:
+            if target in host:
+                has_impersonation = True
+                break
+        if host.count('-') >= 2 or ('-' in host and any(t in host for t in SUSPICIOUS_DOMAIN_HYPHEN_KEYWORDS)):
+            has_suspicious_hyphen = True
+
+    has_login = any(kw in path for kw in ACTION_PATH_KEYWORDS) or has_hash_email
+
+    return {
+        'host': host,
+        'has_ip': has_ip,
+        'has_tld': has_tld,
+        'has_shortener': has_shortener,
+        'has_impersonation': has_impersonation,
+        'has_suspicious_hyphen': has_suspicious_hyphen,
+        'has_login': has_login,
+        'has_hash_email': has_hash_email,
+        'is_legit': is_legit
+    }
+
+def extract_basic_features(text, attachments=None):
+    """Extract comprehensive features for phishing detection including domain analysis, localized threats, and attachment risks."""
     if not text or not isinstance(text, str):
         text = ""
     
     text_lower = text.lower()
     
-    # Extract URLs for detailed analysis
-    urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
+    # Extract URLs and clean trailing punctuation
+    raw_urls = RE_URLS.findall(text)
+    urls = [u.rstrip('.,;:)!?"\'') for u in raw_urls]
     
-    # Suspicious TLDs
-    suspicious_tlds = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.work', '.click', '.link', '.download', '.bid']
-    has_suspicious_tld = any(any(tld in url.lower() for tld in suspicious_tlds) for url in urls)
+    has_suspicious_tld = False
+    has_url_shortener = False
+    has_ip_in_url = False
+    has_brand_impersonation = False
+    has_login_path = False
+    has_suspicious_domain_hyphen = False
+    has_unverified_url = False
+    all_urls_legit = (len(urls) > 0)
     
-    # URL shorteners
-    url_shorteners = ['bit.ly', 'tinyurl', 'goo.gl', 't.co', 'ow.ly', 'is.gd', 'buff.ly', 'adf.ly']
-    has_url_shortener = any(any(shortener in url.lower() for shortener in url_shorteners) for url in urls)
+    for url in urls:
+        u_info = analyze_single_url(url)
+        if u_info['has_ip']:
+            has_ip_in_url = True
+        if u_info['has_tld']:
+            has_suspicious_tld = True
+        if u_info['has_shortener']:
+            has_url_shortener = True
+        if u_info['has_impersonation']:
+            has_brand_impersonation = True
+        if u_info['has_suspicious_hyphen']:
+            has_suspicious_domain_hyphen = True
+        if u_info['has_login']:
+            has_login_path = True
+        if not u_info['is_legit']:
+            all_urls_legit = False
+            has_unverified_url = True
     
-    # Check for IP addresses in URLs
-    has_ip_in_url = any(re.search(r'https?://\d+\.\d+\.\d+\.\d+', url) for url in urls)
+    # Fiscal & Government Coercion
+    # Fiscal & Government Coercion (Regex estricto de límites de palabra para evitar falsos positivos como "versatilidad")
+    has_fiscal_context = bool(RE_FISCAL_KEYWORDS.search(text))
     
-    # Phishing keywords in Spanish and English
-    phishing_keywords_es = ['urgente', 'verificar', 'suspender', 'bloquead', 'confirm', 'actualiz', 
-                            'caduc', 'expir', 'inmediatamente', 'premio', 'ganador', 'ganaste',
-                            'reclam', 'haga clic', 'click aqui', 'alert', 'seguridad', 'cuenta',
-                            'tarjeta', 'contraseña', 'clave', 'pin']
+    # Banking, FinTech & Payment Alerts (Límites de palabra para evitar colisiones con palabras como "manipular")
+    has_banking_context = bool(RE_BANKING_KEYWORDS.search(text))
     
-    phishing_keywords_en = ['urgent', 'verify', 'suspend', 'blocked', 'confirm', 'update',
-                           'expire', 'immediately', 'prize', 'winner', 'won', 'claim',
-                           'click here', 'alert', 'security', 'account', 'card', 'password', 'pin']
+    # Financial/credential requests (Límites de palabra para evitar falsos positivos como "opinión" con pin)
+    requests_credentials = bool(RE_CREDENTIAL_WORDS.search(text))
     
-    all_keywords = phishing_keywords_es + phishing_keywords_en
-    keyword_matches = sum(1 for keyword in all_keywords if keyword in text_lower)
+    # Social engineering / urgency tactics
+    has_urgency = any(phrase in text_lower for phrase in URGENCY_PHRASES)
     
-    # Check for social engineering tactics
-    urgency_phrases = ['24 hours', '24 horas', 'immediately', 'inmediatamente', 'right now', 
-                      'ahora mismo', 'expire today', 'expira hoy', 'final notice', 'aviso final',
-                      'last chance', 'última oportunidad', 'act now', 'actúa ahora']
-    has_urgency = any(phrase in text_lower for phrase in urgency_phrases)
+    # Action requests & Click coercion
+    has_action_request = any(ar in text_lower for ar in ACTION_REQUESTS)
     
-    # Financial/credential requests
-    credential_words = ['password', 'contraseña', 'social security', 'ssn', 'credit card', 
-                       'tarjeta', 'bank account', 'cuenta bancaria', 'pin', 'cvv']
-    requests_credentials = any(word in text_lower for word in credential_words)
+    # Phishing keywords count
+    keyword_matches = sum(1 for kw in ALL_PHISHING_KEYWORDS if kw in text_lower)
     
     # Too-good-to-be-true offers
-    offer_words = ['free iphone', 'iphone gratis', 'won', 'ganaste', 'winner', 'ganador',
-                  'prize', 'premio', 'lottery', 'lotería', '$1,000', '1000 USD']
-    has_unrealistic_offer = any(word in text_lower for word in offer_words)
+    has_unrealistic_offer = any(word in text_lower for word in OFFER_WORDS)
     
-    # Emoji spam (common in phishing)
-    emoji_pattern = re.compile("["
-        u"\U0001F600-\U0001F64F"  # emoticons
-        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
-        u"\U0001F680-\U0001F6FF"  # transport & map symbols
-        u"\U0001F1E0-\U0001F1FF"  # flags
-        u"\U00002702-\U000027B0"
-        u"\U000024C2-\U0001F251"
-        "]+", flags=re.UNICODE)
-    emoji_count = len(emoji_pattern.findall(text))
+    # Macro execution lures in text
+    macro_lures = ('habilitar macros', 'activar macros', 'enable macros', 'habilitar contenido', 'activar edicion')
+    has_macro_lure = any(lure in text_lower for lure in macro_lures)
+    
+    # Emoji spam
+    emoji_count = len(RE_EMOJIS.findall(text))
     
     # Excessive punctuation
-    multiple_exclamation = len(re.findall(r'!{2,}', text))
-    multiple_question = len(re.findall(r'\?{2,}', text))
+    multiple_exclamation = len(RE_EXCLAMATIONS.findall(text))
+    multiple_question = len(RE_QUESTIONS.findall(text))
     
-    # Greeting mismatch (generic greetings are suspicious)
-    generic_greetings = ['dear customer', 'estimado cliente', 'dear user', 'estimado usuario',
-                        'dear sir', 'estimado señor', 'valued customer', 'cliente valorado']
-    has_generic_greeting = any(greeting in text_lower for greeting in generic_greetings)
+    # Greeting mismatch
+    has_generic_greeting = any(greeting in text_lower for greeting in GENERIC_GREETINGS)
     
-    # Misspellings of common brands (typosquatting)
-    brand_typos = ['paypa1', 'g00gle', 'micros0ft', 'amaz0n', 'facebok', 'faceb00k', 
-                   'appl3', 'netfIix', 'netfl1x']
-    has_brand_typo = any(typo in text_lower for typo in brand_typos)
+    # Typosquatting in raw text
+    has_brand_typo = any(typo in text_lower for typo in BRAND_TYPOS)
     
-    # Basic text metrics
+    # Suspicious attachment scanning
+    has_dangerous_attachment = False
+    has_double_extension = False
+    suspicious_attachments = []
+    
+    if attachments:
+        for att in attachments:
+            att_clean = str(att).strip().lower()
+            ext_matches = RE_EXTENSIONS.findall(att_clean)
+            if len(ext_matches) >= 2 and any(att_clean.endswith(ext) for ext in DANGEROUS_EXTS):
+                has_double_extension = True
+                has_dangerous_attachment = True
+                suspicious_attachments.append(att)
+            elif any(att_clean.endswith(ext) for ext in DANGEROUS_EXTS):
+                has_dangerous_attachment = True
+                suspicious_attachments.append(att)
+    
     features = {
         'length': len(text),
         'word_count': len(text.split()),
@@ -151,21 +360,35 @@ def extract_basic_features(text):
         'exclamation_count': text.count('!'),
         'question_count': text.count('?'),
         'url_count': len(urls),
-        'email_count': len(re.findall(r'\S+@\S+', text)),
+        'urls': urls,
+        'all_urls_legit': all_urls_legit,
+        'has_unverified_url': has_unverified_url,
+        'email_count': len(RE_EMAIL_ADDRS.findall(text)),
         
         # Advanced features
         'has_suspicious_tld': has_suspicious_tld,
         'has_url_shortener': has_url_shortener,
         'has_ip_in_url': has_ip_in_url,
+        'has_brand_impersonation': has_brand_impersonation,
+        'has_login_path': has_login_path,
+        'has_suspicious_domain_hyphen': has_suspicious_domain_hyphen,
+        'has_fiscal_context': has_fiscal_context,
+        'has_banking_context': has_banking_context,
         'keyword_matches': keyword_matches,
         'has_urgency': has_urgency,
+        'has_action_request': has_action_request,
         'requests_credentials': requests_credentials,
         'has_unrealistic_offer': has_unrealistic_offer,
+        'has_macro_lure': has_macro_lure,
         'emoji_count': emoji_count,
         'multiple_exclamation': multiple_exclamation,
         'multiple_question': multiple_question,
         'has_generic_greeting': has_generic_greeting,
         'has_brand_typo': has_brand_typo,
+        'has_dangerous_attachment': has_dangerous_attachment,
+        'has_double_extension': has_double_extension,
+        'suspicious_attachments': suspicious_attachments,
+        'attachment_count': len(attachments) if attachments else 0,
     }
     
     return features
@@ -296,192 +519,258 @@ def check_urls_with_safe_browsing(urls):
             'error': str(e)
         }
 
-def predict_phishing_hf(text):
+def predict_phishing_hf(text, attachments=None, raw_html="", email_info=None):
     """
-    Enhanced prediction using comprehensive heuristics + Google Safe Browsing.
-    
-    Scoring system based on multiple phishing indicators.
+    Enhanced prediction using calibrated multi-tier heuristics + Google Safe Browsing
+    + Automated Second-Pass Deep Inspection Filter (L2) for the intermediate zone (26-40 pts).
     Returns probability score from 0 (legitimate) to 1 (phishing).
     """
-    
     # Extract comprehensive features
-    features = extract_basic_features(text)
+    features = extract_basic_features(text, attachments=attachments)
     
-    # Extract URLs from text for Google Safe Browsing check
-    urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
+    # Clean extracted URLs & merge with raw_html hrefs and email_info
+    urls = list(features.get('urls', []))
+    if raw_html:
+        href_urls = re.findall(r'href=["\'](https?://[^"\']+|www\.[^"\']+)["\']', raw_html, flags=re.IGNORECASE)
+        for hu in href_urls:
+            clean_hu = hu.rstrip('.,;:)!?"\'')
+            if clean_hu and clean_hu not in urls:
+                urls.append(clean_hu)
+    if email_info and email_info.get('urls'):
+        for eu in email_info['urls']:
+            clean_eu = eu.rstrip('.,;:)!?"\'')
+            if clean_eu and clean_eu not in urls:
+                urls.append(clean_eu)
     
-    # Check URLs with Google Safe Browsing API
+    # Re-evaluate features based on merged URLs
+    for url in urls:
+        u_info = analyze_single_url(url)
+        if u_info['has_ip']: features['has_ip_in_url'] = True
+        if u_info['has_tld']: features['has_suspicious_tld'] = True
+        if u_info['has_shortener']: features['has_url_shortener'] = True
+        if u_info['has_impersonation']: features['has_brand_impersonation'] = True
+        if u_info['has_suspicious_hyphen']: features['has_suspicious_domain_hyphen'] = True
+        if u_info['has_login']: features['has_login_path'] = True
+        if u_info.get('has_hash_email'): features['has_hash_email'] = True
+        if not u_info['is_legit']:
+            features['all_urls_legit'] = False
+            features['has_unverified_url'] = True
+    features['urls'] = urls
+    features['url_count'] = len(urls)
+
+    # Check URLs with Google Safe Browsing API (if configured)
     safe_browsing_result = check_urls_with_safe_browsing(urls)
     
-    # Get embeddings from HF (optional, for future ML model)
-    # embeddings = get_hf_embeddings(text)
+    score = 0
+    threats = []
     
-    # Advanced scoring system with weighted factors
-    # Weights optimized based on real-world effectiveness (v2.3 stable)
-    risk_score = 0
-    max_score = 0
-    
-    # === TIER 1: Critical Indicators (50-30 points) ===
-    # These are highly reliable and rarely give false positives
-    
-    # Google Safe Browsing check (HIGHEST PRIORITY - 50 points)
-    if not safe_browsing_result['is_safe']:
-        risk_score += 50  # Confirmed malicious by Google's database
-        max_score += 50
-    elif safe_browsing_result['api_available']:
-        max_score += 50  # Add to max_score even if safe (for normalization)
-    
-    # IP address in URL (35 points) - Extremely suspicious
+    # === TIER 1: Critical Indicators (30-50 points) ===
+    if safe_browsing_result.get('api_available') and not safe_browsing_result.get('is_safe', True):
+        score += 50
+        for threat in safe_browsing_result.get('threats_found', []):
+            threats.append(f'Google Safe Browsing: {threat}')
+
+    # Threat Intelligence Feeds (URLhaus, Regional Mexico CERT-MX, Corpus)
+    try:
+        from threat_feed_sync import ThreatIntelligenceFeedManager
+        is_threat_feed, feed_threats = ThreatIntelligenceFeedManager.check_indicators(urls)
+        if is_threat_feed:
+            score += 50
+            threats.extend(feed_threats)
+    except Exception as e:
+        logger.debug(f"Threat intelligence lookup error: {e}")
+            
+    if features.get('has_double_extension'):
+        score += 45
+        threats.append(f'Deceptive double-extension file attachment ({", ".join(features["suspicious_attachments"])})')
+    elif features.get('has_dangerous_attachment'):
+        score += 45
+        threats.append(f'High-risk file attachment ({", ".join(features["suspicious_attachments"])})')
+        if features.get('has_macro_lure'):
+            score += 15
+            threats.append('Macro activation lure for dangerous attachment')
+
+    if features.get('has_hash_email'):
+        score += 40
+        threats.append('Target email embedded in URL fragment (Credential harvesting kit signature)')
+
     if features['has_ip_in_url']:
-        risk_score += 35
-        max_score += 35
-    
-    # Credential request (30 points) - Major phishing indicator
-    if features['requests_credentials']:
-        risk_score += 30
-        max_score += 30
-    
-    # === TIER 2: Strong Indicators (25-15 points) ===
-    # These are very good indicators but can occasionally appear in legitimate emails
-    
-    # Brand name typosquatting (25 points)
+        score += 35
+        threats.append('IP address in URL')
+        
+    if features['has_brand_impersonation']:
+        score += 35
+        threats.append('Brand impersonation in domain')
+        
+    if features['requests_credentials'] and features['has_unverified_url']:
+        score += 30
+        threats.append('Credential harvesting link')
+    elif features['requests_credentials'] and not features['all_urls_legit']:
+        score += 15
+        threats.append('Requests credentials')
+        
     if features['has_brand_typo']:
-        risk_score += 25
-        max_score += 25
-    
-    # Multiple URLs (20-25 points based on count)
-    if features['url_count'] > 0:
-        max_score += 25
-        if features['url_count'] > 4:
-            risk_score += 25  # Many URLs is very suspicious
-        elif features['url_count'] > 2:
-            risk_score += 18
-        elif features['url_count'] > 1:
-            risk_score += 12
-        else:
-            risk_score += 6  # Single URL is slightly suspicious
-    
-    # Suspicious TLD (20 points)
+        score += 25
+        threats.append('Brand name misspelling')
+
+    # === TIER 2: Strong Indicators (20-25 points) ===
     if features['has_suspicious_tld']:
-        risk_score += 20
-        max_score += 20
-    
-    # Urgency tactics (20 points)
-    if features['has_urgency']:
-        risk_score += 20
-        max_score += 20
-    
-    # Too-good-to-be-true offers (18 points)
-    if features['has_unrealistic_offer']:
-        risk_score += 18
-        max_score += 18
-    
-    # === TIER 3: Moderate Indicators (15-10 points) ===
-    # Useful but can appear in both legitimate and phishing emails
-    
-    # URL shorteners (15 points)
+        score += 25
+        threats.append('Suspicious domain extension')
+        
     if features['has_url_shortener']:
-        risk_score += 15
-        max_score += 15
-    
-    # Phishing keywords (12-20 points based on count)
-    max_score += 20
-    if features['keyword_matches'] > 6:
-        risk_score += 20
-    elif features['keyword_matches'] > 4:
-        risk_score += 16
+        score += 20
+        threats.append('URL shortener detected')
+        
+    if features['has_urgency']:
+        score += 20
+        threats.append('Urgent language tactics')
+        
+    if features['has_unrealistic_offer']:
+        score += 20
+        threats.append('Too-good-to-be-true offer')
+
+    # === TIER 3: Contextual Indicators (10-15 points) ===
+    if features['has_fiscal_context'] and features['has_unverified_url']:
+        score += 15
+        threats.append('Tax authority / fiscal coercion with unverified link')
+    elif features['has_fiscal_context'] and not features['all_urls_legit']:
+        score += 5
+        
+    if features['has_banking_context'] and features['has_unverified_url']:
+        score += 15
+        threats.append('Banking / transaction alert with unverified link')
+    elif features['has_banking_context'] and not features['all_urls_legit']:
+        score += 5
+        
+    if features['has_login_path'] and features['has_unverified_url']:
+        score += 12
+        threats.append('Suspicious action or login link')
+        
+    if features['has_suspicious_domain_hyphen']:
+        score += 12
+        threats.append('Hyphenated lookalike domain')
+        
+    if features['has_action_request'] and features['has_unverified_url']:
+        score += 10
+        threats.append('Action request with link')
+        
+    if features['keyword_matches'] > 4:
+        score += 15
+        threats.append(f'{features["keyword_matches"]} phishing keywords')
     elif features['keyword_matches'] > 2:
-        risk_score += 12
+        score += 10
+        threats.append(f'{features["keyword_matches"]} phishing keywords')
     elif features['keyword_matches'] > 0:
-        risk_score += 8
-    
-    # Generic greeting (10 points)
+        score += 5
+
+    # === TIER 4: Minor Indicators (3-8 points) ===
     if features['has_generic_greeting']:
-        risk_score += 10
-        max_score += 10
-    
-    # === TIER 4: Minor Indicators (8-3 points) ===
-    # Weak signals that add up when combined
-    
-    # Excessive capitalization (5-12 points)
-    max_score += 12
-    if features['uppercase_ratio'] > 0.5:
-        risk_score += 12  # More than 50% caps is very unusual
-    elif features['uppercase_ratio'] > 0.35:
-        risk_score += 8
-    elif features['uppercase_ratio'] > 0.25:
-        risk_score += 5
-    elif features['uppercase_ratio'] > 0.15:
-        risk_score += 3
-    
-    # Excessive exclamation marks (3-8 points)
-    max_score += 8
-    if features['exclamation_count'] > 6:
-        risk_score += 8
-    elif features['exclamation_count'] > 4:
-        risk_score += 6
-    elif features['exclamation_count'] > 2:
-        risk_score += 4
-    elif features['exclamation_count'] > 0:
-        risk_score += 2
-    
-    if features['multiple_exclamation'] > 0:
-        risk_score += 8
-        max_score += 8
-    
+        score += 8
+        threats.append('Generic greeting')
+        
+    if features['uppercase_ratio'] > 0.25:
+        score += 6
+        threats.append('Excessive capitalization')
+        
+    if features['exclamation_count'] > 3 or features['multiple_exclamation'] > 0:
+        score += 6
+        
     if features['multiple_question'] > 0:
-        risk_score += 5
-        max_score += 5
+        score += 4
+        
+    if features['emoji_count'] > 3:
+        score += 5
+
+    # === Synergistic boost: Composite Phishing Triad ===
+    # (Suspicious Link + Urgency/Coercion + Action/Credentials)
+    has_phishing_link = (
+        features['has_brand_impersonation'] or 
+        features['has_suspicious_tld'] or 
+        features['has_url_shortener'] or 
+        features['has_ip_in_url'] or 
+        features['has_login_path']
+    )
+    has_coercion = (
+        features['has_urgency'] or 
+        features['has_fiscal_context'] or 
+        features['has_banking_context']
+    )
+    if features['url_count'] > 0 and has_phishing_link and has_coercion:
+        score += 15
+        threats.append('High-confidence composite phishing pattern')
+
+    # === Whitelist Trust Bonus: All links point to verified official domains ===
+    if features['all_urls_legit']:
+        score = max(0, score - 20)
+
+    # Normalize score to 0 - 100
+    normalized_score = min(score, 100)
     
-    # Emoji spam (low-medium weight)
-    max_score += 10
-    if features['emoji_count'] > 5:
-        risk_score += 10
-    elif features['emoji_count'] > 3:
-        risk_score += 6
-    
-    # Ensure max_score is never zero
-    if max_score == 0:
-        max_score = 100
-    
-    # Normalize to 0-1 probability
-    probability = min(risk_score / max_score, 1.0) if max_score > 0 else 0.0
-    
-    # Apply calibrated thresholds (optimized for v2.3)
-    # Thresholds designed to minimize false positives while catching real threats
-    
-    if probability < 0.15:
-        # Very low risk - clearly legitimate
+    # === SEGUNDO FILTRO ESPECIALIZADO: Deep Inspection L2 (Zona Intermedia 26-40 pts) ===
+    l2_analysis = None
+    if 26 <= normalized_score <= 40:
+        try:
+            from deep_inspection_l2 import DeepInspectionFilterL2
+            l2_res = DeepInspectionFilterL2.analyze(
+                text=text,
+                urls=urls,
+                attachments=attachments,
+                raw_html=raw_html,
+                email_info=email_info,
+                initial_score=normalized_score
+            )
+            l2_analysis = l2_res
+            normalized_score = l2_res['resolved_score']
+            if l2_res['l2_threats']:
+                threats.extend(l2_res['l2_threats'])
+        except Exception as e:
+            logger.error(f"Error en ejecución de Filtro L2: {e}")
+
+    # Calibrated 3-Tier Classification:
+    # Tier 1 (0 - 25):   Seguro / Confiable (Verde)
+    # Tier 2 (26 - 40):  Sospechoso / Advertencia (Ámbar / Naranja)
+    # Tier 3 (41 - 100): Phishing Confirmado / Crítico (Rojo)
+    if normalized_score <= 25:
+        category = 'SAFE'
+        category_label_es = 'Seguro'
+        category_label_en = 'Safe'
+        category_color = '#10b981'
         is_phishing = False
-        confidence_boost = 0.15  # High confidence in legitimate classification
-    elif probability < 0.35:
-        # Low-medium risk - likely legitimate but some red flags
+    elif normalized_score <= 40:
+        category = 'SUSPICIOUS'
+        category_label_es = 'Sospechoso / Advertencia'
+        category_label_en = 'Suspicious / Warning'
+        category_color = '#ea580c'
         is_phishing = False
-        confidence_boost = 0.05  # Moderate confidence
-    elif probability < 0.55:
-        # Medium risk - uncertain, could go either way
-        # Default to SAFE (legitimate) to avoid false alarms
-        is_phishing = False
-        confidence_boost = -0.10  # Low confidence, borderline case
-    elif probability < 0.75:
-        # Medium-high risk - likely phishing
-        is_phishing = True
-        confidence_boost = 0.0  # Neutral confidence
     else:
-        # High risk - very likely phishing
+        category = 'PHISHING'
+        category_label_es = 'Phishing Confirmado'
+        category_label_en = 'Confirmed Phishing'
+        category_color = '#dc2626'
         is_phishing = True
-        confidence_boost = 0.12  # High confidence in phishing classification
     
-    # Ensure confidence stays in valid range [0, 1]
-    final_confidence = min(max(probability + confidence_boost, 0.0), 1.0)
-    
+    # Calibrated confidence value
+    if normalized_score > 40:
+        confidence = min(max(normalized_score / 100.0, 0.65), 0.99)
+    elif normalized_score <= 25:
+        confidence = min(max((100.0 - normalized_score) / 100.0, 0.65), 0.99)
+    else:
+        confidence = 0.75
+        
     return {
         'is_phishing': is_phishing,
-        'confidence': final_confidence,
+        'category': category,
+        'category_label_es': category_label_es,
+        'category_label_en': category_label_en,
+        'category_color': category_color,
+        'confidence': round(confidence, 2),
+        'risk_score': normalized_score,
+        'max_possible_score': 100,
         'features': features,
-        'risk_score': risk_score,
-        'max_possible_score': max_score,
-        'safe_browsing': safe_browsing_result
+        'threats': threats,
+        'safe_browsing': safe_browsing_result,
+        'l2_analysis': l2_analysis
     }
 
 # --- Routes ---
@@ -492,13 +781,29 @@ def index():
 
 @app.route('/health', methods=['GET'])
 def health():
-    """Health check endpoint for Render."""
+    """Health check endpoint for Render and Merlin Orchestrator."""
+    reports_count = 0
+    try:
+        conn = sqlite3.connect(DATABASE_PATH, timeout=5.0)
+        cur = conn.cursor()
+        cur.execute('SELECT COUNT(*) FROM incoming_phishing_reports')
+        reports_count = cur.fetchone()[0]
+        conn.close()
+    except Exception:
+        pass
+
     return jsonify({
         'status': 'healthy',
-        'service': 'dory-phishing-detector-hf',
-        'version': '2.5-history-system',
+        'service': 'dory-phishing-defense',
+        'version': '3.5-enterprise-idle',
+        'engine': 'calibrated-heuristics-v3.5-submillisecond',
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'total_reports_processed': reports_count,
         'features': {
             'enhanced_heuristics': True,
+            'attachment_inspection': True,
+            'imap_idle_push': True,
+            'concurrency_pool': True,
             'google_safe_browsing': bool(GOOGLE_SAFE_BROWSING_API_KEY),
             'bilingual_support': True,
             'user_feedback_system': True,
@@ -563,47 +868,20 @@ def predict():
         
         logger.info("Processing prediction request...")
         
-        # Get prediction from HuggingFace
-        result = predict_phishing_hf(full_text)
+        # Get optional attachments
+        attachments = data.get('attachments', []) if request.is_json and data else []
+
+        # Get prediction from calibrated engine
+        result = predict_phishing_hf(full_text, attachments=attachments)
         
-        # Calculate confidence based on prediction
-        # If it's phishing, confidence = probability of phishing
-        # If it's legitimate, confidence = probability of legitimate
         is_phishing = result['is_phishing']
-        phishing_prob = float(result['confidence'])
-        legitimate_prob = float(1 - result['confidence'])
+        confidence = float(result['confidence'])
+        risk_score = result['risk_score']
+        phishing_prob = round(risk_score / 100.0, 2)
+        legitimate_prob = round(1.0 - phishing_prob, 2)
         
-        # Confidence is the probability of the predicted class
-        confidence = phishing_prob if is_phishing else legitimate_prob
-        
-        # Build list of detected threats
-        threats_detected = []
-        
-        # Google Safe Browsing threats (highest priority)
-        if result.get('safe_browsing') and not result['safe_browsing']['is_safe']:
-            for threat in result['safe_browsing']['threats_found']:
-                threats_detected.append(f'Google Safe Browsing: {threat}')
-        
-        if result['features']['has_suspicious_tld']:
-            threats_detected.append('Suspicious domain extension')
-        if result['features']['has_url_shortener']:
-            threats_detected.append('URL shortener detected')
-        if result['features']['has_ip_in_url']:
-            threats_detected.append('IP address in URL')
-        if result['features']['has_urgency']:
-            threats_detected.append('Urgent language tactics')
-        if result['features']['requests_credentials']:
-            threats_detected.append('Requests credentials')
-        if result['features']['has_unrealistic_offer']:
-            threats_detected.append('Too-good-to-be-true offer')
-        if result['features']['has_brand_typo']:
-            threats_detected.append('Brand name misspelling')
-        if result['features']['has_generic_greeting']:
-            threats_detected.append('Generic greeting')
-        if result['features']['uppercase_ratio'] > 0.3:
-            threats_detected.append('Excessive capitalization')
-        if result['features']['keyword_matches'] > 3:
-            threats_detected.append(f'{result["features"]["keyword_matches"]} phishing keywords')
+        # Threat list directly from engine
+        threats_detected = result.get('threats', [])
         
         # Prepare Google Safe Browsing info
         safe_browsing_info = result.get('safe_browsing', {})
@@ -616,11 +894,18 @@ def predict():
         
         response = {
             'prediction': 'PHISHING' if is_phishing else 'LEGITIMATE',
+            'is_phishing': is_phishing,
+            'category': result['category'],
+            'category_label_es': result['category_label_es'],
+            'category_label_en': result['category_label_en'],
+            'category_color': result['category_color'],
+            'risk_score': result['risk_score'],
             'confidence': confidence,
             'probability_phishing': phishing_prob,
             'probability_legitimate': legitimate_prob,
             'threats_detected': threats_detected,
             'google_safe_browsing': google_verdict,
+            'l2_deep_inspection': result.get('l2_analysis'),
             'analysis': {
                 'text_length': result['features']['length'],
                 'word_count': result['features']['word_count'],
@@ -630,20 +915,28 @@ def predict():
                 'question_marks': result['features']['question_count'],
                 'emoji_count': result['features']['emoji_count'],
                 'phishing_keywords': result['features']['keyword_matches'],
-                'risk_score': f"{result['risk_score']}/{result['max_possible_score']}"
+                'risk_score': f"{result['risk_score']}/{result['max_possible_score']}",
+                'attachments_analyzed': result['features']['attachment_count'],
+                'suspicious_attachments': result['features']['suspicious_attachments']
             },
             'flags': {
                 'suspicious_tld': result['features']['has_suspicious_tld'],
                 'url_shortener': result['features']['has_url_shortener'],
                 'ip_in_url': result['features']['has_ip_in_url'],
+                'brand_impersonation': result['features']['has_brand_impersonation'],
                 'urgency_tactics': result['features']['has_urgency'],
                 'credential_request': result['features']['requests_credentials'],
                 'unrealistic_offer': result['features']['has_unrealistic_offer'],
                 'brand_typo': result['features']['has_brand_typo'],
-                'generic_greeting': result['features']['has_generic_greeting']
+                'generic_greeting': result['features']['has_generic_greeting'],
+                'fiscal_context': result['features']['has_fiscal_context'],
+                'banking_context': result['features']['has_banking_context'],
+                'login_path': result['features']['has_login_path'],
+                'dangerous_attachment': result['features']['has_dangerous_attachment'],
+                'double_extension': result['features']['has_double_extension']
             },
-            'model': 'enhanced-heuristics-with-safe-browsing',
-            'version': '2.3'
+            'model': 'calibrated-heuristics-v3.1-attachments',
+            'version': '3.1'
         }
         
         logger.info(f"Prediction: {response['prediction']} (confidence: {confidence:.2f})")
@@ -849,7 +1142,170 @@ def export_feedback():
             'details': str(e)
         }), 500
 
+# --- Mail Service API Endpoints ---
+@app.route('/api/mail/status', methods=['GET'])
+def mail_status():
+    """Get status of the automated email inbox service and database counts."""
+    try:
+        from mail_service import MailConfig
+        cfg = MailConfig()
+        
+        conn = sqlite3.connect(DATABASE_PATH)
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT 
+                COUNT(*) as total_reports,
+                SUM(CASE WHEN risk_score > 40 OR prediction = 'PHISHING' THEN 1 ELSE 0 END) as phishing_reports,
+                SUM(CASE WHEN (risk_score BETWEEN 26 AND 40) OR prediction = 'SUSPICIOUS' THEN 1 ELSE 0 END) as suspicious_reports,
+                SUM(CASE WHEN (risk_score <= 25 OR risk_score IS NULL) AND prediction != 'PHISHING' AND prediction != 'SUSPICIOUS' THEN 1 ELSE 0 END) as legitimate_reports,
+                SUM(CASE WHEN reply_sent = 1 THEN 1 ELSE 0 END) as replies_sent
+            FROM incoming_phishing_reports
+        ''')
+        row = cur.fetchone()
+        conn.close()
+        
+        return jsonify({
+            'status': 'configured' if cfg.is_configured() else 'unconfigured',
+            'imap_server': cfg.imap_server,
+            'imap_user': cfg.imap_user if cfg.imap_user else None,
+            'smtp_server': cfg.smtp_server,
+            'poll_interval_seconds': cfg.poll_interval,
+            'statistics': {
+                'total_reports': row[0] or 0,
+                'phishing_reports': row[1] or 0,
+                'suspicious_reports': row[2] or 0,
+                'legitimate_reports': row[3] or 0,
+                'replies_sent': row[4] or 0
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f"Error in mail_status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/mail/simulate', methods=['POST'])
+def mail_simulate():
+    """Simulate an incoming email and return the generated security report."""
+    try:
+        data = request.get_json() or {}
+        sample_key = data.get('sample', 'sat')
+        custom_sender = data.get('sender', '')
+        custom_text = data.get('body', '')
+        
+        from mail_service import run_simulation
+        res = run_simulation(
+            sample_key=sample_key,
+            save_html_preview=True,
+            custom_text=custom_text if custom_text else None,
+            custom_sender=custom_sender if custom_sender else None
+        )
+        
+        return jsonify({
+            'success': True,
+            'prediction': res['prediction'],
+            'report_subject': res['report']['subject'],
+            'report_id': res['report']['report_id'],
+            'html_preview': res['report']['html'],
+            'plain_preview': res['report']['plain'],
+            'processing_time_ms': res['processing_time_ms']
+        }), 200
+    except Exception as e:
+        logger.error(f"Error in mail_simulate: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/mail/reports', methods=['GET'])
+def mail_reports():
+    """List recent incoming email reports from the corporate phishing corpus."""
+    try:
+        limit = min(int(request.args.get('limit', 50)), 100)
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute('''
+            SELECT id, timestamp, sender_email, subject, prediction, risk_score, confidence, threats_detected, urls_found, reply_sent, processing_time_ms
+            FROM incoming_phishing_reports
+            ORDER BY timestamp DESC
+            LIMIT ?
+        ''', (limit,))
+        
+        records = []
+        for r in cur.fetchall():
+            item = dict(r)
+            try:
+                item['threats_detected'] = json.loads(item['threats_detected']) if item['threats_detected'] else []
+            except Exception:
+                pass
+            try:
+                item['urls_found'] = json.loads(item['urls_found']) if item['urls_found'] else []
+            except Exception:
+                pass
+            records.append(item)
+            
+        conn.close()
+        return jsonify({
+            'total': len(records),
+            'reports': records
+        }), 200
+    except Exception as e:
+        logger.error(f"Error in mail_reports: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# Webhook secret for Cloudflare Worker & external tunnels
+DORY_WEBHOOK_SECRET = os.environ.get('DORY_WEBHOOK_SECRET', 'dory-sec-defense-key-2026')
+
+@app.route('/api/mail/inbound', methods=['POST'])
+def mail_inbound():
+    """
+    Ingesta directa de correos RFC822 desde Cloudflare Email Worker vía Tunnel.
+    Recibe el flujo MIME raw, lo analiza con Dory AI Engine + Deep Inspection L2
+    y lo almacena en feedback.db.
+    """
+    try:
+        # Validación opcional de cabecera secreta
+        provided_key = request.headers.get('X-Dory-Key', '')
+        if provided_key and provided_key != DORY_WEBHOOK_SECRET:
+            logger.warning(f"Intento de acceso no autorizado a /api/mail/inbound desde {request.remote_addr}")
+            return jsonify({'error': 'Unauthorized: invalid X-Dory-Key'}), 403
+
+        raw_data = request.get_data()
+        if not raw_data:
+            return jsonify({'error': 'Empty email payload received'}), 400
+
+        from mail_service import MailMonitorWorker, save_incoming_report
+        worker = MailMonitorWorker()
+        
+        # Procesar con motor de IA y L2
+        result = worker.process_single_message(raw_data)
+        
+        # Almacenar en feedback.db
+        record_id = save_incoming_report(result['db_payload'])
+        
+        logger.info(
+            f"✅ [INBOUND DORY] Correo procesado #{record_id} de '{result['email_info']['sender_email']}' | "
+            f"Asunto: '{result['email_info']['subject']}' | "
+            f"Dictamen: {result['prediction']['is_phishing']} (Score: {result['prediction']['risk_score']}) | "
+            f"Tiempo: {result['processing_time_ms']}ms"
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'record_id': record_id,
+            'sender': result['email_info']['sender_email'],
+            'subject': result['email_info']['subject'],
+            'is_phishing': result['prediction']['is_phishing'],
+            'risk_score': result['prediction']['risk_score'],
+            'confidence': result['prediction']['confidence'],
+            'threats': result['prediction'].get('threats', []),
+            'urls_found': result['email_info'].get('urls', []),
+            'processing_time_ms': result['processing_time_ms']
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error procesando correo entrante en /api/mail/inbound: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Development server
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+

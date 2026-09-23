@@ -115,3 +115,18 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Dory Local Secrets & Databases
+mail_config.json
+*.db
+preview_email_report.html
+cloudflared.exe
+scratch/
+preview_screenshot.png
+fortigate_login.png
+password_crop.png
+password_large.png
+signature_bottom.png
+signature_card_crop.png
+signature_card_exact.png
+

@@ -117,11 +117,11 @@
             background-color: var(--bg-secondary);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            padding: 2rem;
+            padding: 2.25rem;
             border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-lg);
+            box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-primary);
             width: 100%;
-            max-width: 900px;
+            max-width: 1180px;
             border: 1px solid var(--border-primary);
             position: relative;
         }
@@ -131,29 +131,66 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1.25rem;
             border-bottom: 1px solid var(--border-primary);
         }
 
         .header-left {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 1.25rem;
+        }
+
+        .header-title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--accent-success);
+            background: var(--accent-success-bg);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            padding: 0.2rem 0.65rem;
+            border-radius: 9999px;
+            width: fit-content;
+        }
+
+        .header-badge::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--accent-success);
+            box-shadow: 0 0 8px var(--accent-success);
         }
 
         .logo-img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
             object-fit: cover;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s;
+        }
+
+        .logo-img:hover {
+            transform: scale(1.05);
         }
 
         h1 {
             margin: 0;
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            font-size: 1.65rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -161,64 +198,78 @@
         /* Compact Controls */
         .controls {
             display: flex;
-            gap: 0.5rem;
+            align-items: center;
+            gap: 0.75rem;
         }
 
         .icon-btn {
             background: var(--bg-input);
             border: 1px solid var(--border-primary);
             color: var(--text-secondary);
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             border-radius: var(--radius-md);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.2s;
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 1.1rem;
         }
 
         .icon-btn:hover {
             background: var(--bg-primary);
             color: var(--text-primary);
             border-color: var(--border-focus);
+            transform: translateY(-1px);
         }
 
         .lang-button {
-            background: transparent;
+            background: var(--bg-input);
             border: 1px solid var(--border-primary);
-            color: var(--text-secondary);
-            padding: 0.25rem 0.75rem;
+            color: var(--text-primary);
+            padding: 0.45rem 1rem;
             border-radius: var(--radius-md);
             font-size: 0.875rem;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
         }
 
         .lang-button:hover {
-            color: var(--text-primary);
+            background: var(--bg-primary);
             border-color: var(--border-focus);
+            transform: translateY(-1px);
         }
 
         /* Main Grid Layout */
         .main-grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 1.5rem;
+            gap: 2rem;
             margin-bottom: 2rem;
+            align-items: start;
         }
 
         .input-area {
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 1.25rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
             min-height: 0;
         }
 
-        @media (min-width: 768px) {
+        @media (min-width: 900px) {
             .main-grid {
-                grid-template-columns: 3fr 2fr;
-                /* Input area larger than sidebar */
+                grid-template-columns: 1.65fr 1fr;
             }
         }
 
@@ -352,45 +403,67 @@
 
         /* Examples Sidebar */
         .sidebar {
-            background: var(--bg-input);
-            border-radius: var(--radius-md);
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
             border: 1px solid var(--border-primary);
-            padding: 1rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
             height: fit-content;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
         }
 
         .sidebar-header {
-            font-size: 0.9rem;
-            font-weight: 600;
+            font-size: 0.85rem;
+            font-weight: 700;
             color: var(--text-secondary);
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         .example-list {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.65rem;
+        }
+
+        .category-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
         }
 
         .example-item {
-            background: transparent;
-            border: 1px solid transparent;
-            padding: 0.75rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border-primary);
+            padding: 0.85rem 1rem;
             border-radius: var(--radius-md);
             cursor: pointer;
             text-align: left;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 100%;
+            display: block;
         }
 
         .example-item:hover {
             background: var(--bg-primary);
-            border-color: var(--border-primary);
+            border-color: var(--border-focus);
+            transform: translateX(4px);
+            box-shadow: var(--shadow-sm);
         }
 
         .example-item-title {
-            font-size: 0.9rem;
+            font-size: 0.92rem;
             font-weight: 600;
             color: var(--text-primary);
             margin-bottom: 0.25rem;
@@ -402,6 +475,7 @@
         .example-item-desc {
             font-size: 0.8rem;
             color: var(--text-secondary);
+            line-height: 1.35;
         }
 
         /* Results */
@@ -427,6 +501,12 @@
             background: linear-gradient(var(--accent-danger-bg), var(--accent-danger-bg)), var(--bg-secondary);
             border-color: var(--accent-danger);
             color: var(--accent-danger);
+        }
+
+        .result-warning {
+            background: linear-gradient(rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.1)), var(--bg-secondary);
+            border-color: #ea580c;
+            color: #ea580c;
         }
 
         .result-legitimate {
@@ -1006,34 +1086,141 @@
             border-radius: 10px;
             font-weight: bold;
         }
+
+        /* Mailbox Modal Styles */
+        .mailbox-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .metric-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            text-align: center;
+        }
+
+        .metric-card.danger {
+            border-color: rgba(239, 68, 68, 0.4);
+            background: var(--accent-danger-bg);
+        }
+
+        .metric-card.success {
+            border-color: rgba(16, 185, 129, 0.4);
+            background: var(--accent-success-bg);
+        }
+
+        .metric-card.warning {
+            border-color: rgba(245, 158, 11, 0.4);
+            background: var(--accent-warning-bg);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .metric-card.danger .metric-value {
+            color: var(--accent-danger);
+        }
+
+        .metric-card.success .metric-value {
+            color: var(--accent-success);
+        }
+
+        .metric-card.warning .metric-value {
+            color: var(--accent-warning);
+        }
+
+        .mailbox-actions-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+        }
+
+        .mailbox-table th, .mailbox-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .mailbox-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .verdict-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .verdict-tag.phishing {
+            background: var(--accent-danger-bg);
+            color: var(--accent-danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .verdict-tag.suspicious {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .verdict-tag.legitimate {
+            background: var(--accent-success-bg);
+            color: var(--accent-success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
     </style>
 </head>
 
 <body class="no-transition">
-    <!-- Theme Toggle Button -->
-    <button id="theme-toggle" class="icon-btn" style="position: fixed; top: 1rem; right: 1rem; z-index: 100;">
-        <span id="theme-icon">🌙</span>
-    </button>
-
-    <!-- History Button -->
-    <button id="history-btn" class="icon-btn" style="position: fixed; top: 1rem; right: 4rem; z-index: 100;">
-        <span>📜</span>
-        <span id="history-badge" class="badge" style="display: none;">0</span>
-    </button>
-
     <div class="container">
         <!-- Header -->
-        <div class="header-container">
+        <header class="header-container">
             <div class="header-left">
-                <a href="https://github.com/Charly-bite" target="_blank" rel="noopener noreferrer" title="Visit GitHub Profile">
-                    <img src="{{ url_for('static', filename='Favicon Gabo 512x512.png') }}" alt="Logo" class="logo-img">
+                <a href="https://github.com/Charly-bite" target="_blank" rel="noopener noreferrer" title="Visitar GitHub">
+                    <img src="{{ url_for('static', filename='Favicon Gabo 512x512.png') }}" alt="Logo Dory" class="logo-img">
                 </a>
-                <h1 id="main-heading" data-i18n="title">Phishing Detector</h1>
+                <div class="header-title-group">
+                    <h1 id="main-heading" data-i18n="title">Detector de Phishing</h1>
+                    <span class="header-badge">Motor Heurístico Offline v2.5</span>
+                </div>
             </div>
             <div class="controls">
+                <button id="mailbox-btn" class="icon-btn" title="Buzón de Seguridad en Vivo" aria-label="Buzón en Vivo">
+                    <span>📬</span>
+                    <span id="mailbox-badge" class="badge" style="display: none;">0</span>
+                </button>
+                <button id="history-btn" class="icon-btn" title="Historial de análisis" aria-label="Historial">
+                    <span>📜</span>
+                    <span id="history-badge" class="badge" style="display: none;">0</span>
+                </button>
+                <button id="theme-toggle" class="icon-btn" title="Cambiar tema" aria-label="Cambiar tema">
+                    <span id="theme-icon">🌙</span>
+                </button>
                 <button id="lang-toggle" class="lang-button">Español</button>
             </div>
-        </div>
+        </header>
 
         <div class="main-grid">
             <!-- Left Column: Input -->
@@ -1064,19 +1251,18 @@
 
                 <!-- Textarea -->
                 <div class="input-group">
-                    <label for="email_text" id="textarea-label" data-i18n="enter_text">Enter the email text
-                        below:</label>
-                    <textarea id="email_text" placeholder="Paste the full email content here, not just the address..."
+                    <label for="email_text" id="textarea-label" data-i18n="enter_text">Ingresa el texto del correo abajo:</label>
+                    <textarea id="email_text" placeholder="Pega aquí el contenido completo del correo (asunto, cuerpo, enlaces) o arrastra un archivo arriba..."
                         data-i18n-placeholder="placeholder"></textarea>
                 </div>
 
                 <!-- Action Buttons -->
                 <div class="action-buttons">
                     <button id="analyze-btn" class="btn btn-primary">
-                        <span data-i18n="analyze_button">Analyze Email</span>
+                        <span data-i18n="analyze_button">Analizar Correo</span>
                     </button>
                     <button id="clear-btn" class="btn btn-secondary">
-                        <span data-i18n="clear_text">Clear Text</span>
+                        <span data-i18n="clear_text">Borrar Texto</span>
                     </button>
                 </div>
             </div>
@@ -1084,59 +1270,54 @@
             <!-- Right Column: Sidebar -->
             <div class="sidebar">
                 <div class="sidebar-header">
-                    <span id="examples-header-title" data-i18n="examples_label">Try Example Emails</span>
+                    <span id="examples-header-title" data-i18n="examples_label">Prueba Correos de Ejemplo</span>
                 </div>
 
                 <div class="example-list" id="example-list">
                     <div class="category-title" id="category-phishing-title" data-i18n="phishing_cat"
-                        style="color: var(--accent-danger); margin-top: 0.5rem;">Phishing Examples</div>
+                        style="color: var(--accent-danger);">⚠️ Ejemplos de Phishing</div>
 
                     <button class="example-item" onclick="loadExample('phishing_bank')">
                         <div class="example-item-title">
                             <span>🏦</span>
-                            <span id="example-bank-name" data-i18n="ex_bank_name">Fake Bank</span>
+                            <span id="example-bank-name" data-i18n="ex_bank_name">Banco Falso</span>
                         </div>
-                        <div class="example-item-desc" id="example-bank-desc" data-i18n="ex_bank_desc">Urgent account
-                            verification</div>
+                        <div class="example-item-desc" id="example-bank-desc" data-i18n="ex_bank_desc">Verificación de cuenta urgente</div>
                     </button>
 
                     <button class="example-item" onclick="loadExample('phishing_prize')">
                         <div class="example-item-title">
                             <span>🏆</span>
-                            <span id="example-prize-name" data-i18n="ex_prize_name">Fake Prize</span>
+                            <span id="example-prize-name" data-i18n="ex_prize_name">Premio Falso</span>
                         </div>
-                        <div class="example-item-desc" id="example-prize-desc" data-i18n="ex_prize_desc">You won a
-                            lottery</div>
+                        <div class="example-item-desc" id="example-prize-desc" data-i18n="ex_prize_desc">Ganaste la lotería</div>
                     </button>
 
                     <button class="example-item" onclick="loadExample('phishing_social')">
                         <div class="example-item-title">
                             <span>🔒</span>
-                            <span id="example-social-name" data-i18n="ex_social_name">Social Media</span>
+                            <span id="example-social-name" data-i18n="ex_social_name">Redes Sociales</span>
                         </div>
-                        <div class="example-item-desc" id="example-social-desc" data-i18n="ex_social_desc">Account
-                            security alert</div>
+                        <div class="example-item-desc" id="example-social-desc" data-i18n="ex_social_desc">Alerta de seguridad de cuenta</div>
                     </button>
 
                     <div class="category-title" id="category-legit-title" data-i18n="legit_cat"
-                        style="color: var(--accent-success); margin-top: 1rem;">Legitimate Examples</div>
+                        style="color: var(--accent-success); margin-top: 0.5rem;">✅ Ejemplos Legítimos</div>
 
                     <button class="example-item" onclick="loadExample('legit_meeting')">
                         <div class="example-item-title">
                             <span>📅</span>
-                            <span id="example-meeting-name" data-i18n="ex_meeting_name">Meeting Invite</span>
+                            <span id="example-meeting-name" data-i18n="ex_meeting_name">Reunión de Equipo</span>
                         </div>
-                        <div class="example-item-desc" id="example-meeting-desc" data-i18n="ex_meeting_desc">Standard
-                            calendar invite</div>
+                        <div class="example-item-desc" id="example-meeting-desc" data-i18n="ex_meeting_desc">Invitación estándar de calendario</div>
                     </button>
 
                     <button class="example-item" onclick="loadExample('legit_order')">
                         <div class="example-item-title">
                             <span>📦</span>
-                            <span id="example-order-name" data-i18n="ex_order_name">Order Confirmed</span>
+                            <span id="example-order-name" data-i18n="ex_order_name">Confirmación de Pedido</span>
                         </div>
-                        <div class="example-item-desc" id="example-order-desc" data-i18n="ex_order_desc">Shipping
-                            notification</div>
+                        <div class="example-item-desc" id="example-order-desc" data-i18n="ex_order_desc">Notificación de envío legítima</div>
                     </button>
                 </div>
             </div>
@@ -1169,6 +1350,98 @@
                     <button id="export-history-btn" class="btn btn-secondary">📥 <span id="export-btn-text">Export JSON</span></button>
                     <button id="clear-history" class="btn btn-secondary" data-i18n="clear_history">🗑️ Clear History</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mailbox Monitor Modal -->
+    <div id="mailbox-modal" class="modal">
+        <div class="modal-content" style="max-width: 960px; width: 95%;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <h2 data-i18n="mailbox_title" style="margin: 0;">📬 Buzón de Seguridad en Vivo</h2>
+                    <span id="mailbox-status-pill" class="status-pill connected" style="font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">🟢 Push IDLE Activo</span>
+                </div>
+                <button id="close-mailbox" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Metrics Bar -->
+                <div class="mailbox-metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label" data-i18n="stat_total">Total Analizados</div>
+                        <div class="metric-value" id="mb-stat-total">0</div>
+                    </div>
+                    <div class="metric-card danger">
+                        <div class="metric-label" data-i18n="stat_phishing">Phishing Bloqueados</div>
+                        <div class="metric-value" id="mb-stat-phishing">0</div>
+                    </div>
+                    <div class="metric-card success">
+                        <div class="metric-label" data-i18n="stat_legit">Correos Seguros</div>
+                        <div class="metric-value" id="mb-stat-legit">0</div>
+                    </div>
+                    <div class="metric-card warning">
+                        <div class="metric-label" data-i18n="stat_replies">Respuestas Emitidas</div>
+                        <div class="metric-value" id="mb-stat-replies">0</div>
+                    </div>
+                </div>
+
+                <!-- Simulation & Actions Row -->
+                <div class="mailbox-actions-bar">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);" data-i18n="simulate_label">Simulador:</span>
+                        <select id="sim-sample-select" class="theme-select" style="padding: 6px 10px; border-radius: var(--radius-md); font-size: 0.85rem; background: var(--bg-select); color: var(--text-select); border: 1px solid var(--border-primary);">
+                            <option value="sat">SAT - Inconsistencias Fiscales (Phishing)</option>
+                            <option value="banco">Santander - Cargo No Reconocido (Phishing)</option>
+                            <option value="malware_attach">Factura Proveedor - Archivo .pdf.exe (Malware)</option>
+                            <option value="legitimo">Química Boss - Minuta de Sesión (Legítimo)</option>
+                        </select>
+                        <button id="sim-run-btn" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.85rem;">
+                            <span data-i18n="simulate_button">⚡ Simular Envío</span>
+                        </button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="text" id="mailbox-search" placeholder="Filtrar por asunto o remitente..." style="padding: 6px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-primary); background: var(--bg-input); color: var(--text-primary); font-size: 0.85rem;" data-i18n-placeholder="mailbox_search_placeholder">
+                        <button id="mailbox-refresh-btn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" title="Refrescar">🔄</button>
+                    </div>
+                </div>
+
+                <!-- Live Reports Table -->
+                <div class="mailbox-table-wrapper" style="margin-top: 14px; overflow-x: auto; border: 1px solid var(--border-primary); border-radius: var(--radius-md);">
+                    <table class="mailbox-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+                        <thead>
+                            <tr style="background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid var(--border-primary);">
+                                <th style="padding: 10px 12px;">#</th>
+                                <th style="padding: 10px 12px;" data-i18n="th_date">Fecha</th>
+                                <th style="padding: 10px 12px;" data-i18n="th_sender">Remitente</th>
+                                <th style="padding: 10px 12px;" data-i18n="th_subject">Asunto</th>
+                                <th style="padding: 10px 12px;" data-i18n="th_verdict">Diagnóstico</th>
+                                <th style="padding: 10px 12px;" data-i18n="th_score">Score</th>
+                                <th style="padding: 10px 12px;" data-i18n="th_reply">Respuesta</th>
+                                <th style="padding: 10px 12px;" data-i18n="th_actions">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mailbox-table-body">
+                            <!-- Rows injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <span id="mailbox-auto-refresh-label" style="font-size: 0.8rem; color: var(--text-secondary);">🟢 Push activo • Actualización periódica cada 5s</span>
+                <button id="close-mailbox-footer" class="btn btn-secondary" data-i18n="close_btn">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Detail Modal -->
+    <div id="report-detail-modal" class="modal">
+        <div class="modal-content" style="max-width: 760px; width: 90%;">
+            <div class="modal-header">
+                <h3 id="report-detail-title" style="margin: 0;">Detalle del Reporte de Correo</h3>
+                <button id="close-report-detail" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="report-detail-body">
+                <!-- Preview injected by JS -->
             </div>
         </div>
     </div>
@@ -1266,16 +1539,22 @@
                 upload_title: "Click or drag to upload email file",
                 upload_subtitle: "Supported: .eml, .msg, .txt, .html",
                 enter_text: "Enter the email text below:",
+                placeholder: "Paste the full email content here (headers, subject, body, links), or drop an email file above...",
                 analyze_button: "Analyze Email",
                 clear_text: "Clear Text",
                 examples_label: "Try Example Emails",
                 phishing_cat: "Phishing Examples",
+                legit_cat: "Legitimate Examples",
                 ex_bank_name: "Fake Bank",
                 ex_bank_desc: "Urgent account verification",
                 ex_prize_name: "Fake Prize",
                 ex_prize_desc: "You won a lottery",
                 ex_social_name: "Social Media",
                 ex_social_desc: "Account security alert",
+                ex_meeting_name: "Team Meeting",
+                ex_meeting_desc: "Standard calendar invite",
+                ex_order_name: "Order Confirmation",
+                ex_order_desc: "Legitimate shipping notification",
                 phishing: "Phishing Detected",
                 legitimate: "Legitimate Email",
                 confidence: "Confidence",
@@ -1311,23 +1590,45 @@
                 feedbackCorrect: "Yes, Correct",
                 feedbackIncorrect: "No, Incorrect",
                 examplesToggleShow: "Show Examples",
-                examplesToggleHide: "Hide Examples"
+                examplesToggleHide: "Hide Examples",
+                mailbox_title: "Live Security Mailbox",
+                stat_total: "Total Analyzed",
+                stat_phishing: "Phishing Blocked",
+                stat_legit: "Clean Emails",
+                stat_replies: "Replies Sent",
+                simulate_label: "Simulator:",
+                simulate_button: "⚡ Simulate Delivery",
+                mailbox_search_placeholder: "Filter by subject or sender...",
+                th_date: "Date",
+                th_sender: "Sender",
+                th_subject: "Subject",
+                th_verdict: "Diagnosis",
+                th_score: "Score",
+                th_reply: "Reply",
+                th_actions: "Action",
+                close_btn: "Close"
             },
             es: {
                 title: "Detector de Phishing",
                 upload_title: "Haz clic o arrastra para subir archivo",
                 upload_subtitle: "Soportado: .eml, .msg, .txt, .html",
                 enter_text: "Ingresa el texto del correo abajo:",
+                placeholder: "Pega aquí el contenido completo del correo (asunto, cuerpo, enlaces) o arrastra un archivo arriba...",
                 analyze_button: "Analizar Correo",
                 clear_text: "Borrar Texto",
                 examples_label: "Prueba Correos de Ejemplo",
                 phishing_cat: "Ejemplos de Phishing",
+                legit_cat: "Ejemplos Legítimos",
                 ex_bank_name: "Banco Falso",
                 ex_bank_desc: "Verificación de cuenta urgente",
                 ex_prize_name: "Premio Falso",
                 ex_prize_desc: "Ganaste la lotería",
                 ex_social_name: "Redes Sociales",
                 ex_social_desc: "Alerta de seguridad de cuenta",
+                ex_meeting_name: "Reunión de Equipo",
+                ex_meeting_desc: "Invitación estándar de calendario",
+                ex_order_name: "Confirmación de Pedido",
+                ex_order_desc: "Notificación de envío legítima",
                 phishing: "Phishing Detectado",
                 legitimate: "Correo Legítimo",
                 confidence: "Confianza",
@@ -1363,7 +1664,23 @@
                 feedbackCorrect: "Sí, Correcto",
                 feedbackIncorrect: "No, Incorrecto",
                 examplesToggleShow: "Mostrar Ejemplos",
-                examplesToggleHide: "Ocultar Ejemplos"
+                examplesToggleHide: "Ocultar Ejemplos",
+                mailbox_title: "Buzón de Seguridad en Vivo",
+                stat_total: "Total Analizados",
+                stat_phishing: "Phishing Bloqueados",
+                stat_legit: "Correos Seguros",
+                stat_replies: "Respuestas Emitidas",
+                simulate_label: "Simulador:",
+                simulate_button: "⚡ Simular Envío",
+                mailbox_search_placeholder: "Filtrar por asunto o remitente...",
+                th_date: "Fecha",
+                th_sender: "Remitente",
+                th_subject: "Asunto",
+                th_verdict: "Diagnóstico",
+                th_score: "Score",
+                th_reply: "Respuesta",
+                th_actions: "Acción",
+                close_btn: "Cerrar"
             }
         };
 
@@ -1831,6 +2148,281 @@
             // Initialize badge on load
             updateHistoryBadge();
 
+            // =====================================================================
+            // Live Mailbox Monitor & Operations Center Controller
+            // =====================================================================
+            let mailboxPollTimer = null;
+            let allMailboxReports = [];
+
+            async function fetchMailboxData() {
+                try {
+                    const res = await fetch('/api/mail/status');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    
+                    const stats = data.statistics || {};
+                    const total = stats.total_reports || 0;
+                    const phishing = stats.phishing_reports || 0;
+                    const legit = stats.legitimate_reports || 0;
+                    const replies = stats.replies_sent || 0;
+
+                    const totalEl = document.getElementById('mb-stat-total');
+                    const phishEl = document.getElementById('mb-stat-phishing');
+                    const legitEl = document.getElementById('mb-stat-legit');
+                    const repliesEl = document.getElementById('mb-stat-replies');
+                    const badgeEl = document.getElementById('mailbox-badge');
+                    const statusPill = document.getElementById('mailbox-status-pill');
+
+                    if (totalEl) totalEl.textContent = total;
+                    if (phishEl) phishEl.textContent = phishing;
+                    if (legitEl) legitEl.textContent = legit;
+                    if (repliesEl) repliesEl.textContent = replies;
+
+                    if (badgeEl) {
+                        if (total > 0) {
+                            badgeEl.textContent = total;
+                            badgeEl.style.display = 'inline-block';
+                        } else {
+                            badgeEl.style.display = 'none';
+                        }
+                    }
+
+                    if (statusPill) {
+                        if (data.status === 'configured') {
+                            statusPill.textContent = '🟢 Push IDLE Activo';
+                            statusPill.style.background = 'rgba(16, 185, 129, 0.2)';
+                            statusPill.style.color = '#10b981';
+                        } else {
+                            statusPill.textContent = '🟡 Pendiente Configuración';
+                            statusPill.style.background = 'rgba(245, 158, 11, 0.2)';
+                            statusPill.style.color = '#f59e0b';
+                        }
+                    }
+                } catch (e) {
+                    logger.error('Error fetching mailbox status:', e);
+                }
+            }
+
+            async function fetchMailboxReports() {
+                try {
+                    const res = await fetch('/api/mail/reports?limit=50');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    allMailboxReports = data.reports || [];
+                    renderMailboxTable(allMailboxReports);
+                } catch (e) {
+                    logger.error('Error fetching mailbox reports:', e);
+                }
+            }
+
+            function renderMailboxTable(reports) {
+                const tbody = document.getElementById('mailbox-table-body');
+                if (!tbody) return;
+
+                if (!reports || reports.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" style="padding: 24px; text-align: center; color: var(--text-secondary);">
+                                📭 No hay reportes registrados aún en el buzón. Realiza una simulación o reenvía un correo.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = reports.map(r => {
+                    const score = r.risk_score !== undefined ? r.risk_score : 0;
+                    let verdictClass = 'legitimate';
+                    let verdictText = '✓ Seguro';
+                    let scoreColor = '#10b981';
+
+                    if (score > 40 || r.prediction === 'PHISHING') {
+                        verdictClass = 'phishing';
+                        verdictText = '🚨 Phishing';
+                        scoreColor = '#ef4444';
+                    } else if (score >= 26 || r.prediction === 'SUSPICIOUS') {
+                        verdictClass = 'suspicious';
+                        verdictText = '⚠️ Sospechoso';
+                        scoreColor = '#f59e0b';
+                    } else {
+                        verdictClass = 'legitimate';
+                        verdictText = '✓ Seguro';
+                        scoreColor = '#10b981';
+                    }
+
+                    const replyStatus = r.reply_sent ? '✅ Enviada' : '—';
+                    const dateStr = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+                    const safeSender = sanitizeHTML(r.sender_email || 'Desconocido');
+                    const safeSubject = sanitizeHTML(r.subject || '(Sin Asunto)');
+
+                    return `
+                        <tr style="border-bottom: 1px solid var(--border-primary);">
+                            <td style="padding: 10px 12px; font-weight: 600; color: var(--text-secondary);">#${r.id}</td>
+                            <td style="padding: 10px 12px; white-space: nowrap; color: var(--text-secondary);">${dateStr}</td>
+                            <td style="padding: 10px 12px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${safeSender}">${safeSender}</td>
+                            <td style="padding: 10px 12px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;" title="${safeSubject}">${safeSubject}</td>
+                            <td style="padding: 10px 12px;"><span class="verdict-tag ${verdictClass}">${verdictText}</span></td>
+                            <td style="padding: 10px 12px; font-weight: 700; color: ${scoreColor};">${r.risk_score}/100</td>
+                            <td style="padding: 10px 12px; font-size: 0.8rem;">${replyStatus}</td>
+                            <td style="padding: 10px 12px;">
+                                <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="viewReportDetail(${r.id})">🔍 Ver</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            window.viewReportDetail = function(id) {
+                const report = allMailboxReports.find(r => r.id === id);
+                if (!report) return;
+
+                const detailModal = document.getElementById('report-detail-modal');
+                const detailTitle = document.getElementById('report-detail-title');
+                const detailBody = document.getElementById('report-detail-body');
+
+                if (detailTitle) detailTitle.textContent = `Reporte #${report.id} - ${report.subject}`;
+                if (detailBody) {
+                    const threatsList = (report.threats_detected || []).map(t => `<li style="margin-bottom: 4px; color: #ef4444;">⚠️ ${sanitizeHTML(t)}</li>`).join('');
+                    const urlsList = (report.urls_found || []).map(u => `<li style="margin-bottom: 4px; font-family: monospace; font-size: 0.8rem; word-break: break-all;">${sanitizeHTML(u)}</li>`).join('');
+
+                    detailBody.innerHTML = `
+                        <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px; background: var(--bg-input); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-primary);">
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Remitente:</div>
+                                <div style="font-weight: 600; word-break: break-all;">${sanitizeHTML(report.sender_email)}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px;">Fecha:</div>
+                                <div>${report.timestamp}</div>
+                            </div>
+                            <div style="width: 140px; text-align: center; background: var(--bg-input); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-primary);">
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Riesgo:</div>
+                                <div style="font-size: 1.8rem; font-weight: 800; color: ${report.prediction === 'PHISHING' ? '#ef4444' : '#10b981'};">${report.risk_score}</div>
+                                <div style="font-size: 0.75rem; font-weight: 700;">${report.prediction}</div>
+                            </div>
+                        </div>
+
+                        ${threatsList ? `
+                        <div style="margin-bottom: 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 12px; border-radius: var(--radius-md);">
+                            <div style="font-weight: 700; color: #ef4444; font-size: 0.85rem; margin-bottom: 6px;">Amenazas Detectadas:</div>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 0.85rem;">${threatsList}</ul>
+                        </div>` : ''}
+
+                        ${urlsList ? `
+                        <div style="margin-bottom: 14px; background: var(--bg-input); border: 1px solid var(--border-primary); padding: 12px; border-radius: var(--radius-md);">
+                            <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 6px;">Enlaces Detectados:</div>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 0.85rem;">${urlsList}</ul>
+                        </div>` : ''}
+
+                        <div style="background: var(--bg-input); border: 1px solid var(--border-primary); padding: 12px; border-radius: var(--radius-md);">
+                            <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 6px;">Cuerpo del Correo Analizado:</div>
+                            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.8rem; max-height: 180px; overflow-y: auto; margin: 0; color: var(--text-secondary);">${sanitizeHTML(report.email_body)}</pre>
+                        </div>
+                    `;
+                }
+
+                if (detailModal) detailModal.classList.add('active');
+            };
+
+            function openMailboxModal() {
+                const modal = document.getElementById('mailbox-modal');
+                if (!modal) return;
+                modal.classList.add('active');
+                fetchMailboxData();
+                fetchMailboxReports();
+
+                if (!mailboxPollTimer) {
+                    mailboxPollTimer = setInterval(() => {
+                        fetchMailboxData();
+                        fetchMailboxReports();
+                    }, 5000);
+                }
+            }
+
+            function closeMailboxModal() {
+                const modal = document.getElementById('mailbox-modal');
+                if (modal) modal.classList.remove('active');
+                if (mailboxPollTimer) {
+                    clearInterval(mailboxPollTimer);
+                    mailboxPollTimer = null;
+                }
+            }
+
+            // Mailbox button listener
+            const mailboxBtn = document.getElementById('mailbox-btn');
+            if (mailboxBtn) mailboxBtn.addEventListener('click', openMailboxModal);
+
+            const closeMailboxBtn = document.getElementById('close-mailbox');
+            if (closeMailboxBtn) closeMailboxBtn.addEventListener('click', closeMailboxModal);
+
+            const closeMailboxFooterBtn = document.getElementById('close-mailbox-footer');
+            if (closeMailboxFooterBtn) closeMailboxFooterBtn.addEventListener('click', closeMailboxModal);
+
+            const closeReportDetailBtn = document.getElementById('close-report-detail');
+            if (closeReportDetailBtn) {
+                closeReportDetailBtn.addEventListener('click', () => {
+                    const detailModal = document.getElementById('report-detail-modal');
+                    if (detailModal) detailModal.classList.remove('active');
+                });
+            }
+
+            // Refresh button
+            const refreshBtn = document.getElementById('mailbox-refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    fetchMailboxData();
+                    fetchMailboxReports();
+                });
+            }
+
+            // Search filter
+            const searchInput = document.getElementById('mailbox-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase().trim();
+                    if (!query) {
+                        renderMailboxTable(allMailboxReports);
+                        return;
+                    }
+                    const filtered = allMailboxReports.filter(r => 
+                        (r.subject && r.subject.toLowerCase().includes(query)) ||
+                        (r.sender_email && r.sender_email.toLowerCase().includes(query))
+                    );
+                    renderMailboxTable(filtered);
+                });
+            }
+
+            // Simulator button
+            const simRunBtn = document.getElementById('sim-run-btn');
+            if (simRunBtn) {
+                simRunBtn.addEventListener('click', async () => {
+                    const sampleSelect = document.getElementById('sim-sample-select');
+                    const sampleKey = sampleSelect ? sampleSelect.value : 'sat';
+                    const origBtnText = simRunBtn.innerHTML;
+                    simRunBtn.disabled = true;
+                    simRunBtn.innerHTML = '<span>⏳ Procesando...</span>';
+
+                    try {
+                        const res = await fetch('/api/mail/simulate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ sample: sampleKey })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            await fetchMailboxData();
+                            await fetchMailboxReports();
+                        }
+                    } catch (e) {
+                        logger.error('Error in simulation:', e);
+                    } finally {
+                        simRunBtn.disabled = false;
+                        simRunBtn.innerHTML = origBtnText;
+                    }
+                });
+            }
+
+            // Initial load of mailbox badge
+            fetchMailboxData();
+
             // --- File Upload Functionality ---
             // Note: HTML uses ids `file-upload` and `drop-zone` (not `file-input` / `file-upload-area`).
             const fileInput = document.getElementById('file-upload');
@@ -2221,19 +2813,21 @@
                 if (clearButton) clearButton.innerHTML = `<span>${t.clear_text}</span>`;
                 
                 const emailTextarea = document.getElementById('email_text');
-                if (emailTextarea) emailTextarea.setAttribute('placeholder', t.placeholder);
+                if (emailTextarea && t.placeholder) {
+                    emailTextarea.setAttribute('placeholder', t.placeholder);
+                }
                 
                 // Update sidebar header
                 const sidebarHeader = document.getElementById('examples-header-title');
-                if (sidebarHeader) sidebarHeader.textContent = t.examples_label;
+                if (sidebarHeader && t.examples_label) sidebarHeader.textContent = t.examples_label;
                 
                 // Update example buttons
                 const exampleNames = ['bank', 'prize', 'social', 'meeting', 'order'];
                 exampleNames.forEach(name => {
                     const nameElement = document.getElementById(`example-${name}-name`);
                     const descElement = document.getElementById(`example-${name}-desc`);
-                    if (nameElement) nameElement.textContent = t[`ex_${name}_name`];
-                    if (descElement) descElement.textContent = t[`ex_${name}_desc`];
+                    if (nameElement && t[`ex_${name}_name`]) nameElement.textContent = t[`ex_${name}_name`];
+                    if (descElement && t[`ex_${name}_desc`]) descElement.textContent = t[`ex_${name}_desc`];
                 });
                 
                 // Update category titles
@@ -2308,14 +2902,33 @@
                         return;
                     }
 
-                    const isPhishing = data.is_phishing;
-                    const resultClass = isPhishing ? 'result-phishing' : 'result-legitimate';
-                    const icon = isPhishing ? '⚠️' : '✅';
+                    const score = data.risk_score !== undefined ? data.risk_score : 
+                                 (data.analysis?.risk_score ? parseInt(data.analysis.risk_score.split('/')[0]) : 0);
+
+                    let resultClass = 'result-legitimate';
+                    let icon = '🛡️';
+                    let resultTitle = currentLang === 'es' ? 'Seguro / Confiable' : 'Safe / Reliable';
+                    let confidenceColor = getCSSVar('--accent-success');
+
+                    if (score > 40 || data.category === 'PHISHING' || data.is_phishing) {
+                        resultClass = 'result-phishing';
+                        icon = '🚨';
+                        resultTitle = currentLang === 'es' ? 'Phishing Confirmado' : 'Confirmed Phishing';
+                        confidenceColor = getCSSVar('--accent-danger');
+                    } else if (score >= 26 || data.category === 'SUSPICIOUS') {
+                        resultClass = 'result-warning';
+                        icon = '⚠️';
+                        resultTitle = currentLang === 'es' ? 'Sospechoso / Advertencia' : 'Suspicious / Warning';
+                        confidenceColor = '#ea580c';
+                    } else {
+                        resultClass = 'result-legitimate';
+                        icon = '🛡️';
+                        resultTitle = currentLang === 'es' ? 'Seguro / Confiable' : 'Safe / Reliable';
+                        confidenceColor = getCSSVar('--accent-success');
+                    }
 
                     const t = translations[currentLang];
-                    const resultTitle = isPhishing ? t.phishing : t.legitimate;
                     const confidence = (data.confidence * 100).toFixed(1);
-                    const confidenceColor = isPhishing ? getCSSVar('--accent-danger') : getCSSVar('--accent-success');
 
                     // Threat translations
                     const threatTranslations = {
@@ -2323,12 +2936,20 @@
                             'Suspicious domain extension': 'Suspicious domain extension',
                             'URL shortener detected': 'URL shortener detected',
                             'IP address in URL': 'IP address in URL',
+                            'Brand impersonation in domain': 'Brand impersonation in domain',
+                            'Credential harvesting link': 'Credential harvesting link',
                             'Urgent language tactics': 'Urgent language tactics',
                             'Requests credentials': 'Requests credentials',
                             'Too-good-to-be-true offer': 'Too-good-to-be-true offer',
                             'Brand name misspelling': 'Brand name misspelling',
                             'Generic greeting': 'Generic greeting',
                             'Excessive capitalization': 'Excessive capitalization',
+                            'Tax authority / fiscal coercion with link': 'Tax authority / fiscal coercion with link',
+                            'Banking / transaction alert with link': 'Banking / transaction alert with link',
+                            'Suspicious action or login link': 'Suspicious action or login link',
+                            'Hyphenated lookalike domain': 'Hyphenated lookalike domain',
+                            'Action request with link': 'Action request with link',
+                            'High-confidence composite phishing pattern': 'High-confidence composite phishing pattern',
                             'phishing keywords': 'phishing keywords',
                             'Google Safe Browsing': 'Google Safe Browsing',
                             'Malware': 'Malware',
@@ -2340,12 +2961,20 @@
                             'Suspicious domain extension': 'Extensión de dominio sospechosa',
                             'URL shortener detected': 'Acortador de URL detectado',
                             'IP address in URL': 'Dirección IP en la URL',
+                            'Brand impersonation in domain': 'Suplantación de identidad de marca/entidad',
+                            'Credential harvesting link': 'Enlace de captura de credenciales',
                             'Urgent language tactics': 'Tácticas de lenguaje urgente',
                             'Requests credentials': 'Solicita credenciales',
                             'Too-good-to-be-true offer': 'Oferta demasiado buena para ser verdad',
                             'Brand name misspelling': 'Nombre de marca mal escrito',
                             'Generic greeting': 'Saludo genérico',
                             'Excessive capitalization': 'Uso excesivo de mayúsculas',
+                            'Tax authority / fiscal coercion with link': 'Coacción fiscal o tributaria con enlace',
+                            'Banking / transaction alert with link': 'Alerta bancaria o financiera con enlace',
+                            'Suspicious action or login link': 'Ruta sospechosa de inicio de sesión o acción',
+                            'Hyphenated lookalike domain': 'Dominio sospechoso con guiones',
+                            'Action request with link': 'Solicitud de acción con enlace',
+                            'High-confidence composite phishing pattern': 'Patrón compuesto de phishing de alta certeza',
                             'phishing keywords': 'palabras clave de phishing',
                             'Google Safe Browsing': 'Google Safe Browsing',
                             'Malware': 'Malware',
@@ -2518,11 +3147,13 @@
                 `;
 
                     // Save to history
-                    // Save to history
                     saveToHistory(emailText, data.prediction, data.confidence, data);
 
-                    // Enable dragging after result is shown
-                    window.enableDraggableResult();
+                    // Scroll result smoothly into view
+                    const resultCard = document.getElementById('result');
+                    if (resultCard) {
+                        resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
 
                 } catch (error) {
                     logger.error('Error analyzing email:', error);
@@ -2697,236 +3328,23 @@
             }
         }
 
-        // Global Z-Index for stacking order
-        let globalZIndex = 1000;
-
-        // --- Draggable Elements System ---
-        function makeDraggable(element, defaultPos = null) {
-            // Prevent double initialization
-            if (element.classList.contains('is-draggable')) return;
-            element.classList.add('is-draggable');
-
-            let isDragging = false;
-            let currentX;
-            let currentY;
-            let initialX;
-            let initialY;
-            let xOffset = 0;
-            let yOffset = 0;
-
-            // Ensure element is positioned for dragging
-            element.style.position = 'fixed';
-            element.style.zIndex = ++globalZIndex;
-            element.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
-            element.style.transition = 'none'; // Disable transition during drag
-
-            // Create drag handle
-            const dragHandle = document.createElement('div');
-            dragHandle.className = 'drag-handle';
-            dragHandle.style.cssText = `
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0 15px;
-                height: 40px;
-                background: linear-gradient(90deg, #3b82f6, #2563eb);
-                color: white;
-                font-family: sans-serif;
-                font-weight: bold;
-                font-size: 14px;
-                cursor: move;
-                border-radius: 8px 8px 0 0;
-                user-select: none;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            `;
-            
-            const titleSpan = document.createElement('span');
-            titleSpan.textContent = '✥ DRAG ME';
-            
-            const resetBtn = document.createElement('button');
-            resetBtn.textContent = '↺ Reset';
-            resetBtn.style.cssText = `
-                background: rgba(255,255,255,0.2);
-                border: none;
-                color: white;
-                border-radius: 4px;
-                padding: 2px 8px;
-                cursor: pointer;
-                font-size: 11px;
-            `;
-            resetBtn.onclick = (e) => {
-                e.stopPropagation(); // Prevent drag start
-                xOffset = 0;
-                yOffset = 0;
-                setTranslate(0, 0, element);
-                // Clear storage
-                const elementId = element.id || element.className;
-                localStorage.removeItem(`drag_pos_${elementId}`);
-                
-                // Reset to default position
-                if (defaultPos) {
-                    element.style.top = defaultPos.top || '20%';
-                    element.style.left = defaultPos.left || '50%';
-                    if (defaultPos.transform) element.style.transform = defaultPos.transform;
-                } else {
-                    element.style.top = '20%';
-                    element.style.left = '50%';
-                    element.style.transform = 'translateX(-50%)';
-                }
-            };
-
-            dragHandle.appendChild(titleSpan);
-            dragHandle.appendChild(resetBtn);
-
-            // Insert handle at the top
-            element.insertBefore(dragHandle, element.firstChild);
-
-            // Bring to front on click
-            element.addEventListener('mousedown', () => {
-                element.style.zIndex = ++globalZIndex;
-            });
-
-            // Drag events
-            dragHandle.addEventListener('mousedown', dragStart);
-            document.addEventListener('mousemove', drag);
-            document.addEventListener('mouseup', dragEnd);
-
-            dragHandle.addEventListener('touchstart', dragStart);
-            document.addEventListener('touchmove', drag);
-            document.addEventListener('touchend', dragEnd);
-
-            function dragStart(e) {
-                if (e.type === 'touchstart') {
-                    initialX = e.touches[0].clientX - xOffset;
-                    initialY = e.touches[0].clientY - yOffset;
-                } else {
-                    initialX = e.clientX - xOffset;
-                    initialY = e.clientY - yOffset;
-                }
-
-                if (e.target === dragHandle || e.target === titleSpan) {
-                    isDragging = true;
-                    element.style.opacity = '0.9';
-                    element.style.zIndex = ++globalZIndex;
-                }
-            }
-
-            function drag(e) {
-                if (isDragging) {
-                    e.preventDefault();
-
-                    if (e.type === 'touchmove') {
-                        currentX = e.touches[0].clientX - initialX;
-                        currentY = e.touches[0].clientY - initialY;
-                    } else {
-                        currentX = e.clientX - initialX;
-                        currentY = e.clientY - initialY;
+        // --- Legacy Cleanup: Remove any old draggable coordinates stored in localStorage ---
+        (function cleanupLegacyDragPositions() {
+            try {
+                const keysToRemove = ['input-panel', 'sidebar-panel', 'result'];
+                keysToRemove.forEach(id => {
+                    localStorage.removeItem(`drag_pos_${id}`);
+                });
+                for (let i = localStorage.length - 1; i >= 0; i--) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('drag_pos_')) {
+                        localStorage.removeItem(key);
                     }
-
-                    xOffset = currentX;
-                    yOffset = currentY;
-
-                    setTranslate(currentX, currentY, element);
                 }
+            } catch (e) {
+                console.warn('Could not clean drag coordinates from localStorage:', e);
             }
-
-            function dragEnd(e) {
-                initialX = currentX;
-                initialY = currentY;
-                isDragging = false;
-                element.style.opacity = '1';
-
-                // Save position
-                const elementId = element.id || element.className;
-                localStorage.setItem(`drag_pos_${elementId}`, JSON.stringify({ x: xOffset, y: yOffset }));
-            }
-
-            function setTranslate(xPos, yPos, el) {
-                el.style.transform = `translate(${xPos}px, ${yPos}px)`;
-            }
-
-            // Load saved position or set default
-            const elementId = element.id || element.className;
-            const savedPos = localStorage.getItem(`drag_pos_${elementId}`);
-            
-            if (savedPos) {
-                const pos = JSON.parse(savedPos);
-                xOffset = pos.x;
-                yOffset = pos.y;
-                setTranslate(pos.x, pos.y, element);
-            } else if (defaultPos) {
-                // Apply default position
-                element.style.top = defaultPos.top || '';
-                element.style.left = defaultPos.left || '';
-                element.style.right = defaultPos.right || '';
-                if (defaultPos.width) element.style.width = defaultPos.width;
-                if (defaultPos.maxWidth) element.style.maxWidth = defaultPos.maxWidth;
-            } else {
-                // Fallback defaults
-                if (element.id === 'result') {
-                    element.style.top = '100px';
-                    element.style.left = '50px';
-                    element.style.right = '50px';
-                    element.style.width = 'auto';
-                    element.style.maxWidth = '800px';
-                }
-            }
-        }
-
-        // Enable dragging when result is shown
-        window.enableDraggableResult = function() {
-            // Small delay to ensure DOM is ready
-            setTimeout(() => {
-                const resultArea = document.getElementById('result');
-                
-                if (resultArea && resultArea.style.display !== 'none') {
-                    makeDraggable(resultArea, {
-                        top: '150px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        width: '90%',
-                        maxWidth: '800px'
-                    });
-                }
-            }, 100);
-        };
-
-        // Initialize draggable elements on load
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                // Sidebar
-                const sidebar = document.querySelector('.sidebar');
-                if (sidebar) {
-                    if (!sidebar.id) sidebar.id = 'sidebar-panel';
-                    makeDraggable(sidebar, {
-                        top: '100px',
-                        left: 'auto',
-                        right: '20px',
-                        width: '300px'
-                    });
-                }
-
-                // Input Area
-                const inputArea = document.querySelector('.input-area');
-                if (inputArea) {
-                    if (!inputArea.id) inputArea.id = 'input-panel';
-                    
-                    // Apply card styling
-                    inputArea.style.background = 'var(--bg-secondary)';
-                    inputArea.style.backdropFilter = 'blur(12px)';
-                    inputArea.style.padding = '1.5rem';
-                    inputArea.style.borderRadius = 'var(--radius-md)';
-                    inputArea.style.border = '1px solid var(--border-primary)';
-                    
-                    makeDraggable(inputArea, {
-                        top: '100px',
-                        left: '20px',
-                        width: 'calc(100% - 360px)', // Leave room for sidebar
-                        maxWidth: '800px'
-                    });
-                }
-            }, 500);
-        });
+        })();
     </script>
     
 
