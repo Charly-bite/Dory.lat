@@ -114,7 +114,7 @@ SUSPICIOUS_TLDS = frozenset([
 
 URL_SHORTENERS = frozenset([
     'bit.ly', 'tinyurl.com', 'tiny.cc', 't.co', 'goo.gl', 'ow.ly', 
-    'is.gd', 'buff.ly', 'adf.ly', 'bit.do', 'cutt.ly', 'short.io', 'rb.gy'
+    'is.gd', 'buff.ly', 'adf.ly', 'bit.do', 'cutt.ly', 'short.io', 'rb.gy', 'rebrand.ly'
 ])
 
 KNOWN_TARGETS = (
@@ -250,6 +250,7 @@ RE_LOGISTICS = re.compile(
 
 RE_PORT_PADDING_EVASION = re.compile(r':0{3,}\d+')
 RE_WORK_FROM_HOME_SCAM = re.compile(r'\b(ganar \d+.*?al d[ií]a|sin salir de casa es posible|trabajo desde casa)\b', re.IGNORECASE)
+RE_FINANCIAL_ATTACHMENT_LURE = re.compile(r'\b(spei|cep)\b|transferencia|comprobante.*pago|estado.*pago|swift|factura.*cfdi', re.IGNORECASE)
 
 @lru_cache(maxsize=4096)
 def analyze_single_url(url: str) -> dict:
@@ -414,7 +415,7 @@ def extract_basic_features(text, attachments=None):
                 
             # Financial archive lure
             if any(clean_name.endswith(ext) for ext in ('.zip', '.rar', '.7z', '.iso', '.img', '.001')):
-                if any(k in clean_name for k in ['spei', 'cep', 'comprobante', 'factura', 'cfdi', 'swift', 'pago', 'banca', 'transferencia', 'estado_de_pago']):
+                if RE_FINANCIAL_ATTACHMENT_LURE.search(clean_name):
                     has_financial_archive_lure = True
                     has_dangerous_attachment = True
                     suspicious_attachments.append(att)
@@ -422,6 +423,12 @@ def extract_basic_features(text, attachments=None):
             # HTML disguised as CFDI/Factura
             if (clean_name.endswith('.html') or clean_name.endswith('.htm')) and any(k in clean_name for k in ['factura', 'cfdi', 'comprobante', 'recibo']):
                 has_fake_invoice_attachment = True
+                has_dangerous_attachment = True
+                suspicious_attachments.append(att)
+
+            # Weaponized Office doc with financial transfer lure (e.g. transferencia.docx, comprobante.doc)
+            if any(clean_name.endswith(ext) for ext in ('.docx', '.doc')) and RE_FINANCIAL_ATTACHMENT_LURE.search(clean_name):
+                has_financial_archive_lure = True
                 has_dangerous_attachment = True
                 suspicious_attachments.append(att)
     
@@ -846,7 +853,7 @@ def predict_phishing_hf(text, attachments=None, raw_html="", email_info=None):
         threats.append('High-confidence composite phishing pattern')
 
     # === Whitelist Trust Bonus: All links point to verified official domains ===
-    if features['all_urls_legit']:
+    if features['url_count'] > 0 and features['all_urls_legit']:
         score = max(0, score - 20)
 
     # Normalize score to 0 - 100
