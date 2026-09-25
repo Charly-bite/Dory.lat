@@ -367,7 +367,7 @@ class DoryTestSuite(unittest.TestCase):
         print(f"  [{GREEN}PASS{RESET}] Suplantación ejecutiva BEC detectada -> Escalado a Phishing ({res_c['risk_score']}/100)")
 
         # Caso D: Correo en zona gris legítimo sin artilugios de evasión -> Desescalado a Seguro
-        text_clean_gray = "Estimado colaborador, favor de realizar la actualización anual en 24 horas. Para verificar ingrese a https://quimicaboss.com.mx/portal"
+        text_clean_gray = "Estimado colaborador, favor de realizar la actualización anual en 24 horas. Para verificar ingrese a https://consultoria-contable.com/portal"
         res_d = predict_phishing_hf(text_clean_gray)
         self.assertIsNotNone(res_d.get('l2_analysis'))
         self.assertEqual(res_d['l2_analysis']['status'], 'DEESCALATED_SAFE')

@@ -130,11 +130,16 @@ LEGIT_DOMAINS = frozenset([
     'bbva.mx', 'bbva.com', 'santander.com.mx', 'santander.com', 
     'banorte.com', 'citibanamex.com', 'banamex.com', 'scotiabank.com.mx',
     'hsbc.com.mx', 'hsbc.com', 'bancoazteca.com.mx', 'coppel.com',
+    'bancobase.com', 'base.com', 'intercam.com.mx', 'monex.com.mx',
     'mercadolibre.com.mx', 'mercadolibre.com', 'mercadopago.com.mx', 'mercadopago.com',
     'paypal.com', 'sat.gob.mx', 'gob.mx', 'imss.gob.mx', 'microsoft.com', 
     'office.com', 'live.com', 'google.com', 'apple.com', 'netflix.com', 
     'amazon.com', 'amazon.com.mx', 'dhl.com', 'dhl.com.mx', 'fedex.com', 
-    'estafeta.com', 'python.org', 'cpanel.net', 'directadmin.com'
+    'estafeta.com', 'ups.com', 'python.org', 'cpanel.net', 'directadmin.com',
+    'facebook.com', 'fb.me', 'instagram.com', 'whatsapp.com',
+    'linkedin.com', 'twitter.com', 'x.com', 'youtube.com', 'youtu.be',
+    'quimicaboss.com.mx', 'quimicaboss.odoo.com', 'odoo.com', 'apperp.site',
+    'redirect-url.email', 'homedepot.com.mx', 'homedepot.com', 'uber.com', 'uberfacturas.com'
 ])
 
 ACTION_PATH_KEYWORDS = (
@@ -268,7 +273,7 @@ def analyze_single_url(url: str) -> dict:
 
     has_ip = bool(RE_IPV4_HOST.match(host) or RE_IPV4_IN_URL.search(url_lower))
     has_tld = any(host.endswith(tld) for tld in SUSPICIOUS_TLDS)
-    has_shortener = any(shortener in host for shortener in URL_SHORTENERS)
+    has_shortener = any(host == shortener or host.endswith('.' + shortener) for shortener in URL_SHORTENERS)
     has_hash_email = bool(re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', fragment))
     has_port_padding = bool(RE_PORT_PADDING_EVASION.search(url))
     has_cloud_abuse = any(host.endswith(cloud) for cloud in CLOUD_ABUSE_HOSTS)

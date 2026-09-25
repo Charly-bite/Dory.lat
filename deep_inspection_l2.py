@@ -61,6 +61,14 @@ ZERO_WIDTH_CHARS = {
 # Parámetros comunes de redirección abierta
 REDIRECT_PARAMS = ('url', 'redirect', 'redirect_to', 'next', 'target', 'dest', 'destination', 'goto', 'return', 'r', 'link', 'uri')
 
+# Redireccionadores y destinos corporativos autorizados para evitar falsos positivos
+TRUSTED_REDIRECTORS = frozenset([
+    'redirect-url.email', 'google.com', 'linkedin.com', 'l.messenger.com'
+])
+TRUSTED_DESTINATIONS = frozenset([
+    'quimicaboss.com.mx', 'quimicaboss.odoo.com', 'odoo.com', 'apperp.site'
+])
+
 # Cargos y directivos institucionales de Química Boss protegidos contra BEC
 PROTECTED_VIP_ROLES = (
     'director general', 'direccion general', 'gerencia de finanzas', 'finanzas quimica boss',
@@ -160,6 +168,10 @@ class DeepInspectionFilterL2:
                                     target_parsed = urllib.parse.urlparse(val)
                                     target_host = (target_parsed.hostname or '').lower()
                                     if target_host and target_host != hostname:
+                                        is_trusted_redir = (hostname in TRUSTED_REDIRECTORS or any(hostname.endswith('.' + t) for t in TRUSTED_REDIRECTORS))
+                                        is_trusted_dest = (target_host in TRUSTED_DESTINATIONS or any(target_host.endswith('.' + t) for t in TRUSTED_DESTINATIONS))
+                                        if is_trusted_redir and is_trusted_dest:
+                                            continue
                                         findings.append(f"Redirección abierta detectada: {hostname} redirige externamente a {target_host}")
                                         has_open_redirect = True
 

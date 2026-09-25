@@ -141,3 +141,4 @@ scratch_*.py
 
 # Large datasets & raw EML files
 dataset/
+logs/
