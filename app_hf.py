@@ -210,8 +210,46 @@ BRAND_TYPOS = (
 
 DANGEROUS_EXTS = frozenset([
     '.exe', '.scr', '.vbs', '.bat', '.cmd', '.ps1', '.iso', '.img', 
-    '.html', '.htm', '.hta', '.docm', '.xlsm', '.pptm', '.wsf', '.cpl', '.pif'
+    '.html', '.htm', '.hta', '.docm', '.xlsm', '.pptm', '.wsf', '.cpl', '.pif',
+    '.xla', '.xlam', '.001', '.r00', '.r01', '.r11', '.vhd', '.jar', '.ace', '.dll', '.com'
 ])
+
+CLOUD_ABUSE_HOSTS = (
+    'cloudapp.azure.com', 'firebaseapp.com', 'appspot.com',
+    'pages.dev', 'workers.dev', 's3.amazonaws.com', 'storage.googleapis.com',
+    'app.goo.gl', 'azurewebsites.net'
+)
+
+DOC_MEDIA_EXTS = frozenset(['.pdf', '.xlsx', '.xls', '.docx', '.doc', '.png', '.jpg', '.jpeg', '.xml', '.csv', '.ppt', '.pptx'])
+MASKING_FINAL_EXTS = frozenset(['.txt', '.html', '.htm', '.zip', '.rar', '.7z', '.exe', '.scr', '.vbs', '.bat', '.cmd', '.js', '.wsf', '.xla', '.iso'])
+
+RE_AV_SUBJECT_ALERT = re.compile(
+    r'\[(detecci[oó]n|alerta|malware|virus|troyano|trojan|exploit|cve-\d+|spam)\]|troyano|cve-2017-|win32/exploit',
+    re.IGNORECASE
+)
+
+RE_FISCAL_CFDI = re.compile(
+    r'\b(cfdi|factura|facturaci[oó]n|comprobante fiscal|reciba su cfdi|no pagada|pago pendiente|segundo aviso|cfe en mora|devoluci[oó]n de pago|spei liquidado|cep liquidado|comprobantede de pago|envio de factura|env[ií]o del factura|env[ií]o del comprobante|factura de cfe|cancelaci[oó]n de cfdi|cfdi cancelado)\b',
+    re.IGNORECASE
+)
+
+RE_CAMPAIGN_ID = re.compile(
+    r'\b(cfdi|factura|facturaci[oó]n|comprobante fiscal|solicitud|aviso de factura|notificaci[oó]n|env[ií]o|presupuesto|lineas telef[oó]nicas|cfe|informaci[oó]n del proceso)\b.*?\(\d{5,8}\)',
+    re.IGNORECASE
+)
+
+RE_EXTORTION = re.compile(
+    r'\b(su cuenta ha sido hackeada|he robado sus datos|recuperar el acceso|datos personales debido a ciertas actividades|sitios sospechosos|grabar un video|c[aá]mara web|bitcoin|cartera btc|transferir bitcoins?)\b',
+    re.IGNORECASE
+)
+
+RE_LOGISTICS = re.compile(
+    r'\b(dhl on demand|estafeta entrega|fedex entrega|paquete retenido|gu[ií]a de entrega pendiente)\b',
+    re.IGNORECASE
+)
+
+RE_PORT_PADDING_EVASION = re.compile(r':0{3,}\d+')
+RE_WORK_FROM_HOME_SCAM = re.compile(r'\b(ganar \d+.*?al d[ií]a|sin salir de casa es posible|trabajo desde casa)\b', re.IGNORECASE)
 
 @lru_cache(maxsize=4096)
 def analyze_single_url(url: str) -> dict:
@@ -231,6 +269,8 @@ def analyze_single_url(url: str) -> dict:
     has_tld = any(host.endswith(tld) for tld in SUSPICIOUS_TLDS)
     has_shortener = any(shortener in host for shortener in URL_SHORTENERS)
     has_hash_email = bool(re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', fragment))
+    has_port_padding = bool(RE_PORT_PADDING_EVASION.search(url))
+    has_cloud_abuse = any(host.endswith(cloud) for cloud in CLOUD_ABUSE_HOSTS)
 
     # Impersonation
     is_legit = (host in LEGIT_DOMAINS) or any(host.endswith('.' + legit) for legit in LEGIT_DOMAINS)
@@ -255,6 +295,8 @@ def analyze_single_url(url: str) -> dict:
         'has_suspicious_hyphen': has_suspicious_hyphen,
         'has_login': has_login,
         'has_hash_email': has_hash_email,
+        'has_port_padding': has_port_padding,
+        'has_cloud_abuse': has_cloud_abuse,
         'is_legit': is_legit
     }
 
@@ -338,17 +380,48 @@ def extract_basic_features(text, attachments=None):
     # Suspicious attachment scanning
     has_dangerous_attachment = False
     has_double_extension = False
+    has_quarantined_attachment = False
+    has_financial_archive_lure = False
+    has_fake_invoice_attachment = False
     suspicious_attachments = []
     
     if attachments:
         for att in attachments:
             att_clean = str(att).strip().lower()
-            ext_matches = RE_EXTENSIONS.findall(att_clean)
-            if len(ext_matches) >= 2 and any(att_clean.endswith(ext) for ext in DANGEROUS_EXTS):
-                has_double_extension = True
+            clean_name = re.sub(r'\s+', ' ', att_clean).strip('. ')
+            
+            # Quarantined by mail server
+            if 'deleted_attachments.txt' in clean_name:
+                has_quarantined_attachment = True
                 has_dangerous_attachment = True
                 suspicious_attachments.append(att)
-            elif any(att_clean.endswith(ext) for ext in DANGEROUS_EXTS):
+                continue
+                
+            # Compound / double extensions (e.g. .xlsx.txt, .pdf.html.zip)
+            dots = clean_name.split('.')
+            if len(dots) >= 3:
+                ext1 = '.' + dots[-2].lower()
+                ext2 = '.' + dots[-1].lower()
+                if ext1 in DOC_MEDIA_EXTS and ext2 in MASKING_FINAL_EXTS:
+                    has_double_extension = True
+                    has_dangerous_attachment = True
+                    suspicious_attachments.append(att)
+            
+            # Dangerous extensions
+            if any(clean_name.endswith(ext) for ext in DANGEROUS_EXTS):
+                has_dangerous_attachment = True
+                suspicious_attachments.append(att)
+                
+            # Financial archive lure
+            if any(clean_name.endswith(ext) for ext in ('.zip', '.rar', '.7z', '.iso', '.img', '.001')):
+                if any(k in clean_name for k in ['spei', 'cep', 'comprobante', 'factura', 'cfdi', 'swift', 'pago', 'banca', 'transferencia', 'estado_de_pago']):
+                    has_financial_archive_lure = True
+                    has_dangerous_attachment = True
+                    suspicious_attachments.append(att)
+                    
+            # HTML disguised as CFDI/Factura
+            if (clean_name.endswith('.html') or clean_name.endswith('.htm')) and any(k in clean_name for k in ['factura', 'cfdi', 'comprobante', 'recibo']):
+                has_fake_invoice_attachment = True
                 has_dangerous_attachment = True
                 suspicious_attachments.append(att)
     
@@ -387,6 +460,9 @@ def extract_basic_features(text, attachments=None):
         'has_brand_typo': has_brand_typo,
         'has_dangerous_attachment': has_dangerous_attachment,
         'has_double_extension': has_double_extension,
+        'has_quarantined_attachment': has_quarantined_attachment,
+        'has_financial_archive_lure': has_financial_archive_lure,
+        'has_fake_invoice_attachment': has_fake_invoice_attachment,
         'suspicious_attachments': suspicious_attachments,
         'attachment_count': len(attachments) if attachments else 0,
     }
@@ -552,6 +628,8 @@ def predict_phishing_hf(text, attachments=None, raw_html="", email_info=None):
         if u_info['has_suspicious_hyphen']: features['has_suspicious_domain_hyphen'] = True
         if u_info['has_login']: features['has_login_path'] = True
         if u_info.get('has_hash_email'): features['has_hash_email'] = True
+        if u_info.get('has_port_padding'): features['has_port_padding'] = True
+        if u_info.get('has_cloud_abuse'): features['has_cloud_abuse'] = True
         if not u_info['is_legit']:
             features['all_urls_legit'] = False
             features['has_unverified_url'] = True
@@ -564,7 +642,21 @@ def predict_phishing_hf(text, attachments=None, raw_html="", email_info=None):
     score = 0
     threats = []
     
-    # === TIER 1: Critical Indicators (30-50 points) ===
+    subject_str = (email_info.get('subject') if email_info else '') or ''
+    sender_str = (email_info.get('sender_email') if email_info else '') or ''
+    x_spam_status = (email_info.get('x_spam_status') if email_info else '') or ''
+    x_spam_flag = (email_info.get('x_spam_flag') if email_info else '') or ''
+    x_virus_status = (email_info.get('x_virus_status') if email_info else '') or ''
+
+    # === TIER 1: Critical Indicators (30-65 points) ===
+    # 1. Perimeter Antivirus & Mail Server Threat Flags
+    if RE_AV_SUBJECT_ALERT.search(subject_str) or RE_AV_SUBJECT_ALERT.search(text[:300]):
+        score += 65
+        threats.append('Mail server perimeter antivirus alert in subject (Malware/Trojan/Exploit signature)')
+    elif 'yes' in x_spam_status.lower() or 'yes' in x_spam_flag.lower() or 'infected' in x_virus_status.lower():
+        score += 50
+        threats.append('Perimeter spam/threat flag confirmed in mail headers (X-Spam-Status / X-Virus)')
+
     if safe_browsing_result.get('api_available') and not safe_browsing_result.get('is_safe', True):
         score += 50
         for threat in safe_browsing_result.get('threats_found', []):
@@ -580,15 +672,68 @@ def predict_phishing_hf(text, attachments=None, raw_html="", email_info=None):
     except Exception as e:
         logger.debug(f"Threat intelligence lookup error: {e}")
             
+    # Attachment Threats
+    if features.get('has_quarantined_attachment'):
+        score += 55
+        threats.append('Mail server policy quarantined/deleted executable attachment (deleted_attachments.txt)')
+
     if features.get('has_double_extension'):
+        score += 50
+        threats.append(f'Deceptive compound/double-extension file attachment ({", ".join(features["suspicious_attachments"])})')
+    elif features.get('has_financial_archive_lure'):
         score += 45
-        threats.append(f'Deceptive double-extension file attachment ({", ".join(features["suspicious_attachments"])})')
+        threats.append(f'High-risk archive masquerading as Mexican financial document/CFDI ({", ".join(features["suspicious_attachments"])})')
+    elif features.get('has_fake_invoice_attachment'):
+        score += 45
+        threats.append(f'HTML file masquerading as electronic invoice ({", ".join(features["suspicious_attachments"])})')
     elif features.get('has_dangerous_attachment'):
         score += 45
         threats.append(f'High-risk file attachment ({", ".join(features["suspicious_attachments"])})')
         if features.get('has_macro_lure'):
             score += 15
             threats.append('Macro activation lure for dangerous attachment')
+
+    # Advanced URL Evasion: Port Padding Attack
+    if features.get('has_port_padding'):
+        score += 55
+        threats.append('Port padding zero-evasion attack detected in URL')
+
+    # Cloud Storage Abuse for Phishing / CFDI
+    has_cfdi_lure = bool(RE_FISCAL_CFDI.search(subject_str) or RE_FISCAL_CFDI.search(text[:800]))
+    if features.get('has_cloud_abuse'):
+        if has_cfdi_lure:
+            score += 40
+            threats.append('Cloud storage host abused for fake fiscal/CFDI invoice download')
+        else:
+            score += 25
+            threats.append('Public cloud hosting subdomain used for external redirect/phishing kit')
+
+    if features.get('has_url_shortener') and has_cfdi_lure:
+        score += 35
+        threats.append('URL shortener concealing fake fiscal/CFDI invoice link')
+
+    # Automated Bot Campaign ID in Subject
+    if RE_CAMPAIGN_ID.search(subject_str):
+        score += 40
+        threats.append('Automated phishing campaign batch identifier detected in subject')
+
+    # Extortion & Financial Scams
+    if RE_EXTORTION.search(text) or RE_EXTORTION.search(subject_str):
+        score += 45
+        threats.append('Extortion / blackmail scam pattern detected')
+
+    if RE_WORK_FROM_HOME_SCAM.search(subject_str) or RE_WORK_FROM_HOME_SCAM.search(text):
+        score += 45
+        threats.append('Work-from-home financial scam lure detected')
+
+    if RE_LOGISTICS.search(subject_str) and any(att for att in (attachments or []) if any(str(att).lower().endswith(x) for x in ['.docx', '.doc', '.xlsx', '.zip', '.html', '.scr'])):
+        score += 35
+        threats.append('Fake logistics delivery lure with dangerous/office attachment')
+
+    if ('no pagada' in subject_str.lower() or 'segundo aviso' in subject_str.lower()):
+        if score < 40 and not sender_str.endswith('@quimicaboss.com.mx'):
+            score += 30
+            threats.append('Fiscal urgency coercion tactic (No pagada / Segundo aviso)')
 
     if features.get('has_hash_email'):
         score += 40

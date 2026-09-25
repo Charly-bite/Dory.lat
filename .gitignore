@@ -130,3 +130,14 @@ signature_bottom.png
 signature_card_crop.png
 signature_card_exact.png
 
+# Stalwart Mail Server
+stalwart/
+*.pem
+start-mailserver.ps1
+
+# DirectAdmin collector with sensitive credentials & scratch scripts
+collector_directadmin.py
+scratch_*.py
+
+# Large datasets & raw EML files
+dataset/
