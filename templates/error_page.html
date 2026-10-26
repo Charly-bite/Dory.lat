@@ -381,6 +381,22 @@
   </style>
 </head>
 <body>
+  {% if preview_mode %}
+  <div style="position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 9999; background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(255, 255, 255, 0.16); backdrop-filter: blur(14px); padding: 0.45rem 0.75rem; border-radius: 999px; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); font-size: 0.76rem;">
+    <span style="color: #94A3B8; font-weight: 700; padding: 0 0.35rem;">🎨 PREVIEW:</span>
+    <a href="?service=nemo&code={{ preview_code or 503 }}" style="text-decoration: none; padding: 0.28rem 0.65rem; border-radius: 999px; font-weight: 600; color: {{ '#fff' if preview_service == 'nemo' else '#94A3B8' }}; background: {{ '#6366f1' if preview_service == 'nemo' else 'rgba(255,255,255,0.05)' }};">⚡ Nemo</a>
+    <a href="?service=crush&code={{ preview_code or 503 }}" style="text-decoration: none; padding: 0.28rem 0.65rem; border-radius: 999px; font-weight: 600; color: {{ '#fff' if preview_service == 'crush' else '#94A3B8' }}; background: {{ '#06b6d4' if preview_service == 'crush' else 'rgba(255,255,255,0.05)' }};">🐢 Crush</a>
+    <a href="?service=edu&code={{ preview_code or 503 }}" style="text-decoration: none; padding: 0.28rem 0.65rem; border-radius: 999px; font-weight: 600; color: {{ '#fff' if preview_service == 'edu' else '#94A3B8' }}; background: {{ '#0284C7' if preview_service == 'edu' else 'rgba(255,255,255,0.05)' }};">🎓 Dory EDU</a>
+    <span style="color: rgba(255,255,255,0.2);">|</span>
+    <a href="?service={{ preview_service or 'nemo' }}&code=503" style="text-decoration: none; padding: 0.28rem 0.55rem; border-radius: 999px; font-family: 'JetBrains Mono', monospace; color: {{ '#FDE68A' if preview_code == 503 else '#94A3B8' }}; background: {{ 'rgba(245, 158, 11, 0.2)' if preview_code == 503 else 'transparent' }};">503 Auto-Heal</a>
+    <a href="?service={{ preview_service or 'nemo' }}&code=404" style="text-decoration: none; padding: 0.28rem 0.55rem; border-radius: 999px; font-family: 'JetBrains Mono', monospace; color: {{ '#FDA4AF' if preview_code == 404 else '#94A3B8' }}; background: {{ 'rgba(244, 63, 94, 0.2)' if preview_code == 404 else 'transparent' }};">404</a>
+    <a href="?service={{ preview_service or 'nemo' }}&code=403" style="text-decoration: none; padding: 0.28rem 0.55rem; border-radius: 999px; font-family: 'JetBrains Mono', monospace; color: {{ '#FDA4AF' if preview_code == 403 else '#94A3B8' }}; background: {{ 'rgba(244, 63, 94, 0.2)' if preview_code == 403 else 'transparent' }};">403</a>
+    <a href="?service={{ preview_service or 'nemo' }}&code=500" style="text-decoration: none; padding: 0.28rem 0.55rem; border-radius: 999px; font-family: 'JetBrains Mono', monospace; color: {{ '#FDA4AF' if preview_code == 500 else '#94A3B8' }}; background: {{ 'rgba(244, 63, 94, 0.2)' if preview_code == 500 else 'transparent' }};">500</a>
+    {% if auto_retry %}
+    <button type="button" onclick="window.__simulateReady && window.__simulateReady()" style="border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #6EE7B7; padding: 0.28rem 0.65rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600; cursor: pointer;">✓ Simular Reconexión</button>
+    {% endif %}
+  </div>
+  {% endif %}
   <div class="error-card">
     <div class="top-header">
       <a href="{{ home_url or '/edu' }}" class="logo-badge">
@@ -475,6 +491,19 @@
       const nodeIcon = document.getElementById('targetNodeIcon');
       const nodeState = document.getElementById('targetNodeState');
 
+      function markServiceOnline(reloadAfter) {
+        nodeIcon.classList.remove('warn', 'err');
+        nodeIcon.classList.add('ok');
+        nodeState.classList.remove('warn', 'err');
+        nodeState.classList.add('ok');
+        nodeState.textContent = '● EN LÍNEA';
+        retryTextEl.innerHTML = '¡Servicio listo! Abriendo <strong>{{ service_name or "aplicación" }}</strong>...';
+        if (reloadAfter) {
+          setTimeout(() => window.location.reload(), 250);
+        }
+      }
+      window.__simulateReady = function() { markServiceOnline(false); };
+
       async function checkServiceReady() {
         try {
           const res = await fetch(window.location.href, {
@@ -483,13 +512,7 @@
             cache: 'no-store'
           });
           if (res.ok || (res.status >= 200 && res.status < 400)) {
-            nodeIcon.classList.remove('warn', 'err');
-            nodeIcon.classList.add('ok');
-            nodeState.classList.remove('warn', 'err');
-            nodeState.classList.add('ok');
-            nodeState.textContent = '● EN LÍNEA';
-            retryTextEl.innerHTML = '¡Servicio listo! Abriendo <strong>{{ service_name or "aplicación" }}</strong>...';
-            setTimeout(() => window.location.reload(), 250);
+            markServiceOnline(true);
             return;
           }
         } catch (err) {

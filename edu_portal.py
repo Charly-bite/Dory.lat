@@ -1487,3 +1487,93 @@ def toggle_task_status():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@edu_bp.route('/error-preview')
+def edu_error_preview():
+    """Vista interactiva de prueba para inspeccionar las páginas de error y auto-reconexión."""
+    if request.headers.get('X-Dory-Health-Probe') == '1':
+        if request.args.get('ready') == '1':
+            return jsonify({'status': 'ready'}), 200
+        return jsonify({'status': 'simulating_reconnect'}), 503
+
+    svc = (request.args.get('service') or 'nemo').lower()
+    code = int(request.args.get('code') or 503)
+
+    if svc == 'crush':
+        brand_name = 'BecaFinder'
+        service_name = 'BecaFinder (Crush)'
+        service_tag = '🐢 CRUSH'
+        accent_color = '#06b6d4'
+        brand_logo = '/static/crush_logo.svg'
+        home_url = '/edu/becas/'
+    elif svc == 'edu':
+        brand_name = 'Dory EDU'
+        service_name = 'Dory EDU'
+        service_tag = '🎓 EDU'
+        accent_color = '#0284C7'
+        brand_logo = '/static/Favicon Gabo 512x512.png'
+        home_url = '/edu/'
+    else:
+        svc = 'nemo'
+        brand_name = 'TaskHub'
+        service_name = 'TaskHub (Nemo)'
+        service_tag = '⚡ NEMO'
+        accent_color = '#6366f1'
+        brand_logo = '/static/nemo_logo.svg'
+        home_url = '/edu/tareas/'
+
+    scenarios = {
+        503: (
+            'AUTO_HEAL_ACTIVE',
+            f'Iniciando {service_name}...',
+            f'El túnel seguro de Dory.mx y el Gateway EDU están activos. Estamos despertando el motor local de {service_name}; tu sesión se abrirá automáticamente en unos segundos.',
+            True,
+            'REINICIANDO',
+        ),
+        404: (
+            'ROUTE_NOT_FOUND',
+            f'Ruta no encontrada en {service_name}',
+            f"La dirección solicitada dentro de {service_name} no existe o fue movida dentro del ecosistema Dory.",
+            False,
+            'NO ENCONTRADO',
+        ),
+        403: (
+            'ACCESS_RESTRICTED',
+            'Acceso restringido por Dory Security Shield',
+            'No cuentas con permisos suficientes para acceder a este recurso o la sesión de seguridad ha expirado.',
+            False,
+            'RESTRINGIDO',
+        ),
+        500: (
+            'INTERNAL_ENGINE_ERROR',
+            f'Incidencia interna en {service_name}',
+            'Se produjo una excepción inesperada al procesar tu solicitud. Nuestro sistema de monitoreo ya la registró.',
+            False,
+            'EXCEPCIÓN',
+        ),
+    }
+    code_label, title, message, auto_retry, node_state_text = scenarios.get(code, scenarios[503])
+
+    html_body = render_template(
+        'error_page.html',
+        page_title=f"[Preview {code}] {service_name} — Dory.mx EDU",
+        brand_name=brand_name,
+        brand_logo=brand_logo,
+        service_tag=service_tag,
+        service_name=service_name,
+        accent_color=accent_color,
+        status_code=code,
+        error_code_label=code_label,
+        error_title=title,
+        error_message=message,
+        auto_retry=auto_retry,
+        node_state_text=node_state_text,
+        home_url=home_url,
+        preview_mode=True,
+        preview_service=svc,
+        preview_code=code,
+        timestamp=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+    )
+    return Response(html_body, status=200, content_type='text/html; charset=utf-8')
+
+
