@@ -1489,6 +1489,7 @@ def toggle_task_status():
 
 
 @edu_bp.route('/error-preview')
+@edu_admin_required
 def edu_error_preview():
     """Vista interactiva de prueba para inspeccionar las páginas de error y auto-reconexión."""
     if request.headers.get('X-Dory-Health-Probe') == '1':

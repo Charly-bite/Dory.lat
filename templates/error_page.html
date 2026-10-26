@@ -476,7 +476,9 @@
         <a href="/edu/becas/" class="chip-link">🐢 BecaFinder (Crush)</a>
         <a href="/edu/splunk" class="chip-link">🛡️ SplunkSim (Hank)</a>
         <a href="/edu/juegos/" class="chip-link">🎮 Juegos CUGDL (Otto)</a>
+        {% if session.get('edu_role') == 'admin' or session.get('dev_authenticated') %}
         <a href="/dev" class="chip-link">💻 Dev Workbench</a>
+        {% endif %}
       </div>
       <span class="tech-meta">{{ timestamp or '' }}</span>
     </div>
