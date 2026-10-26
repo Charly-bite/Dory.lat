@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hub Académico — Dory.mx EDU</title>
+  <link rel="icon" type="image/png" href="/static/Favicon Gabo 512x512.png">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --canvas-bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --border-subtle: #E2E8F0;
+      --text-heavy: #0F172A;
+      --text-subdued: #334155;
+      --text-muted: #64748B;
+      --primary-ocean: #0284C7;
+      --primary-hover: #0369A1;
+      --primary-wash: #E0F2FE;
+      --safe-emerald: #059669;
+      --safe-bg: #ECFDF5;
+      --safe-border: #A7F3D0;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
+      --shadow-lg: 0 10px 25px -3px rgba(15, 23, 42, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--canvas-bg);
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: var(--text-subdued);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation */
+    .edu-navbar {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.9rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+
+    .brand-logo img {
+      width: 28px;
+      height: 28px;
+    }
+
+    .brand-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: var(--text-heavy);
+      letter-spacing: -0.02em;
+    }
+
+    .badge-edu {
+      background: #0284C7;
+      color: #FFFFFF;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.05em;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn-nav-admin {
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      color: #7C3AED;
+      text-decoration: none;
+      padding: 0.35rem 0.8rem;
+      border-radius: var(--radius-full);
+      font-size: 0.78rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-nav-admin:hover {
+      background: rgba(139, 92, 246, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--safe-bg);
+      border: 1px solid var(--safe-border);
+      color: var(--safe-emerald);
+      padding: 0.3rem 0.8rem;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .user-pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--safe-emerald);
+      box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+    }
+
+    .user-pill-img {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .user-role-chip {
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .user-role-chip.admin { background: rgba(139, 92, 246, 0.15); color: #7C3AED; }
+    .user-role-chip.beta { background: rgba(16, 185, 129, 0.15); color: #059669; }
+
+    .btn-logout {
+      background: #F1F5F9;
+      color: #475569;
+      border: none;
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-logout:hover {
+      background: #E2E8F0;
+      color: #0F172A;
+    }
+
+    .btn-tour-launch {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #0284C7;
+      padding: 0.35rem 0.8rem;
+      border-radius: var(--radius-full);
+      font-size: 0.78rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-tour-launch:hover {
+      background: rgba(56, 189, 248, 0.22);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+    }
+
+    /* ==========================================
+       ONBOARDING TOUR STYLES
+       ========================================== */
+    .tour-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      z-index: 9996;
+      transition: opacity 0.3s ease;
+      pointer-events: auto;
+    }
+
+    .tour-backdrop.active {
+      display: block;
+    }
+
+    .tour-spotlight {
+      display: none;
+      position: absolute;
+      border-radius: 16px;
+      border: 2.5px solid #38BDF8;
+      background: transparent;
+      box-shadow: 
+        0 0 0 9999px rgba(11, 19, 43, 0.8),
+        0 0 28px rgba(56, 189, 248, 0.6);
+      z-index: 9998;
+      pointer-events: none;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .tour-spotlight.active {
+      display: block;
+    }
+
+    .tour-highlighted-element {
+      position: relative !important;
+      z-index: 9999 !important;
+    }
+
+    .tour-popover {
+      display: none;
+      position: absolute;
+      width: 360px;
+      max-width: calc(100vw - 32px);
+      background: #0F172A;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 18px;
+      padding: 1.4rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 35px rgba(56, 189, 248, 0.15);
+      z-index: 10000;
+      color: #FFFFFF;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      animation: popoverBounce 0.3s ease-out;
+    }
+
+    .tour-popover.active {
+      display: block;
+    }
+
+    @keyframes popoverBounce {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .tour-popover-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.85rem;
+    }
+
+    .tour-step-badge {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38BDF8;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      letter-spacing: 0.03em;
+    }
+
+    .tour-close-btn {
+      background: none;
+      border: none;
+      color: #94A3B8;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 6px;
+      line-height: 1;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+
+    .tour-close-btn:hover {
+      color: #FFFFFF;
+    }
+
+    .tour-popover-body h3 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: #FFFFFF;
+    }
+
+    .tour-popover-body p {
+      font-size: 0.88rem;
+      line-height: 1.48;
+      color: #94A3B8;
+      margin-bottom: 1.25rem;
+    }
+
+    .tour-popover-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 0.85rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tour-dots {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    .tour-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .tour-dot.active {
+      width: 18px;
+      border-radius: 4px;
+      background: #38BDF8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+    }
+
+    .tour-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-tour-skip {
+      background: none;
+      border: none;
+      color: #64748B;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0.35rem 0.55rem;
+      transition: color 0.2s;
+    }
+
+    .btn-tour-skip:hover {
+      color: #CBD5E1;
+    }
+
+    .btn-tour-prev {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #E2E8F0;
+      padding: 0.38rem 0.75rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-tour-prev:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-tour-next {
+      background: linear-gradient(135deg, #0284C7, #0369A1);
+      color: #FFFFFF;
+      border: none;
+      padding: 0.42rem 0.95rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35);
+    }
+
+    .btn-tour-next:hover {
+      background: linear-gradient(135deg, #0369A1, #075985);
+      transform: translateY(-1px);
+    }
+
+    .tour-confetti-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10001;
+    }
+
+    /* Main Container */
+    .edu-main {
+      flex: 1;
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 3.5rem 1.5rem;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    /* Cards Grid */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.8rem;
+    }
+
+    .service-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .service-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      border-color: #CBD5E1;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1.4rem;
+    }
+
+    .service-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .icon-becas {
+      background: #EFF6FF;
+      color: #2563EB;
+    }
+
+    .icon-tareas {
+      background: #F0FDF4;
+      color: #16A34A;
+    }
+
+    .icon-splunk {
+      background: #FFF7ED;
+      color: #EA580C;
+    }
+
+    .icon-juegos {
+      background: #FEFCE8;
+      color: #CA8A04;
+    }
+
+    .service-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-heavy);
+      margin-bottom: 0.5rem;
+    }
+
+    .service-desc {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 2rem;
+      flex: 1;
+    }
+
+    .btn-launch {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: var(--primary-ocean);
+      color: #FFFFFF;
+      text-decoration: none;
+      padding: 0.85rem 1.3rem;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 0.92rem;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-launch:hover {
+      background: var(--primary-hover);
+    }
+
+    /* Moodle Tester Section */
+    .utility-section {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.8rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .utility-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .utility-header h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-heavy);
+    }
+
+    .utility-desc {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      margin-bottom: 1.2rem;
+      line-height: 1.45;
+    }
+
+    .tester-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 0.8rem;
+      align-items: end;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .tester-form {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 0.3rem;
+    }
+
+    .form-field input {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.88rem;
+      font-family: inherit;
+    }
+
+    .form-field input:focus {
+      outline: none;
+      border-color: var(--primary-ocean);
+      box-shadow: 0 0 0 2px var(--primary-wash);
+    }
+
+    .btn-test {
+      background: #0F172A;
+      color: #FFFFFF;
+      border: none;
+      padding: 0.65rem 1.2rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      height: 38px;
+    }
+
+    .btn-test:hover {
+      background: #334155;
+    }
+
+    .tester-result {
+      display: none;
+      padding: 0.8rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.84rem;
+      margin-top: 0.5rem;
+    }
+
+    .result-success {
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+      color: #065F46;
+    }
+
+    .result-error {
+      background: #FFF1F2;
+      border: 1px solid #FECDD3;
+      color: #9F1239;
+    }
+
+    /* Infra Summary */
+    .infra-strip {
+      background: #F1F5F9;
+      border-radius: var(--radius-md);
+      padding: 1rem 1.2rem;
+      font-size: 0.82rem;
+      color: #475569;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+    }
+
+    .infra-strip code {
+      background: #E2E8F0;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #0F172A;
+    }
+  
+    /* === EMIL KOWALSKI DESIGN ENGINEERING & 120HZ COMPOSITE LAYER === */
+    :root {
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .kpi-val, .stat-val, .stat-number, .metric-val, .badge, code, pre {
+      font-variant-numeric: tabular-nums;
+    }
+    button, .btn, [class*="btn-"], a[class*="btn"], .pill, .filter-tab, .project-card, .service-card, .faq-item {
+      transition: transform 180ms var(--ease-out), opacity 180ms var(--ease-out), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+    button:active:not(:disabled), .btn:active, [class*="btn-"]:active, a[class*="btn"]:active, .filter-tab:active {
+      transform: scale(0.97) !important;
+      transition-duration: 110ms !important;
+    }
+    @media (hover: none), (pointer: coarse) {
+      .project-card:hover, .service-card:hover, .bento-card:hover, [class*="btn"]:hover {
+        transform: none !important;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 150ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 150ms !important;
+        scroll-behavior: auto !important;
+      }
+      .project-card:hover, .service-card:hover, button:active, .btn:active {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="edu-navbar">
+    <div class="brand-group">
+      <a href="/edu/" class="brand-logo">
+        <img src="/static/Favicon Gabo 512x512.png" alt="Dory.mx">
+        <span class="brand-name">Dory.mx</span>
+        <span class="badge-edu" {% if is_admin or user_role == 'admin' %}onclick="event.preventDefault(); window.location.href='/edu/admin/users';" title="Acceso Admin (Ctrl+Shift+A)" style="cursor: pointer;"{% endif %}>EDU</span>
+      </a>
+    </div>
+
+    <div class="nav-actions">
+      <button type="button" class="btn-tour-launch" onclick="startOnboardingTour(true)" title="Ver guía interactiva de funciones">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+        <span>Tour Beta</span>
+      </button>
+
+      {% if is_admin or user_role == 'admin' %}
+      <a href="/edu/admin/users" class="btn-nav-admin" title="Panel de Administración (Ctrl+Shift+A)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        <span>Admin</span>
+      </a>
+      {% endif %}
+      <div class="user-pill" id="tourStepProfile">
+        {% if user_picture %}
+          <img src="{{ user_picture }}" alt="{{ user_name }}" class="user-pill-img">
+        {% else %}
+          <span class="user-pill-dot"></span>
+        {% endif %}
+        <span>{{ user_name or user }}</span>
+        {% if user_role %}
+          <span class="user-role-chip {{ 'admin' if user_role == 'admin' else 'beta' }}">{{ user_role }}</span>
+        {% endif %}
+      </div>
+      <a href="/edu/logout" class="btn-logout">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        <span>Salir</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="edu-main">
+    <!-- SERVICES GRID -->
+    <div class="services-grid">
+      <!-- BECAS CARD -->
+      <div class="service-card" id="tourStepBecas">
+        <div class="card-top">
+          <div class="service-icon icon-becas" style="background: #EFF6FF; padding: 0; overflow: hidden;">
+            <img src="/static/crush_logo.svg" alt="BecaFinder Crush" width="40" height="40" style="display: block;">
+          </div>
+        </div>
+
+        <h2 class="service-title">BecaFinder UDG</h2>
+        <p class="service-desc">
+          Plataforma de búsqueda y gestión de becas, estímulos económicos e intercambios académicos internacionales para la comunidad universitaria.
+        </p>
+
+        <a href="/edu/becas" class="btn-launch">
+          <span>Abrir BecaFinder</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+      </div>
+
+      <!-- TAREAS CARD -->
+      <div class="service-card" id="tourStepTareas">
+        <div class="card-top">
+          <div class="service-icon icon-tareas" style="background: #EFF6FF; padding: 0; overflow: hidden;">
+            <img src="/static/nemo_logo.svg" alt="Nemo" width="40" height="40" style="display: block;">
+          </div>
+        </div>
+
+        <h2 class="service-title">TaskHub (Nemo)</h2>
+        <p class="service-desc">
+          Gestor unificado de tareas y optimizador continuo con sincronización bidireccional para <strong>Google Classroom</strong> y el campus virtual <strong>Moodle CUGDL</strong>.
+        </p>
+
+        <a href="/edu/tareas" class="btn-launch">
+          <span>Abrir TaskHub (Nemo)</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+      </div>
+
+      <!-- SPLUNKSIM CARD -->
+      <div class="service-card" id="tourStepSplunk">
+        <div class="card-top">
+          <div class="service-icon icon-splunk">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          </div>
+        </div>
+
+        <h2 class="service-title">SplunkSim</h2>
+        <p class="service-desc">
+          Simulador interactivo de <strong>Splunk Enterprise</strong> y laboratorio de <strong>Threat Hunting</strong> con motor SPL en tiempo real, datasets forenses de incidentes reales y modo examen SOC.
+        </p>
+
+        <a href="/edu/splunk" class="btn-launch">
+          <span>SplunkSim</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+      </div>
+
+      <!-- JUEGOS EDUCATIVOS CUGDL CARD -->
+      <div class="service-card" id="tourStepJuegos">
+        <div class="card-top">
+          <div class="service-icon icon-juegos">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>
+          </div>
+          <span style="margin-left: auto; font-size: 0.72rem; font-weight: 700; color: #16A34A; background: #DCFCE7; border: 1px solid #BBF7D0; padding: 3px 9px; border-radius: 9999px; letter-spacing: 0.5px;">LIBRE ACCESO</span>
+        </div>
+
+        <h2 class="service-title">Juegos CUGDL</h2>
+        <p class="service-desc">
+          Portal interactivo de <strong>Juegos Educativos Offline</strong>: Desafíos de lógica numérica, análisis fotográfico forense, acústica STEM y laboratorio de ciberdefensa. Disponible sin necesidad de registro ni inicio de sesión.
+        </p>
+
+        <a href="/edu/juegos/" class="btn-launch">
+          <span>Abrir Portal de Juegos</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <!-- ONBOARDING TOUR DOM ELEMENTS -->
+  <div id="tourBackdrop" class="tour-backdrop" onclick="endOnboardingTour()"></div>
+  <div id="tourSpotlight" class="tour-spotlight"></div>
+
+  <div id="tourPopover" class="tour-popover">
+    <div class="tour-popover-header">
+      <span class="tour-step-badge" id="tourStepBadge">Paso 1 de 5</span>
+      <button type="button" class="tour-close-btn" onclick="endOnboardingTour()" aria-label="Cerrar tour">✕</button>
+    </div>
+    <div class="tour-popover-body">
+      <h3 id="tourTitle">Bienvenido a Dory EDU</h3>
+      <p id="tourDesc">Explicación del paso actual.</p>
+    </div>
+    <div class="tour-popover-footer">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-btn-group">
+        <button type="button" class="btn-tour-skip" onclick="endOnboardingTour()">Omitir</button>
+        <button type="button" class="btn-tour-prev" id="tourPrevBtn" onclick="prevTourStep()">Atrás</button>
+        <button type="button" class="btn-tour-next" id="tourNextBtn" onclick="nextTourStep()">Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="tourConfettiCanvas" class="tour-confetti-canvas"></canvas>
+
+  <script>
+    /* ==========================================
+       ONBOARDING TOUR ENGINE (VANILLA JS)
+       ========================================== */
+    const isFirstLogin = {{ 'true' if first_login else 'false' }};
+
+    const tourSteps = [
+      {
+        targetId: 'tourStepBecas',
+        badge: 'Paso 1 de 5 • BecaFinder',
+        title: '🎓 Buscador de Becas UDG',
+        desc: 'Explora convocatorias vigentes, apoyos económicos, estímulos y movilidad académica de la UDG y fundaciones internacionales con filtrado inteligente.'
+      },
+      {
+        targetId: 'tourStepTareas',
+        badge: 'Paso 2 de 5 • TaskHub (Nemo)',
+        title: '⚡ Gestor Unificado de Tareas',
+        desc: 'Sincroniza tus pendientes y cursos de Google Classroom y del campus virtual Moodle CUGDL en un solo panel para no perder ninguna entrega.'
+      },
+      {
+        targetId: 'tourStepSplunk',
+        badge: 'Paso 3 de 5 • SplunkSim',
+        title: '🛡️ Simulador Splunk & Threat Hunting',
+        desc: 'Entrénate en ciberseguridad defensiva (Blue Team) con consultas SPL, análisis forense de ataques reales y preparación para certificaciones SOC.'
+      },
+      {
+        targetId: 'tourStepJuegos',
+        badge: 'Paso 4 de 5 • Juegos CUGDL (Libre Acceso)',
+        title: '🎮 Juegos Educativos (Acceso Libre)',
+        desc: 'Desafíos interactivos offline de razonamiento deductivo, discriminación visual, física acústica y laboratorio de ciberseguridad. Disponibles abiertamente sin necesidad de autenticación.'
+      },
+      {
+        targetId: 'tourStepProfile',
+        badge: 'Paso 5 de 5 • Identidad y SSO',
+        title: '🛡️ Sesión Activa Unificada (SSO)',
+        desc: 'Tu sesión protegida te permite navegar entre Becas, Tareas, SplunkSim y Juegos sin volver a iniciar sesión. ¡Listo! Explora libremente la beta.'
+      }
+    ];
+
+    let currentTourStep = 0;
+    let tourActive = false;
+    let previousTargetEl = null;
+
+    function startOnboardingTour(force = false) {
+      if (tourActive) return;
+      currentTourStep = 0;
+      tourActive = true;
+
+      document.getElementById('tourBackdrop').classList.add('active');
+      document.getElementById('tourSpotlight').classList.add('active');
+      document.getElementById('tourPopover').classList.add('active');
+
+      renderTourStep();
+    }
+
+    function renderTourStep() {
+      const step = tourSteps[currentTourStep];
+      if (!step) return;
+
+      const targetEl = document.getElementById(step.targetId);
+      if (!targetEl) {
+        // Si no existe el elemento (ej. admin card si no es admin), saltar al siguiente
+        if (currentTourStep < tourSteps.length - 1) {
+          currentTourStep++;
+          renderTourStep();
+        } else {
+          endOnboardingTour();
+        }
+        return;
+      }
+
+      // Desactivar realce anterior y activar en el elemento actual
+      if (previousTargetEl && previousTargetEl !== targetEl) {
+        previousTargetEl.classList.remove('tour-highlighted-element');
+      }
+      targetEl.classList.add('tour-highlighted-element');
+      previousTargetEl = targetEl;
+
+      // Smooth scroll to target
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // Update text
+      document.getElementById('tourStepBadge').innerText = step.badge;
+      document.getElementById('tourTitle').innerText = step.title;
+      document.getElementById('tourDesc').innerText = step.desc;
+
+      // Update Dots
+      const dotsContainer = document.getElementById('tourDots');
+      dotsContainer.innerHTML = tourSteps.map((_, idx) => `
+        <div class="tour-dot ${idx === currentTourStep ? 'active' : ''}"></div>
+      `).join('');
+
+      // Buttons state
+      const prevBtn = document.getElementById('tourPrevBtn');
+      const nextBtn = document.getElementById('tourNextBtn');
+
+      prevBtn.style.display = currentTourStep === 0 ? 'none' : 'inline-block';
+      nextBtn.innerText = currentTourStep === tourSteps.length - 1 ? '¡Comenzar! 🎉' : 'Siguiente';
+
+      // Posicionar spotlight y popover tras un breve delay de scroll
+      setTimeout(() => {
+        positionTourElements(targetEl);
+      }, 150);
+    }
+
+    function positionTourElements(targetEl) {
+      if (!tourActive || !targetEl) return;
+
+      const rect = targetEl.getBoundingClientRect();
+      const scrollY = window.scrollY || window.pageYOffset;
+      const scrollX = window.scrollX || window.pageXOffset;
+
+      const spotlight = document.getElementById('tourSpotlight');
+      const popover = document.getElementById('tourPopover');
+
+      const pad = 8;
+      spotlight.style.top = `${rect.top + scrollY - pad}px`;
+      spotlight.style.left = `${rect.left + scrollX - pad}px`;
+      spotlight.style.width = `${rect.width + (pad * 2)}px`;
+      spotlight.style.height = `${rect.height + (pad * 2)}px`;
+
+      // Popover positioning
+      const popoverWidth = 360;
+      let topPos = rect.bottom + scrollY + 16;
+      let leftPos = rect.left + scrollX + (rect.width / 2) - (popoverWidth / 2);
+
+      // Limitar a los bordes de la pantalla
+      const maxLeft = document.documentElement.clientWidth - popoverWidth - 16;
+      if (leftPos < 16) leftPos = 16;
+      if (leftPos > maxLeft) leftPos = maxLeft;
+
+      // Si se sale por abajo de la ventana, mostrarlo arriba del elemento
+      if (rect.bottom + 260 > window.innerHeight) {
+        topPos = rect.top + scrollY - 240;
+        if (topPos < scrollY + 20) {
+          topPos = rect.top + scrollY + 20; // fallback
+        }
+      }
+
+      popover.style.top = `${topPos}px`;
+      popover.style.left = `${leftPos}px`;
+    }
+
+    function nextTourStep() {
+      if (currentTourStep < tourSteps.length - 1) {
+        currentTourStep++;
+        renderTourStep();
+      } else {
+        fireTourConfetti();
+        endOnboardingTour();
+      }
+    }
+
+    function prevTourStep() {
+      if (currentTourStep > 0) {
+        currentTourStep--;
+        renderTourStep();
+      }
+    }
+
+    function endOnboardingTour() {
+      tourActive = false;
+      if (previousTargetEl) {
+        previousTargetEl.classList.remove('tour-highlighted-element');
+        previousTargetEl = null;
+      }
+      document.getElementById('tourBackdrop').classList.remove('active');
+      document.getElementById('tourSpotlight').classList.remove('active');
+      document.getElementById('tourPopover').classList.remove('active');
+
+      // Marcar tour como completado en el navegador del usuario
+      localStorage.setItem('dory_edu_tour_completed', 'true');
+    }
+
+    // Teclado para accesibilidad y atajos
+    window.addEventListener('keydown', (e) => {
+      // Atajo secreto de admin: Ctrl + Shift + A (o Cmd + Shift + A en Mac)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        window.location.href = '/edu/admin/users';
+        return;
+      }
+      if (!tourActive) return;
+      if (e.key === 'Escape') endOnboardingTour();
+      if (e.key === 'ArrowRight') nextTourStep();
+      if (e.key === 'ArrowLeft') prevTourStep();
+    });
+
+    window.addEventListener('resize', () => {
+      if (tourActive) {
+        const step = tourSteps[currentTourStep];
+        if (step) {
+          const targetEl = document.getElementById(step.targetId);
+          if (targetEl) positionTourElements(targetEl);
+        }
+      }
+    });
+
+    // Auto-arranque en primer login o si nunca lo ha visto
+    document.addEventListener('DOMContentLoaded', () => {
+      const tourDone = localStorage.getItem('dory_edu_tour_completed');
+      if (isFirstLogin || !tourDone) {
+        setTimeout(() => {
+          startOnboardingTour();
+        }, 650);
+      }
+    });
+
+    /* ==========================================
+       CONFETTI BURST CELEBRATION
+       ========================================== */
+    function fireTourConfetti() {
+      const canvas = document.getElementById('tourConfettiCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const colors = ['#0284C7', '#38BDF8', '#8B5CF6', '#10B981', '#F59E0B', '#F43F5E'];
+      const particles = Array.from({ length: 65 }, () => ({
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        vx: (Math.random() - 0.5) * 14,
+        vy: (Math.random() - 0.7) * 16,
+        size: Math.random() * 8 + 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * 360,
+        vr: (Math.random() - 0.5) * 12,
+        alpha: 1
+      }));
+
+      let animId;
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.35; // gravity
+          p.rotation += p.vr;
+          p.alpha -= 0.015;
+
+          if (p.alpha > 0) {
+            alive = true;
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+            ctx.restore();
+          }
+        });
+
+        if (alive) {
+          animId = requestAnimationFrame(render);
+        } else {
+          cancelAnimationFrame(animId);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      render();
+    }
+  </script>
+</body>
+</html>

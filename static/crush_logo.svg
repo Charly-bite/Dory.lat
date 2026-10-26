@@ -1,0 +1,168 @@
+<svg width="512" height="512" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Sky-Ocean Circular Badge (matches Dory & Nemo family) -->
+    <linearGradient id="crushBadgeBg" x1="15" y1="10" x2="85" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A5D4FF" />
+      <stop offset="55%" stop-color="#8BC4FF" />
+      <stop offset="100%" stop-color="#6BB0FF" />
+    </linearGradient>
+
+    <!-- Sea Turtle Skin Gradient (Emerald / Tropical Green) -->
+    <linearGradient id="crushSkin" x1="25" y1="35" x2="85" y2="75" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4ADE80" />
+      <stop offset="55%" stop-color="#22C55E" />
+      <stop offset="100%" stop-color="#15803D" />
+    </linearGradient>
+
+    <!-- Carapace (Shell) Warm Amber-Bronze Gradient -->
+    <linearGradient id="crushShell" x1="20" y1="28" x2="62" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="55%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#92400E" />
+    </linearGradient>
+
+    <!-- Shell Rim & Belly Plastron Warm Gold -->
+    <linearGradient id="crushBelly" x1="20" y1="50" x2="64" y2="68" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+  </defs>
+
+  <!-- Circular Sky-Blue Badge -->
+  <circle cx="50" cy="50" r="48" fill="url(#crushBadgeBg)" />
+  <circle cx="50" cy="50" r="46.5" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="1.2" />
+
+  <!-- Subtle Water Bubbles on Right (Family motif) -->
+  <circle cx="88" cy="40" r="2.4" fill="#FFFFFF" fill-opacity="0.68" />
+  <circle cx="90" cy="49" r="1.5" fill="#FFFFFF" fill-opacity="0.52" />
+  <circle cx="85.5" cy="32" r="1.3" fill="#FFFFFF" fill-opacity="0.48" />
+
+  <!-- Back/Far Front Flipper (Subtle depth behind shell) -->
+  <path
+    d="M52 54C58 58 65 65 67 71C63 72 56 68 49 60Z"
+    fill="#15803D"
+    stroke="#0B0F19"
+    stroke-width="2.6"
+    stroke-linejoin="round"
+  />
+
+  <!-- Rear Flipper (Left-Bottom, trailing behind) -->
+  <path
+    d="M23 56C15 58 10 63 11 67C14 68.5 21 65.5 27 60Z"
+    fill="url(#crushSkin)"
+    stroke="#0B0F19"
+    stroke-width="2.8"
+    stroke-linejoin="round"
+  />
+
+  <!-- Plastron / Lower Belly Under-Shell -->
+  <path
+    d="M22 54C30 61 48 61.5 59 55.5L56 50L22 50Z"
+    fill="url(#crushBelly)"
+    stroke="#0B0F19"
+    stroke-width="2.8"
+    stroke-linejoin="round"
+  />
+
+  <!-- Neck & Friendly Sea Turtle Head (Facing Right) -->
+  <path
+    d="M55 48.5C60 47.5 64 43.5 68.5 41.5C75.5 38.5 83.5 42 84.5 48.5C85.2 53.5 80.5 57.5 73.5 57.5C67.5 57.5 62.5 55.5 57 55Z"
+    fill="url(#crushSkin)"
+    stroke="#0B0F19"
+    stroke-width="2.8"
+    stroke-linejoin="round"
+  />
+
+  <!-- Domed Sea Turtle Carapace (Main Shell) -->
+  <path
+    d="M17.5 51.5C18.5 34.5 32 25.5 46.5 28.5C56.5 30.5 62.5 39 61.5 49.5C47 51.5 31 52 17.5 51.5Z"
+    fill="url(#crushShell)"
+    stroke="#0B0F19"
+    stroke-width="3"
+    stroke-linejoin="round"
+  />
+
+  <!-- Shell Scute Pattern (Hexagonal/Polygonal Lines) -->
+  <path
+    d="M28 33.5L34 41L46 41L52 33.5M34 41L30 50.5M46 41L50 50"
+    stroke="#0B0F19"
+    stroke-width="2.3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Shell Highlight -->
+  <path
+    d="M25 36.5C31 30.5 42 29.5 50 32"
+    stroke="#FDE68A"
+    stroke-width="2.2"
+    stroke-linecap="round"
+    opacity="0.55"
+  />
+
+  <!-- Golden Shell Margin / Rim (Black outer border + Golden inner band) -->
+  <path
+    d="M16.5 51.5C31 53.5 47.5 53 62 49.5"
+    stroke="#0B0F19"
+    stroke-width="6.4"
+    stroke-linecap="round"
+  />
+  <path
+    d="M16.5 51.5C31 53.5 47.5 53 62 49.5"
+    stroke="#FDE68A"
+    stroke-width="2.6"
+    stroke-linecap="round"
+  />
+
+  <!-- Main Hydrodynamic Front Flipper (Sweeping Down-Left like a Wing) -->
+  <path
+    d="M49 52.5C53.5 52.5 56.5 56 54.5 62.5C51.5 71 42.5 78.5 34.5 79.5C32 79.8 31.5 77 33.5 73.5C37.5 66.5 42 59.5 44.5 55C45.8 53 47.2 52.5 49 52.5Z"
+    fill="url(#crushSkin)"
+    stroke="#0B0F19"
+    stroke-width="3"
+    stroke-linejoin="round"
+  />
+  <!-- Flipper Scale Markings -->
+  <path
+    d="M48.5 59.5C46 64.5 42 70 38 74"
+    stroke="#15803D"
+    stroke-width="2"
+    stroke-linecap="round"
+  />
+
+  <!-- Expressive Sea Turtle Eye & Warm Smile -->
+  <circle cx="76.5" cy="46.8" r="3.9" fill="#0B0F19" />
+  <circle cx="77.6" cy="45.6" r="1.4" fill="#FFFFFF" />
+  <path
+    d="M83 51.8C80.5 53.2 77.5 53 75.5 51.5"
+    stroke="#0B0F19"
+    stroke-width="2.1"
+    stroke-linecap="round"
+  />
+
+  <!-- Academic Mortarboard (Birrete Universitario UDG) on Crush's Head -->
+  <!-- Skull Cap Base -->
+  <path
+    d="M66.5 36.5L77.5 34.8L78.2 39.8C74.5 41.2 70 41.5 66.2 40.5Z"
+    fill="#1E293B"
+    stroke="#0B0F19"
+    stroke-width="2.4"
+    stroke-linejoin="round"
+  />
+  <!-- Mortarboard Top Diamond -->
+  <polygon
+    points="59,34.5 72.5,28.5 85.5,31.8 72,37.8"
+    fill="#0F172A"
+    stroke="#0B0F19"
+    stroke-width="2.4"
+    stroke-linejoin="round"
+  />
+  <!-- Golden Tassel (Borla Dorada UDG) -->
+  <circle cx="72.2" cy="33.2" r="1.8" fill="#FFE600" />
+  <path
+    d="M72.2 33.2C76.5 34 80.5 36 81.5 40.5"
+    stroke="#FFE600"
+    stroke-width="2.2"
+    stroke-linecap="round"
+  />
+  <circle cx="81.5" cy="41" r="1.8" fill="#FFE600" />
+</svg>
