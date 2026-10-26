@@ -1,3 +1,10 @@
 Flask==3.1.2
 gunicorn==23.0.0
 requests==2.32.3
+python-dotenv>=1.0
+# Clasificador ML v4 (la versión de scikit-learn DEBE coincidir con la usada al entrenar
+# saved_data/models/dory_classifier_v4.joblib; ver sklearn_version en su metadata)
+scikit-learn==1.9.1
+numpy>=2.0
+scipy>=1.13
+joblib>=1.4

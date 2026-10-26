@@ -85,12 +85,28 @@ HISTORICAL_CORPUS_SIGNATURES = [
 ]
 
 
+def _is_shared_or_verified_host(domain: str) -> bool:
+    """
+    True si el host es una plataforma compartida (UGC) o un dominio de marca verificado.
+    URLhaus lista URLs maliciosas ALOJADAS en github.com, drive.google.com, etc.; bloquear el
+    dominio completo generaba +50 puntos a cualquier correo legítimo con esos enlaces.
+    Para estos hosts solo se usa la coincidencia por URL exacta.
+    """
+    try:
+        from dory_engine import host_matches, LEGIT_DOMAINS, UGC_HOSTS
+    except Exception:
+        return False
+    d = (domain or '').lower().strip()
+    return host_matches(d, UGC_HOSTS) or host_matches(d, LEGIT_DOMAINS)
+
+
 class ThreatIntelligenceFeedManager:
     """Administrador centralizado de bases de inteligencia y feeds de amenazas para Dory."""
 
     _cached_domains: Set[str] = set()
     _cached_urls: Set[str] = set()
     _last_cache_update: float = 0.0
+    CACHE_TTL_SECONDS: int = 3600
 
     @classmethod
     def init_database(cls):
@@ -201,10 +217,12 @@ class ThreatIntelligenceFeedManager:
                             VALUES (?, ?, 'URLhaus (abuse.ch)', ?, 95)
                             ''', (url, domain, f"Malware/Phishing: {threat}"))
 
-                            cursor.execute('''
-                            INSERT OR IGNORE INTO threat_intelligence_domains (domain, source, threat_type, confidence)
-                            VALUES (?, 'URLhaus (abuse.ch)', ?, 90)
-                            ''', (domain, f"Malware/Phishing Domain: {threat}"))
+                            # Solo bloquear el dominio completo si NO es una plataforma compartida/verificada
+                            if not _is_shared_or_verified_host(domain):
+                                cursor.execute('''
+                                INSERT OR IGNORE INTO threat_intelligence_domains (domain, source, threat_type, confidence)
+                                VALUES (?, 'URLhaus (abuse.ch)', ?, 90)
+                                ''', (domain, f"Malware/Phishing Domain: {threat}"))
 
                             inserted += 1
                             if inserted >= max_entries:
@@ -220,11 +238,30 @@ class ThreatIntelligenceFeedManager:
             conn.commit()
             conn.close()
             logger.info(f"Sincronización URLhaus exitosa: {inserted} URLs y dominios maliciosos indexados.")
+            cls.purge_shared_host_domains()
             cls.reload_memory_cache()
             return inserted
 
         except Exception as e:
             logger.warning(f"No se pudo descargar el feed en vivo de URLhaus ({e}). Se mantendrán las firmas locales existentes.")
+            return 0
+
+    @classmethod
+    def purge_shared_host_domains(cls) -> int:
+        """Elimina de la lista negra de dominios las plataformas compartidas/verificadas (contaminación histórica)."""
+        try:
+            conn = sqlite3.connect(DATABASE_PATH, timeout=30.0)
+            cursor = conn.cursor()
+            rows = cursor.execute('SELECT domain FROM threat_intelligence_domains').fetchall()
+            to_delete = [r[0] for r in rows if r[0] and _is_shared_or_verified_host(r[0])]
+            if to_delete:
+                cursor.executemany('DELETE FROM threat_intelligence_domains WHERE domain = ?', [(d,) for d in to_delete])
+                conn.commit()
+                logger.warning(f"Purgados {len(to_delete)} dominios de plataformas compartidas de la lista negra: {to_delete[:10]}")
+            conn.close()
+            return len(to_delete)
+        except Exception as e:
+            logger.error(f"Error purgando dominios compartidos: {e}")
             return 0
 
     @classmethod
@@ -234,14 +271,23 @@ class ThreatIntelligenceFeedManager:
             conn = sqlite3.connect(DATABASE_PATH, timeout=30.0)
             cursor = conn.cursor()
             cursor.execute('SELECT domain FROM threat_intelligence_domains')
-            cls._cached_domains = set(row[0].lower() for row in cursor.fetchall())
+            domains = set(row[0].lower() for row in cursor.fetchall() if row[0])
+            # Defensa en profundidad: aunque la BD tenga filas contaminadas, nunca bloquear plataformas compartidas
+            cls._cached_domains = {d for d in domains if not _is_shared_or_verified_host(d)}
             cursor.execute('SELECT url FROM threat_intelligence_urls')
-            cls._cached_urls = set(row[0].lower() for row in cursor.fetchall())
+            cls._cached_urls = set(row[0].lower() for row in cursor.fetchall() if row[0])
             conn.close()
             cls._last_cache_update = time.time()
             logger.info(f"Caché en memoria de Threat Intelligence actualizada: {len(cls._cached_domains)} dominios, {len(cls._cached_urls)} URLs.")
         except Exception as e:
+            cls._last_cache_update = time.time()  # evita reintentar en cada correo si la BD falla
             logger.error(f"Error cargando caché en memoria de Threat Intelligence: {e}")
+
+    @classmethod
+    def ensure_cache(cls):
+        """Recarga la caché si está vacía o caducada (antes solo se cargaba una vez por proceso)."""
+        if cls._last_cache_update == 0.0 or (time.time() - cls._last_cache_update) > cls.CACHE_TTL_SECONDS:
+            cls.reload_memory_cache()
 
     @classmethod
     def check_indicators(cls, urls: List[str]) -> Tuple[bool, List[str]]:
@@ -249,8 +295,7 @@ class ThreatIntelligenceFeedManager:
         Verifica una lista de URLs contra la base de datos local de amenazas en < 0.05 ms.
         Retorna (is_threat_found, lista_de_hallazgos).
         """
-        if not cls._cached_domains:
-            cls.reload_memory_cache()
+        cls.ensure_cache()
 
         findings = []
         is_threat = False
@@ -300,6 +345,11 @@ def run_full_sync():
     # 3. Descargar Feed en Vivo de URLhaus (Opción A)
     urlhaus_count = ThreatIntelligenceFeedManager.sync_urlhaus_feed(max_entries=2000)
     print(f"[+] Feed Global URLhaus (abuse.ch) sincronizado: {urlhaus_count} registros.")
+
+    # 4. Limpieza de contaminación histórica (plataformas compartidas en la lista negra de dominios)
+    purged = ThreatIntelligenceFeedManager.purge_shared_host_domains()
+    ThreatIntelligenceFeedManager.reload_memory_cache()
+    print(f"[+] Dominios de plataformas compartidas purgados de la lista negra: {purged}.")
 
     total_domains = len(ThreatIntelligenceFeedManager._cached_domains)
     total_urls = len(ThreatIntelligenceFeedManager._cached_urls)

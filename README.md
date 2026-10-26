@@ -118,9 +118,21 @@ PYTHON_VERSION=3.11.11             # Python version
 GOOGLE_SAFE_BROWSING_API_KEY=your_key_here  # Get from Google Cloud
 HF_API_TOKEN=your_token_here               # For future ML model
 
-# Admin dashboard (defaults shown)
-ADMIN_USERNAME=admin               # Change in production!
-ADMIN_PASSWORD=dory2024           # Change in production!
+# Admin dashboard (no default password: admin endpoints return 401 until set)
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=<strong-random-password>
+
+# Required for the mail pipeline (no defaults in code)
+FLASK_SECRET_KEY=<random-64-hex>
+DORY_WEBHOOK_SECRET=<same value as the Worker's DORY_SECRET_KEY>
+STALWART_IMAP_USER=carlos@dory.mx
+STALWART_IMAP_PASSWORD=<stalwart-password>
+DORY_QUARANTINE_FOLDER=Junk        # PHISHING verdicts are delivered here
+
+# ML classifier v4 (optional overrides)
+# DORY_ML_DISABLED=1               # heuristics only
+# DORY_ML_BOOST_THRESHOLD=0.73     # default: value stored in the trained bundle
+# DORY_ML_SAFE_THRESHOLD=0.11
 ```
 
 ### Getting Google Safe Browsing API Key
@@ -204,7 +216,7 @@ Access at `/admin/feedback` with credentials:
 
 ### View Statistics
 ```bash
-curl -u admin:dory2024 https://www.dory.lat/admin/feedback
+curl -u "admin:$ADMIN_PASSWORD" https://www.dory.lat/admin/feedback
 ```
 
 **Response:**
@@ -224,7 +236,7 @@ curl -u admin:dory2024 https://www.dory.lat/admin/feedback
 
 ### Export Data
 ```bash
-curl -u admin:dory2024 https://www.dory.lat/admin/feedback/export > feedback_data.json
+curl -u "admin:$ADMIN_PASSWORD" https://www.dory.lat/admin/feedback/export > feedback_data.json
 ```
 
 ---

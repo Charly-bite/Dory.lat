@@ -142,3 +142,6 @@ scratch_*.py
 # Large datasets & raw EML files
 dataset/
 logs/
+*.db-wal
+*.db-shm
+stalwart/data/

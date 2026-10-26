@@ -80,6 +80,12 @@ class PrivacyShield:
         r'([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})'
     )
 
+    # URLs: se aíslan antes de sanear para que ningún patrón PII (p. ej. "acceso: <url>" o dígitos
+    # tipo teléfono/RFC dentro de la ruta) las destruya; la detección de phishing depende de ellas.
+    RE_URL = re.compile(r'https?://[^\s<>"]+|www\.[^\s<>"]+', re.IGNORECASE)
+    _URL_PLACEHOLDER = '<DORYURL{}>'  # '<' y '>' están excluidos de los grupos de captura PII
+    RE_URL_PLACEHOLDER = re.compile(r'<DORYURL(\d+)>')
+
     @classmethod
     def anonymize_text(cls, text: str, allowed_domain: str = "quimicaboss.com.mx") -> Dict[str, Any]:
         """
@@ -91,10 +97,17 @@ class PrivacyShield:
                 'sanitized_text': "",
                 'redacted_entities': [],
                 'has_sensitive_data': False,
-                'stats': {}
+                'stats': {},
+                'total_redacted_count': 0
             }
 
-        sanitized = text
+        protected_urls: List[str] = []
+
+        def _protect_url(match):
+            protected_urls.append(match.group(0))
+            return cls._URL_PLACEHOLDER.format(len(protected_urls) - 1)
+
+        sanitized = cls.RE_URL.sub(_protect_url, text)
         redacted = []
         stats = {
             'cards': 0,
@@ -290,6 +303,11 @@ class PrivacyShield:
             return f"{salutation} [NOMBRE_PROTEGIDO]"
 
         sanitized = cls.RE_SALUTATION_NAME.sub(mask_name, sanitized)
+
+        # Restaurar URLs intactas (los correos internos dentro de URLs se conservan a propósito:
+        # el kit de phishing con el correo de la víctima en la URL es una señal de detección).
+        if protected_urls:
+            sanitized = cls.RE_URL_PLACEHOLDER.sub(lambda m: protected_urls[int(m.group(1))], sanitized)
 
         has_sensitive_data = len(redacted) > 0
 

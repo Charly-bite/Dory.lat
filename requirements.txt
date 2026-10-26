@@ -1,5 +1,8 @@
 Flask
 gunicorn
+waitress
+python-dotenv
+requests
 pandas
 numpy
 joblib
@@ -9,6 +12,3 @@ lxml
 textstat
 nltk
 scipy
-tensorflow
-tf-keras
-sentence-transformers

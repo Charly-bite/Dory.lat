@@ -16,7 +16,22 @@ Versión 3.5:
 
 import os
 import sys
+import site
+
+_USER_SITE = r"C:\Users\CarlosAlbertoAcevesC\AppData\Roaming\Python\Python314\site-packages"
+if os.path.isdir(_USER_SITE) and _USER_SITE not in sys.path:
+    site.addsitedir(_USER_SITE)
+
+_MAIL_LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+os.makedirs(_MAIL_LOG_DIR, exist_ok=True)
+_MAIL_STD_LOG = os.path.join(_MAIL_LOG_DIR, "mail_daemon_stdio.log")
+if sys.stdout is None:
+    sys.stdout = open(_MAIL_STD_LOG, "a", encoding="utf-8", buffering=1, errors="replace")
+if sys.stderr is None:
+    sys.stderr = open(_MAIL_STD_LOG, "a", encoding="utf-8", buffering=1, errors="replace")
+
 import re
+import html
 import json
 import time
 import ssl
@@ -36,6 +51,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from datetime import datetime
+from dotenv import load_dotenv
+
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(APP_DIR, '.env'))
 
 # Configure encoding for Windows terminals
 if sys.platform == 'win32':
@@ -74,12 +93,12 @@ def get_dory_icon_base64() -> str:
             logger.error(f"Error cargando icono de Dory desde {DORY_ICON_PATH}: {e}")
     return ""
 
-# Import detection engine from app_hf
+# Import detection engine (módulo sin Flask; evita importar la app web y ciclos de import)
 try:
-    from app_hf import predict_phishing_hf
+    from dory_engine import predict_phishing_hf, classify_score
 except ImportError:
     sys.path.insert(0, APP_DIR)
-    from app_hf import predict_phishing_hf
+    from dory_engine import predict_phishing_hf, classify_score
 
 
 # =====================================================================
@@ -91,12 +110,12 @@ class MailConfig:
     def __init__(self, config_dict=None):
         data = config_dict or self._load_from_disk_or_env()
         
-        # IMAP Configuration
+        # IMAP Configuration (prioridad: mail_config.json -> STALWART_* de .env -> DORY_* de .env)
         imap = data.get('imap', {})
-        self.imap_server = imap.get('server', os.environ.get('DORY_IMAP_SERVER', ''))
-        self.imap_port = int(imap.get('port', os.environ.get('DORY_IMAP_PORT', 993)))
-        self.imap_user = imap.get('user', os.environ.get('DORY_IMAP_USER', ''))
-        self.imap_password = imap.get('password', os.environ.get('DORY_IMAP_PASSWORD', ''))
+        self.imap_server = imap.get('server', os.environ.get('STALWART_IMAP_HOST', os.environ.get('DORY_IMAP_SERVER', '')))
+        self.imap_port = int(imap.get('port', os.environ.get('STALWART_IMAP_PORT', os.environ.get('DORY_IMAP_PORT', 993))))
+        self.imap_user = imap.get('user', os.environ.get('STALWART_IMAP_USER', os.environ.get('DORY_IMAP_USER', '')))
+        self.imap_password = imap.get('password', os.environ.get('STALWART_IMAP_PASSWORD', os.environ.get('DORY_IMAP_PASSWORD', '')))
         self.imap_use_ssl = imap.get('use_ssl', True)
         self.imap_mailbox = imap.get('mailbox', 'INBOX')
 
@@ -106,8 +125,10 @@ class MailConfig:
         self.smtp_port = int(smtp.get('port', os.environ.get('DORY_SMTP_PORT', 465)))
         self.smtp_user = smtp.get('user', os.environ.get('DORY_SMTP_USER', self.imap_user))
         self.smtp_password = smtp.get('password', os.environ.get('DORY_SMTP_PASSWORD', self.imap_password))
+        self.smtp_from = smtp.get('from_email', os.environ.get('DORY_FROM_EMAIL', 'spam@dory.mx'))
         self.smtp_use_tls = smtp.get('use_tls', False)
         self.smtp_use_ssl = smtp.get('use_ssl', True)
+        self.resend_api_key = smtp.get('resend_api_key', os.environ.get('RESEND_API_KEY', ''))
 
         # Service Options
         service = data.get('service', {})
@@ -115,9 +136,9 @@ class MailConfig:
         self.poll_mode = service.get('poll_mode', os.environ.get('DORY_POLL_MODE', 'stateless'))
         self.mark_as_read = service.get('mark_as_read', True)
         self.move_to_folder = service.get('move_to_folder', None)
-        self.allowed_domain = service.get('allowed_domain', 'quimicaboss.com.mx')
-        self.sender_display_name = service.get('sender_display_name', 'Dory Ciberseguridad Química Boss')
-        self.support_contact = service.get('support_contact', 'desarrollo_qb@quimicaboss.com.mx')
+        self.allowed_domain = service.get('allowed_domain', '*')
+        self.sender_display_name = service.get('sender_display_name', 'Dory Ciberseguridad')
+        self.support_contact = service.get('support_contact', 'soporte@dory.mx')
         self.max_workers = int(service.get('max_workers', 8))
         self.idle_timeout = int(service.get('idle_timeout_seconds', 180))
         self.additional_accounts = data.get('additional_accounts', [])
@@ -135,12 +156,12 @@ class MailConfig:
 
     def is_configured(self) -> bool:
         """Verifica si las credenciales mínimas han sido configuradas."""
+        if self.resend_api_key and self.resend_api_key.startswith('re_'):
+            return True
         placeholders = ['tu_contraseña', 'ingresa', 'aqui', 'aquí', 'password', 'placeholder']
-        has_imap_pw = bool(self.imap_password and not any(p in self.imap_password.lower() for p in placeholders))
         has_smtp_pw = bool(self.smtp_password and not any(p in self.smtp_password.lower() for p in placeholders))
-        has_imap = bool(self.imap_server and self.imap_user and has_imap_pw)
         has_smtp = bool(self.smtp_server and self.smtp_user and has_smtp_pw)
-        return has_imap and has_smtp
+        return has_smtp
 
 
 # =====================================================================
@@ -202,6 +223,7 @@ class EmailMIMEParser:
         body_plain = ""
         body_html = ""
         attachments = []
+        attachments_data = []
 
         if msg.is_multipart():
             for part in msg.walk():
@@ -209,16 +231,26 @@ class EmailMIMEParser:
                 content_disposition = str(part.get_content_disposition() or '').lower()
                 
                 # Extraer nombre del adjunto
-                filename = part.get_filename()
-                if filename:
-                    attachments.append(cls.decode_mime_header(filename))
-                elif 'attachment' in content_disposition:
-                    name = part.get_param('name')
-                    if name:
-                        attachments.append(cls.decode_mime_header(name))
+                filename = part.get_filename() or part.get_param('name')
+                decoded_name = cls.decode_mime_header(filename) if filename else None
+                is_attachment = bool(decoded_name or 'attachment' in content_disposition)
 
-                # Ignorar adjuntos al extraer el texto principal
-                if 'attachment' in content_disposition:
+                if decoded_name and decoded_name not in attachments:
+                    attachments.append(decoded_name)
+
+                # Si es adjunto, extraer payload binario en memoria (límite 25 MB por adjunto)
+                if is_attachment:
+                    try:
+                        raw_payload = part.get_payload(decode=True)
+                        if raw_payload and len(raw_payload) <= 25 * 1024 * 1024:
+                            attachments_data.append({
+                                'filename': decoded_name or 'adjunto_sin_nombre',
+                                'content_type': content_type,
+                                'payload': raw_payload,
+                                'size': len(raw_payload)
+                            })
+                    except Exception as e_att:
+                        logger.debug(f"Error extrayendo datos de adjunto {decoded_name}: {e_att}")
                     continue
 
                 try:
@@ -278,6 +310,7 @@ class EmailMIMEParser:
             'body_html': body_html,
             'urls': clean_urls,
             'attachments': attachments,
+            'attachments_data': attachments_data,
             'received_spf': received_spf,
             'auth_results': auth_results,
             'x_loop': x_loop,
@@ -558,9 +591,9 @@ class ReportGenerator:
         report_id = f"DORY-{int(time.time())}-{risk_score}"
         timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-        # Cargar icono oficial de Dory en base64 para vista previa HTML inmediata
-        dory_b64 = get_dory_icon_base64()
-        dory_icon_src = f"data:image/png;base64,{dory_b64}" if dory_b64 else ""
+        # URL pública HTTPS oficial para compatibilidad 100% con Gmail, Outlook y móviles
+        # (Gmail bloquea y descarta los Data URIs en base64, mostrando icono de imagen rota)
+        dory_icon_src = "https://engine.dory.mx/static/dory_logo.png"
 
         # Categoría de riesgo calibrada (0-25 Seguro, 26-40 Sospechoso, >40 Phishing Confirmado)
         if risk_score > 40:
@@ -585,7 +618,7 @@ class ReportGenerator:
             status_title = "✅ REPORTE: CORREO SEGURO / CONFIABLE"
             subject_prefix = "[DORY REPORTE - SEGURO]"
 
-        reply_subject = f"{subject_prefix} Re: {orig_subject}"
+        reply_subject = re.sub(r'[\r\n\t]+', ' ', f"{subject_prefix} Re: {orig_subject}")[:250]
 
         # Desglose Explicativo de Puntos que Activaron la Alerta (Solo para correos Sospechosos o Phishing con riesgo > 25)
         threats_html = ""
@@ -630,7 +663,7 @@ class ReportGenerator:
         if suspicious_atts:
             att_html = f'''
             <div style="margin-bottom: 18px; padding: 10px 14px; background: #fff1f2; border: 1px solid #fecaca; border-radius: 6px; font-size: 12px; color: #991b1b;">
-                📎 <strong>Adjunto de riesgo detectado:</strong> {", ".join(suspicious_atts)} (evita abrirlo).
+                📎 <strong>Adjunto de riesgo detectado:</strong> {html.escape(", ".join(str(a) for a in suspicious_atts))} (evita abrirlo).
             </div>
             '''
 
@@ -673,11 +706,16 @@ class ReportGenerator:
         sender_email = email_info.get('sender_email', 'Desconocido')
         display_subject = fwd_subject if (is_fwd and fwd_subject) else orig_subject
 
+        # Valores controlados por el atacante: escapar antes de interpolar en HTML
+        h_subject = html.escape(display_subject or '')
+        h_sender = html.escape(sender_email or '')
+        h_fwd_sender = html.escape(fwd_sender or '')
+
         if is_fwd and fwd_sender:
-            sender_line = f'<strong style="color: #334155;">Remitente Sospechoso:</strong> <span style="color: #0f172a;">{fwd_sender}</span> <span style="font-size: 11px; color: #64748b;">(Reenviado por {sender_email})</span>'
+            sender_line = f'<strong style="color: #334155;">Remitente Sospechoso:</strong> <span style="color: #0f172a;">{h_fwd_sender}</span> <span style="font-size: 11px; color: #64748b;">(Reenviado por {h_sender})</span>'
             sender_plain = f"Remitente Sospechoso: {fwd_sender} (Reenviado por {sender_email})"
         else:
-            sender_line = f'<strong style="color: #334155;">Remitente:</strong> <span style="color: #0f172a;">{sender_email}</span>'
+            sender_line = f'<strong style="color: #334155;">Remitente:</strong> <span style="color: #0f172a;">{h_sender}</span>'
             sender_plain = f"Remitente: {sender_email}"
 
         html_body = f'''<!DOCTYPE html>
@@ -703,7 +741,7 @@ class ReportGenerator:
             <!-- Datos del Correo Analizado -->
             <div style="padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 18px; font-size: 13px; line-height: 1.5;">
                 <div style="margin-bottom: 4px; color: #64748b;">
-                    <strong style="color: #334155;">Asunto:</strong> <span style="color: #0f172a;">{display_subject}</span>
+                    <strong style="color: #334155;">Asunto:</strong> <span style="color: #0f172a;">{h_subject}</span>
                 </div>
                 <div style="color: #64748b;">
                     {sender_line}
@@ -832,6 +870,39 @@ def save_incoming_report(report_data: dict) -> int:
         return -1
 
 
+# Buzones de análisis dedicados (parte local). Configurable: DORY_ANALYSIS_INBOXES="spam,dory,seguridad"
+ANALYSIS_INBOX_LOCALPARTS = frozenset(
+    p.strip().lower() for p in os.environ.get(
+        'DORY_ANALYSIS_INBOXES', 'spam,dory,seguridad,phishing,abuse,desarrollo_qb').split(',') if p.strip()
+)
+
+
+def is_analysis_inbox(address: str) -> bool:
+    """True si la dirección es un buzón dedicado de análisis (coincidencia exacta de la parte local)."""
+    address = (address or '').strip().lower().strip('<>')
+    return '@' in address and address.split('@', 1)[0] in ANALYSIS_INBOX_LOCALPARTS
+
+
+_RE_SPF_RESULT = re.compile(r'\bspf=(\w+)')
+_RE_DKIM_RESULT = re.compile(r'\bdkim=(\w+)')
+
+
+def get_auth_state(email_info: dict) -> dict:
+    """Estado SPF/DKIM normalizado a partir de Received-SPF y Authentication-Results."""
+    spf_hdr = (email_info.get('received_spf') or '').strip().lower()
+    auth = (email_info.get('auth_results') or '').lower()
+    spf_results = set(_RE_SPF_RESULT.findall(auth))
+    if spf_hdr:
+        spf_results.add(spf_hdr.split()[0])
+    dkim_results = set(_RE_DKIM_RESULT.findall(auth))
+    return {
+        'spf_fail': bool(spf_results & {'fail', 'softfail'}),
+        'dkim_fail': 'fail' in dkim_results,
+        'dkim_pass': 'pass' in dkim_results,
+        'spf_pass': 'pass' in spf_results,
+    }
+
+
 class ThreadLocalSMTPClient:
     """Administra conexiones SMTP persistentes y reutilizables por cada hilo de trabajo con auto-reconexión."""
     def __init__(self, config: MailConfig):
@@ -890,12 +961,18 @@ class MailMonitorWorker:
         self._smtp_lock = threading.Lock()
         self._last_smtp_send = 0.0
 
-    def process_single_message(self, raw_bytes: bytes) -> dict:
-        """Parsea, analiza y genera respuesta para un correo en bruto con soporte de adjuntos."""
+    def process_single_message(self, raw_bytes: bytes, recipient_email: str = None) -> dict:
+        """Parsea, analiza y genera respuesta para un correo en bruto con soporte de adjuntos.
+
+        recipient_email: destinatario real del sobre (webhook/Stalwart). Si no se indica, se usa el
+        buzón IMAP monitoreado (antes siempre se guardaba imap_user, vacío en modo Resend).
+        """
         start_time = time.time()
         
         # 1. Parsear correo y adjuntos
         email_info = EmailMIMEParser.parse_raw_bytes(raw_bytes)
+        if recipient_email:
+            email_info['envelope_recipient'] = recipient_email
         
         # 2. Predecir con el motor heurístico calibrado v3.5 + Filtro L2 Automatizado
         prediction = predict_phishing_hf(
@@ -906,24 +983,25 @@ class MailMonitorWorker:
         )
 
         # 3. Verificar inconsistencia de autenticación SPF/DKIM
-        spf = email_info.get('received_spf', '').lower()
-        auth = email_info.get('auth_results', '').lower()
-        if ('fail' in spf or 'softfail' in spf or 'spf=fail' in auth):
+        auth_state = get_auth_state(email_info)
+        email_info['auth_state'] = auth_state
+        if auth_state['spf_fail'] or auth_state['dkim_fail']:
             if prediction['features'].get('has_brand_impersonation') or prediction['risk_score'] >= 30:
                 prediction['risk_score'] = min(prediction['risk_score'] + 20, 100)
                 if 'Failed SPF/DKIM origin authentication (Possible sender spoofing)' not in prediction['threats']:
                     prediction['threats'].append('Failed SPF/DKIM origin authentication (Possible sender spoofing)')
-                prediction['is_phishing'] = (prediction['risk_score'] > 40)
 
         # 3b. Correlación con filtros de DirectAdmin / SpamAssassin
+        # El motor ya suma +50 por X-Spam-Status/X-Spam-Flag (indicador duro); aquí solo se documenta
+        # (antes se sumaban otros +25: doble conteo).
         spam_status = email_info.get('x_spam_status', '').lower()
         spam_flag = email_info.get('x_spam_flag', '').lower()
         if 'yes' in spam_flag or spam_status.startswith('yes'):
-            if prediction['risk_score'] < 50:
-                prediction['risk_score'] = min(prediction['risk_score'] + 25, 100)
             if 'DirectAdmin / SpamAssassin Flagged as SPAM' not in prediction['threats']:
                 prediction['threats'].append('DirectAdmin / SpamAssassin Flagged as SPAM')
-            prediction['is_phishing'] = (prediction['risk_score'] > 40)
+
+        # Recalcular categoría/etiquetas/confianza tras los ajustes (antes quedaban desincronizadas)
+        prediction.update(classify_score(prediction['risk_score']))
 
         # 4. Generar reporte visual
         report = ReportGenerator.generate_report(prediction, email_info, self.config)
@@ -931,12 +1009,12 @@ class MailMonitorWorker:
         processing_time = round((time.time() - start_time) * 1000, 2)
 
         # Determine 3-tier prediction category for DB
-        pred_category = 'PHISHING' if prediction['risk_score'] > 40 else ('SUSPICIOUS' if prediction['risk_score'] >= 26 else 'LEGITIMATE')
+        pred_category = {'PHISHING': 'PHISHING', 'SUSPICIOUS': 'SUSPICIOUS'}.get(prediction['category'], 'LEGITIMATE')
 
         # 5. Preparar datos para base de datos
         db_payload = {
             'sender_email': email_info['sender_email'],
-            'recipient_email': self.config.imap_user,
+            'recipient_email': recipient_email or self.config.imap_user or email_info.get('recipient_to_email', ''),
             'subject': email_info['subject'],
             'email_body': email_info['body_text'],
             'prediction': pred_category,
@@ -957,10 +1035,16 @@ class MailMonitorWorker:
             'processing_time_ms': processing_time
         }
 
-    def send_smtp_reply(self, email_info: dict, report: dict) -> bool:
+    def send_smtp_reply(self, email_info: dict, report: dict, envelope_recipient: str = None) -> bool:
         """Envía el correo de respuesta de forma inmediata reutilizando conexión SMTP autenticada."""
         sender_email = email_info.get('sender_email', '').strip()
-        recipient = email_info.get('reply_to', sender_email).strip()
+        sender_domain = sender_email.lower().rsplit('@', 1)[-1] if '@' in sender_email else ''
+        # Reply-To solo si pertenece al mismo dominio del From: un atacante podía redirigir el
+        # reporte (o usar a Dory como rebotador de spam) con un Reply-To arbitrario.
+        reply_to = (email_info.get('reply_to') or '').strip()
+        recipient = sender_email
+        if reply_to and '@' in reply_to and reply_to.lower().rsplit('@', 1)[-1] == sender_domain:
+            recipient = reply_to
 
         # Salvaguarda 1: No responder a remitentes vacíos
         if not recipient:
@@ -971,8 +1055,15 @@ class MailMonitorWorker:
         x_loop = email_info.get('x_loop', '').lower()
         auto_submitted = email_info.get('auto_submitted', '').lower()
         subject_lower = email_info.get('subject', '').lower()
-        if 'doryphishingbot' in x_loop or 'auto-replied' in auto_submitted or '[dory' in subject_lower:
+        if 'doryphishingbot' in x_loop or (auto_submitted and auto_submitted != 'no') or '[dory' in subject_lower:
             logger.info(f"Omitiendo respuesta automática: correo generado por bot o reporte previo ({recipient})")
+            return False
+
+        # Salvaguarda 1c: Remitente suplantado (SPF/DKIM fallan sin DKIM válido) -> no responder
+        # (evita backscatter hacia la víctima cuyo dominio fue suplantado).
+        auth_state = email_info.get('auth_state') or get_auth_state(email_info)
+        if (auth_state['spf_fail'] or auth_state['dkim_fail']) and not auth_state['dkim_pass']:
+            logger.info(f"Omitiendo respuesta automática: remitente no autenticado (SPF/DKIM fail) ({recipient})")
             return False
 
         # Salvaguarda 2: No responder a remitentes automatizados / bots conocidos
@@ -985,33 +1076,35 @@ class MailMonitorWorker:
             logger.info(f"Omitiendo respuesta automática a remitente automatizado/bot: {recipient}")
             return False
 
+        # Buzón de análisis dedicado: se determina por el destinatario REAL del sobre (webhook/Stalwart),
+        # luego por el buzón IMAP monitoreado y, por último, por la cabecera To (falsificable).
+        envelope = (envelope_recipient or email_info.get('envelope_recipient') or '').lower()
+        to_email = email_info.get('recipient_to_email', '').lower()
+        imap_user = (self.config.imap_user or '').lower()
+        is_dedicated_inbox = any(is_analysis_inbox(a) for a in (envelope, imap_user) if a) or \
+            (not envelope and is_analysis_inbox(to_email))
+
         # Salvaguarda 3: Exclusividad corporativa
-        if self.config.allowed_domain:
-            allowed = self.config.allowed_domain.lower()
-            if not recipient_lower.endswith(f"@{allowed}"):
-                logger.warning(
-                    f"Omitiendo respuesta automática a remitente fuera del dominio corporativo permitido (@{allowed}): {recipient}"
-                )
-                return False
+        allowed = (self.config.allowed_domain or '').lower().strip()
+        domain_ok = allowed in ('*', 'all', '') or recipient_lower.endswith(f"@{allowed}")
+        if not is_dedicated_inbox and not domain_ok:
+            logger.warning(
+                f"Omitiendo respuesta automática a remitente fuera del dominio corporativo permitido (@{allowed}): {recipient}"
+            )
+            return False
 
         # Salvaguarda 4: Confirmar intención de análisis explícita
         # Si el correo llega a una cuenta dedicada de ciberseguridad (spam@ o dory@) o el buzón monitoreado
         # es una de estas cuentas, cualquier correo de un empleado corporativo tiene intención implícita de análisis.
-        to_email = email_info.get('recipient_to_email', '').lower()
-        dedicated_inboxes = ['spam@', 'dory@', 'seguridad@', 'phishing@', 'abuse@']
-        is_dedicated_inbox = any(d in to_email for d in dedicated_inboxes) or \
-                             any(d in self.config.imap_user.lower() for d in dedicated_inboxes)
-
+        # Se retiraron 'factura', 'banco', 'prueba' y 'test': son justo los asuntos de los señuelos y hacían
+        # que Dory respondiera al atacante en buzones normales.
         is_forwarded = email_info.get('is_forwarded', False)
         intent_keywords = [
-            'revisar', 'phishing', 'seguridad', 'analizar', 'dory',
-            'fwd:', 'rv:', 'reenv:', 'forward:', 'spam', 'sospechoso', 'malicioso',
-            'prueba', 'test', 'alerta', 'factura', 'banco'
+            'revisar', 'phishing', 'analizar', 'dory', 'sospechoso', 'malicioso',
+            'fwd:', 'rv:', 'reenv:', 'forward:',
         ]
-        has_intent = (
-            is_dedicated_inbox or
-            is_forwarded or
-            any(kw in subject_lower for kw in intent_keywords)
+        has_intent = is_dedicated_inbox or (
+            domain_ok and (is_forwarded or any(kw in subject_lower for kw in intent_keywords))
         )
         if not has_intent:
             logger.warning(
@@ -1031,10 +1124,47 @@ class MailMonitorWorker:
             except Exception as e:
                 logger.warning(f"Error analizando fecha '{date_str}': {e}")
 
+        # Método Prioritario 1: Resend HTTP REST API (100% inmune a bloqueos de puertos por ISP)
+        if self.config.resend_api_key and self.config.resend_api_key.startswith('re_'):
+            try:
+                import urllib.request
+                import json
+                from_email = self.config.smtp_from or 'spam@dory.mx'
+                payload = {
+                    "from": f"{self.config.sender_display_name} <{from_email}>",
+                    "to": [recipient],
+                    "subject": report['subject'],
+                    "text": report['plain'],
+                    "html": report['html'],
+                    "headers": {k: v for k, v in {
+                        "X-Loop": "DoryPhishingBot",
+                        "Auto-Submitted": "auto-replied",
+                        "In-Reply-To": email_info.get('message_id', ''),
+                        "References": email_info.get('message_id', ''),
+                    }.items() if v}
+                }
+                req = urllib.request.Request(
+                    "https://api.resend.com/emails",
+                    data=json.dumps(payload).encode('utf-8'),
+                    headers={
+                        "Authorization": f"Bearer {self.config.resend_api_key}",
+                        "Content-Type": "application/json",
+                        "User-Agent": "Dory-Defense-Bot/3.5"
+                    },
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    if resp.status in (200, 201):
+                        logger.info(f"✅ [RESEND REST API] Respuesta de análisis entregada exitosamente a: {recipient}")
+                        return True
+            except Exception as resend_err:
+                logger.error(f"⚠️ [RESEND API] Error en envío vía API: {resend_err}. Procediendo con SMTP estándar...")
+
         # Construcción del mensaje MIME (multipart/related con alternativa + CID inline)
         msg = MIMEMultipart('related')
         msg['Subject'] = report['subject']
-        msg['From'] = f"{self.config.sender_display_name} <{self.config.smtp_user}>"
+        from_email = self.config.smtp_from or self.config.smtp_user or 'spam@dory.mx'
+        msg['From'] = f"{self.config.sender_display_name} <{from_email}>"
         msg['To'] = recipient
         msg['Date'] = formatdate(localtime=True)
         msg['Message-ID'] = make_msgid(domain='dory.local')
@@ -1053,13 +1183,12 @@ class MailMonitorWorker:
         part_plain = MIMEText(report['plain'], 'plain', 'utf-8')
         msg_alt.attach(part_plain)
 
-        # Para compatibilidad universal (evitando bloqueos de data URI en clientes estrictos como Outlook),
-        # convertimos las URLs de datos en referencias cid:dory_logo y adjuntamos la imagen inline
-        dory_b64 = get_dory_icon_base64()
-        dory_data_uri = f"data:image/png;base64,{dory_b64}"
+        # Para compatibilidad universal en clientes locales como Thunderbird (evitando bloqueo de contenido remoto),
+        # convertimos la URL en referencia cid:dory_logo y adjuntamos la imagen inline
+        dory_https_url = "https://engine.dory.mx/static/dory_logo.png"
         html_for_smtp = report['html']
-        if dory_data_uri and dory_data_uri in html_for_smtp:
-            html_for_smtp = html_for_smtp.replace(dory_data_uri, "cid:dory_logo")
+        if dory_https_url in html_for_smtp:
+            html_for_smtp = html_for_smtp.replace(dory_https_url, "cid:dory_logo")
 
         part_html = MIMEText(html_for_smtp, 'html', 'utf-8')
         msg_alt.attach(part_html)
@@ -1082,6 +1211,10 @@ class MailMonitorWorker:
                 time.sleep(1.5 - elapsed)
 
             try:
+                if not self.config.smtp_server:
+                    logger.warning("Servidor SMTP saliente no configurado. Omitiendo despacho externo.")
+                    return False
+
                 if self.config.smtp_use_ssl:
                     server = smtplib.SMTP_SSL(self.config.smtp_server, self.config.smtp_port, timeout=10)
                 else:
@@ -1092,7 +1225,7 @@ class MailMonitorWorker:
                         server.ehlo()
 
                 server.login(self.config.smtp_user, self.config.smtp_password)
-                server.sendmail(self.config.smtp_user, [recipient], msg.as_string())
+                server.sendmail(from_email, [recipient], msg.as_string())
                 logger.info(f"✅ Respuesta automática enviada exitosamente a: {recipient}")
                 return True
             except Exception as e:
@@ -1321,39 +1454,43 @@ class MailMonitorWorker:
 
         if getattr(self.config, 'poll_mode', 'stateless') == 'stateless':
             # Modo Ultra-Seguro Sin Estado: Conexión puntual de 0.2s cada intervalo. Nunca satura Dovecot.
-            t_main = threading.Thread(
-                target=self._poll_mailbox_stateless,
-                args=(
-                    self.config.imap_server,
-                    self.config.imap_port,
-                    self.config.imap_user,
-                    self.config.imap_password,
-                    self.config.imap_use_ssl,
-                    self.config.imap_mailbox,
-                    self.config.poll_interval
-                ),
-                daemon=True,
-                name=f"STAT_IMAP-{self.config.imap_user}"
-            )
-            threads.append(t_main)
-            t_main.start()
+            if self.config.imap_server and self.config.imap_user:
+                t_main = threading.Thread(
+                    target=self._poll_mailbox_stateless,
+                    args=(
+                        self.config.imap_server,
+                        self.config.imap_port,
+                        self.config.imap_user,
+                        self.config.imap_password,
+                        self.config.imap_use_ssl,
+                        self.config.imap_mailbox,
+                        self.config.poll_interval
+                    ),
+                    daemon=True,
+                    name=f"STAT_IMAP-{self.config.imap_user}"
+                )
+                threads.append(t_main)
+                t_main.start()
+            else:
+                logger.info("ℹ️ Sin buzón IMAP principal configurado para sondeo. Demonio listo para despachos y buzones adicionales.")
         else:
             # Buzón principal (oficial: spam@quimicaboss.com.mx) - INBOX
-            t_main = threading.Thread(
-                target=self._listen_mailbox,
-                args=(
-                    self.config.imap_server,
-                    self.config.imap_port,
-                    self.config.imap_user,
-                    self.config.imap_password,
-                    self.config.imap_use_ssl,
-                    self.config.imap_mailbox
-                ),
-                daemon=True,
-                name=f"IMAP-{self.config.imap_user}"
-            )
-            threads.append(t_main)
-            t_main.start()
+            if self.config.imap_server and self.config.imap_user:
+                t_main = threading.Thread(
+                    target=self._listen_mailbox,
+                    args=(
+                        self.config.imap_server,
+                        self.config.imap_port,
+                        self.config.imap_user,
+                        self.config.imap_password,
+                        self.config.imap_use_ssl,
+                        self.config.imap_mailbox
+                    ),
+                    daemon=True,
+                    name=f"IMAP-{self.config.imap_user}"
+                )
+                threads.append(t_main)
+                t_main.start()
 
             # Carpeta de Spam DirectAdmin (INBOX.spam) para correos desviados por SpamAssassin
             t_spam_folder = threading.Thread(
@@ -1392,8 +1529,28 @@ class MailMonitorWorker:
                 threads.append(t_acc)
                 t_acc.start()
 
+        # Guardián continuo de certificados TLS y sincronización con Thunderbird (cada 60s, 100% en segundo plano)
+        t_guardian = threading.Thread(
+            target=self._tls_certificate_guardian_loop,
+            daemon=True,
+            name="TLS-Cert-Guardian"
+        )
+        threads.append(t_guardian)
+        t_guardian.start()
+
         for t in threads:
             t.join()
+
+    def _tls_certificate_guardian_loop(self):
+        """Verifica cada 60s que el certificado TLS de Stalwart (993/465) y Thunderbird (cert_override.txt / cert9.db) estén sincronizados."""
+        logger.info("🛡️ [TLS Guardian] Servicio de verificación continua de certificados @dory.mx activo (intervalo: 60s)...")
+        while True:
+            try:
+                from configure_thunderbird_certs import verify_and_sync_thunderbird_tls
+                verify_and_sync_thunderbird_tls(kill_thunderbird=False)
+            except Exception as e:
+                logger.warning(f"[TLS Guardian] Aviso en verificación periódica de certificados: {e}")
+            time.sleep(60)
 
 
 # =====================================================================

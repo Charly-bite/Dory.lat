@@ -3,15 +3,43 @@ Flask app using HuggingFace Inference API instead of local models.
 Ultra-lightweight - no heavy ML libraries loaded locally.
 """
 import os
+import sys
+import site
+
+_USER_SITE = r"C:\Users\CarlosAlbertoAcevesC\AppData\Roaming\Python\Python314\site-packages"
+if os.path.isdir(_USER_SITE) and _USER_SITE not in sys.path:
+    site.addsitedir(_USER_SITE)
+
+_LIVE_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dory_gateway_live.log")
+if sys.stdout is None:
+    sys.stdout = open(_LIVE_LOG, "a", encoding="utf-8", buffering=1, errors="replace")
+elif hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if sys.stderr is None:
+    sys.stderr = open(_LIVE_LOG, "a", encoding="utf-8", buffering=1, errors="replace")
+elif hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 import re
+import hmac
+import secrets
 import logging
 import sqlite3
 import json
 from datetime import datetime
-from flask import Flask, request, render_template, jsonify
+from contextlib import closing
+from flask import Flask, request, render_template, jsonify, session, redirect, url_for, send_from_directory
 from functools import wraps, lru_cache
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
+
+# Cargar .env ANTES de leer cualquier variable (antes FLASK_SECRET_KEY se leía antes de que
+# edu_portal ejecutara load_dotenv, por lo que siempre se usaba el valor por defecto del código).
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
+except ImportError:
+    pass
 
 # --- Basic Setup ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,31 +48,242 @@ logger = logging.getLogger(__name__)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # --- Flask App ---
+import gzip as _gzip
+
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 604800  # 7 days cache for static files
+_flask_secret = os.environ.get('FLASK_SECRET_KEY')
+if not _flask_secret:
+    # Sin valor por defecto en el código (estaba publicado en el repo y permitía forjar sesiones).
+    _flask_secret = secrets.token_hex(32)
+    logger.warning("FLASK_SECRET_KEY no definido: se generó uno aleatorio (las sesiones se invalidan al reiniciar).")
+app.secret_key = _flask_secret
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+if os.environ.get('SESSION_COOKIE_SECURE') == '1':
+    app.config['SESSION_COOKIE_SECURE'] = True
 
-# --- HuggingFace Configuration ---
-# You'll need to set this as an environment variable in Render
-HF_API_TOKEN = os.environ.get('HF_API_TOKEN', '')  # Get from Render env vars
-HF_API_URL = "https://api-inference.huggingface.co/models/"
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-# Model endpoints (you can upload your model or use similar ones)
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # For text embeddings
-# For your Keras model, you'd need to convert it or use a similar classifier
+_COMPRESSIBLE_MIMETYPES = {
+    'text/html', 'text/css', 'text/plain', 'text/xml', 'text/javascript',
+    'application/json', 'application/javascript', 'application/xml', 'image/svg+xml'
+}
 
-# --- Google Safe Browsing Configuration ---
-GOOGLE_SAFE_BROWSING_API_KEY = os.environ.get('GOOGLE_SAFE_BROWSING_API_KEY', '')
-GOOGLE_SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
+
+@app.after_request
+def optimize_http_response(response):
+    """Apply Gzip compression on text/JSON/HTML payloads and Cache-Control on static assets."""
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+
+    if request.path.startswith('/static/'):
+        response.headers.setdefault('Cache-Control', 'public, max-age=604800')
+
+    # Skip compression if streaming, already encoded, error status, or small body
+    if (
+        response.direct_passthrough
+        or response.status_code < 200
+        or response.status_code >= 300
+        or 'Content-Encoding' in response.headers
+        or 'gzip' not in request.headers.get('Accept-Encoding', '').lower()
+    ):
+        return response
+
+    mimetype = (response.mimetype or '').lower()
+    if mimetype in _COMPRESSIBLE_MIMETYPES:
+        data = response.get_data()
+        if len(data) >= 512:
+            compressed = _gzip.compress(data, compresslevel=5)
+            if len(compressed) < len(data):
+                response.set_data(compressed)
+                response.headers['Content-Encoding'] = 'gzip'
+                response.headers['Content-Length'] = str(len(compressed))
+                vary = response.headers.get('Vary', '')
+                if 'accept-encoding' not in vary.lower():
+                    response.headers['Vary'] = f"{vary}, Accept-Encoding".lstrip(', ')
+    return response
+
+
+# --- Dory EDU Hub & Gateway Registration ---
+from edu_portal import edu_bp, handle_becas_request, handle_tareas_request, handle_splunk_request, handle_juegos_request
+from dev_workbench import dev_wb_bp, get_allowed_dev_users as _get_allowed_dev_users, is_dev_authorized as _is_dev_portfolio_authorized
+app.register_blueprint(edu_bp, url_prefix='/edu')
+app.register_blueprint(dev_wb_bp)
+
+# Direct microservice proxy routes for edu.dory.mx and dory.mx
+@app.route('/becas', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@app.route('/becas/', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@app.route('/becas/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+def direct_becas_proxy(subpath):
+    return handle_becas_request(subpath, prefix='/becas')
+
+@app.route('/tareas', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@app.route('/tareas/', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@app.route('/tareas/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+def direct_tareas_proxy(subpath):
+    return handle_tareas_request(subpath, prefix='/tareas')
+
+@app.route('/splunk', defaults={'subpath': ''}, methods=['GET'], strict_slashes=False)
+@app.route('/splunk/', defaults={'subpath': ''}, methods=['GET'], strict_slashes=False)
+@app.route('/splunk/<path:subpath>', methods=['GET'], strict_slashes=False)
+def direct_splunk_proxy(subpath):
+    return handle_splunk_request(subpath, prefix='/splunk')
+
+@app.route('/juegos', defaults={'subpath': ''}, methods=['GET'], strict_slashes=False)
+@app.route('/juegos/', defaults={'subpath': ''}, methods=['GET'], strict_slashes=False)
+@app.route('/juegos/<path:subpath>', methods=['GET'], strict_slashes=False)
+def direct_juegos_proxy(subpath):
+    return handle_juegos_request(subpath, prefix='/juegos')
+
+# Transparent API fallbacks for BecaFinder
+@app.route('/api/becas', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@app.route('/api/becas/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+def fallback_api_becas(subpath):
+    target = f"api/becas/{subpath}" if subpath else "api/becas"
+    return handle_becas_request(target, prefix='/becas')
+
+@app.route('/api/profile', methods=['GET', 'PUT', 'OPTIONS'], strict_slashes=False)
+def fallback_api_profile():
+    return handle_becas_request("api/profile", prefix='/becas')
+
+@app.route('/api/kardex', defaults={'subpath': ''}, methods=['GET', 'POST', 'OPTIONS'], strict_slashes=False)
+@app.route('/api/kardex/<path:subpath>', methods=['GET', 'POST', 'OPTIONS'], strict_slashes=False)
+def fallback_api_kardex(subpath):
+    target = f"api/kardex/{subpath}" if subpath else "api/kardex"
+    return handle_becas_request(target, prefix='/becas')
+
+@app.route('/api/careerpath', methods=['GET', 'OPTIONS'], strict_slashes=False)
+def fallback_api_careerpath():
+    return handle_becas_request("api/careerpath", prefix='/becas')
+
+@app.route('/api/aplicaciones', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], strict_slashes=False)
+@app.route('/api/aplicaciones/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], strict_slashes=False)
+def fallback_api_aplicaciones(subpath):
+    target = f"api/aplicaciones/{subpath}" if subpath else "api/aplicaciones"
+    return handle_becas_request(target, prefix='/becas')
+
+# Transparent API fallbacks for TaskHub
+@app.route('/api/tasks', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@app.route('/api/tasks/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+def fallback_api_tasks(subpath):
+    target = f"api/tasks/{subpath}" if subpath else "api/tasks"
+    return handle_tareas_request(target, prefix='/tareas')
+
+@app.route('/api/courses', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@app.route('/api/courses/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+def fallback_api_courses(subpath):
+    target = f"api/courses/{subpath}" if subpath else "api/courses"
+    return handle_tareas_request(target, prefix='/tareas')
+
+@app.route('/login', methods=['GET', 'POST'])
+def root_login():
+    return redirect(url_for('edu_bp.login', **request.args))
+
+@app.route('/auth/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+def fallback_api_auth(subpath):
+    clean = subpath.strip('/')
+    if clean == 'google/login' or clean.startswith('google/login/'):
+        return redirect(url_for('edu_bp.google_login', **request.args))
+    if clean == 'google/callback' or clean.startswith('google/callback/'):
+        return redirect(url_for('edu_bp.google_callback', **request.args))
+    target = f"auth/{subpath}"
+    return handle_tareas_request(target, prefix='/tareas')
+
+
+
+
+@app.before_request
+def handle_subdomain_routing():
+    """Detecta peticiones desde subdominios dev.dory.mx y edu.dory.mx y las enruta inteligentemente."""
+    host = request.host.lower()
+    if host.startswith('dev.') or host.startswith('portfolio.'):
+        path = request.path
+        if path.startswith('/static/') or path in ('/favicon.ico', '/robots.txt', '/dev/login', '/dev/logout', '/dev/sso-callback'):
+            return None
+        if path == '/login':
+            return redirect('/dev/login')
+        if not _is_dev_portfolio_authorized():
+            return redirect(f"/dev/login?next={quote(request.full_path if request.query_string else path)}")
+        if path in ('/', '', '/index.html', '/dev', '/portfolio'):
+            return render_template('dev_portfolio.html')
+        return None
+
+    if host.startswith('edu.'):
+        path = request.path
+        # No redirigir si ya va a /becas, /tareas, /splunk, /juegos, /edu, /dev, /portfolio, /vault o /static
+        if path.startswith('/becas') or path.startswith('/tareas') or path.startswith('/splunk') or path.startswith('/juegos') or path.startswith('/edu') or path.startswith('/dev') or path.startswith('/portfolio') or path.startswith('/vault') or path.startswith('/static'):
+            return None
+            
+        # Permitir que las APIs directas sean atendidas por sus endpoints
+        if path.startswith('/api/') or path.startswith('/auth/'):
+            return None
+
+        # Redirigir vistas de BecaFinder si se accede directamente a la raíz
+        beca_views = ('/dashboard', '/explorar', '/aplicaciones', '/calendario', '/kardex', '/ruta-carrera', '/perfil')
+        for v in beca_views:
+            if path == v or path.startswith(v + '/'):
+                target = '/becas' + path
+                if request.query_string:
+                    target += '?' + request.query_string.decode('utf-8')
+                return redirect(target)
+
+        # Redirigir vistas de TaskHub si se accede directamente a la raíz
+        task_views = ('/calendar', '/courses', '/grades', '/documents', '/settings')
+        for v in task_views:
+            if path == v or path.startswith(v + '/'):
+                target = '/tareas' + path
+                if request.query_string:
+                    target += '?' + request.query_string.decode('utf-8')
+                return redirect(target)
+
+        # Fallback al Hub Académico de Dory EDU
+        target = '/edu' + path
+        if request.query_string:
+            target += '?' + request.query_string.decode('utf-8')
+        return redirect(target)
+
+# --- Motor de deteccion (modulo independiente, sin dependencias de Flask) ---
+from dory_engine import *  # noqa: F401,F403  (re-export para compatibilidad con scripts existentes)
+from dory_engine import (
+    GOOGLE_SAFE_BROWSING_API_KEY, predict_phishing_hf, extract_basic_features,
+    analyze_single_url, check_urls_with_safe_browsing, LEGIT_DOMAINS,
+)
+
+
+def _warm_up_engine():
+    """Precarga modelo ML y caché de Threat Intel (antes el primer correo pagaba ~2 s de arranque en frío)."""
+    try:
+        from ml_classifier import DoryMLClassifier
+        from threat_feed_sync import ThreatIntelligenceFeedManager
+        DoryMLClassifier.get_instance()
+        ThreatIntelligenceFeedManager.ensure_cache()
+    except Exception as e:
+        logger.warning(f"Precarga del motor omitida: {e}")
+
+
+if os.environ.get('DORY_WARMUP', '1').lower() in ('1', 'true', 'yes'):
+    import threading as _threading
+    _threading.Thread(target=_warm_up_engine, name='DoryWarmUp', daemon=True).start()
 
 # --- Database Configuration ---
 DATABASE_PATH = os.path.join(APP_ROOT, 'feedback.db')
 
+
+def get_db_connection(timeout: float = 15.0) -> sqlite3.Connection:
+    """Return a SQLite connection configured with WAL mode and busy_timeout for concurrency."""
+    conn = sqlite3.connect(DATABASE_PATH, timeout=timeout)
+    conn.execute('PRAGMA journal_mode=WAL;')
+    conn.execute('PRAGMA synchronous=NORMAL;')
+    conn.execute('PRAGMA busy_timeout=10000;')
+    return conn
+
+
 def init_database():
-    """Initialize SQLite database for user feedback and reports with WAL mode for concurrency."""
-    conn = sqlite3.connect(DATABASE_PATH, timeout=30.0)
+    """Initialize SQLite database for user feedback and reports with WAL mode and indexes."""
+    conn = get_db_connection(timeout=30.0)
     cursor = conn.cursor()
-    cursor.execute('PRAGMA journal_mode=WAL;')
-    cursor.execute('PRAGMA synchronous=NORMAL;')
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS feedback (
@@ -83,852 +322,84 @@ def init_database():
         )
     ''')
     
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS contact_leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            company TEXT,
+            team_size TEXT,
+            interest TEXT,
+            message TEXT,
+            ip_address TEXT,
+            user_agent TEXT,
+            status TEXT DEFAULT 'new'
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_consents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            session_id TEXT NOT NULL,
+            user_email TEXT,
+            consent_type TEXT NOT NULL,
+            version TEXT NOT NULL,
+            granted BOOLEAN NOT NULL DEFAULT 1,
+            scope TEXT DEFAULT 'all',
+            ip_address TEXT,
+            user_agent TEXT,
+            source_url TEXT,
+            metadata TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS arco_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            folio TEXT UNIQUE NOT NULL,
+            sender_email TEXT NOT NULL,
+            subject TEXT,
+            body_preview TEXT,
+            status TEXT DEFAULT 'recibido',
+            deadline_date TEXT,
+            ack_sent BOOLEAN DEFAULT 0
+        )
+    ''')
+
+    # Performance indexes for frequent queries
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_reports_timestamp ON incoming_phishing_reports(timestamp DESC);')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_reports_pred_score ON incoming_phishing_reports(prediction, risk_score);')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_feedback_timestamp ON feedback(timestamp DESC);')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_consents_granted_type ON user_consents(granted, consent_type);')
+    
     conn.commit()
     conn.close()
-    logger.info(f"Database initialized at {DATABASE_PATH} (WAL mode enabled)")
+    logger.info(f"Database initialized at {DATABASE_PATH} (WAL mode + indexes enabled)")
 
 # Initialize database on startup
 init_database()
 
-# =====================================================================
-# Pre-compiled Regular Expressions & Fast Set Lookups (Sub-millisecond Engine)
-# =====================================================================
-RE_URLS = re.compile(r'https?://[^\s<>"]+|www\.[^\s<>"]+', re.IGNORECASE)
-RE_IPV4_HOST = re.compile(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
-RE_IPV4_IN_URL = re.compile(r'https?://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', re.IGNORECASE)
-RE_EMOJIS = re.compile(
-    r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\U00002702-\U000027B0\U000024C2-\U0001F251]+'
-)
-RE_EXCLAMATIONS = re.compile(r'!{2,}')
-RE_QUESTIONS = re.compile(r'\?{2,}')
-RE_EMAIL_ADDRS = re.compile(r'\S+@\S+')
-RE_EXTENSIONS = re.compile(r'\.[a-z0-9]{2,5}')
 
-SUSPICIOUS_TLDS = frozenset([
-    '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.work', 
-    '.click', '.link', '.download', '.bid', '.online', '.site', 
-    '.space', '.buzz', '.club', '.live', '.icu', '.vip', '.tech', 
-    '.support', '.services', '.monster', '.review', '.country', '.kim',
-    '.vu', '.cc', '.ws', '.cfd', '.rest', '.sbs'
-])
-
-URL_SHORTENERS = frozenset([
-    'bit.ly', 'tinyurl.com', 'tiny.cc', 't.co', 'goo.gl', 'ow.ly', 
-    'is.gd', 'buff.ly', 'adf.ly', 'bit.do', 'cutt.ly', 'short.io', 'rb.gy', 'rebrand.ly'
-])
-
-KNOWN_TARGETS = (
-    'bbva', 'santander', 'banorte', 'citibanamex', 'banamex', 'scotiabank', 
-    'hsbc', 'azteca', 'coppel', 'bancoppel', 'mercadopago', 'mercadolibre', 
-    'paypal', 'sat', 'imss', 'infonavit', 'microsoft', 'office365', 
-    'outlook', 'google', 'apple', 'icloud', 'netflix', 'amazon', 
-    'facebook', 'instagram', 'whatsapp', 'dhl', 'fedex', 'estafeta', 'ups',
-    'cpanel', 'directadmin', 'webmail', 'zimbra', 'roundcube'
-)
-
-LEGIT_DOMAINS = frozenset([
-    'bbva.mx', 'bbva.com', 'santander.com.mx', 'santander.com', 
-    'banorte.com', 'citibanamex.com', 'banamex.com', 'scotiabank.com.mx',
-    'hsbc.com.mx', 'hsbc.com', 'bancoazteca.com.mx', 'coppel.com',
-    'bancobase.com', 'base.com', 'intercam.com.mx', 'monex.com.mx',
-    'mercadolibre.com.mx', 'mercadolibre.com', 'mercadopago.com.mx', 'mercadopago.com',
-    'paypal.com', 'sat.gob.mx', 'gob.mx', 'imss.gob.mx', 'microsoft.com', 
-    'office.com', 'live.com', 'google.com', 'apple.com', 'netflix.com', 
-    'amazon.com', 'amazon.com.mx', 'dhl.com', 'dhl.com.mx', 'fedex.com', 
-    'estafeta.com', 'ups.com', 'python.org', 'cpanel.net', 'directadmin.com',
-    'facebook.com', 'fb.me', 'instagram.com', 'whatsapp.com',
-    'linkedin.com', 'twitter.com', 'x.com', 'youtube.com', 'youtu.be',
-    'quimicaboss.com.mx', 'quimicaboss.odoo.com', 'odoo.com', 'apperp.site',
-    'redirect-url.email', 'homedepot.com.mx', 'homedepot.com', 'uber.com', 'uberfacturas.com'
-])
-
-ACTION_PATH_KEYWORDS = (
-    'login', 'signin', 'auth', 'verify', 'verificar', 'buzon', 'buzón', 
-    'cancelar', 'reclamo', 'desbloquear', 'password', 'clave', 
-    'actualizar', 'secure', 'account', 'cuenta', 'entrega', 'rastreo'
-)
-
-SUSPICIOUS_DOMAIN_HYPHEN_KEYWORDS = (
-    'login', 'portal', 'seguridad', 'acceso', 'verificar', 'ayuda', 'soporte'
-)
-
-FISCAL_KEYWORDS = (
-    'sat', 'buzon tributario', 'buzón tributario', 'rfc', 'fiscal', 'multa', 
-    'auditoria', 'auditoría', 'requerimiento fiscal', 'declaracion anual', 
-    'credito fiscal', 'embargo precautorio', 'notificacion judicial'
-)
-
-RE_FISCAL_KEYWORDS = re.compile(
-    r'\b(sat|rfc|multa|multas|fiscal|fiscales|buz[oó]n tributario|cr[eé]dito fiscal|adeudo fiscal|requerimiento fiscal|declaraci[oó]n anual|auditor[ií]a|embargo precautorio|notificaci[oó]n judicial)\b',
-    re.IGNORECASE
-)
-
-RE_BANKING_KEYWORDS = re.compile(
-    r'\b(transferencia|transferencias|spei|saldo|tarjeta|tarjetas|debito|d[eé]bito|cr[eé]dito|credito|banco|bancari[oa]s?|dep[oó]sito|dep[oó]sitos|cargo no reconocido|transacci[oó]n|desbloquear|retenid[oa]|token|nip|cvv|clave interbancaria|compra aprobada|mercadopago|mercado pago)\b',
-    re.IGNORECASE
-)
-
-RE_CREDENTIAL_WORDS = re.compile(
-    r'\b(password|contrase[ñn]a|contrasena|social security|ssn|credit card|tarjeta|bank account|cuenta bancaria|pin|cvv|credenciales|token m[oó]vil|token movil|clave de acceso|datos de acceso|autenticaci[oó]n|autenticacion|acceso a tu buz[oó]n)\b',
-    re.IGNORECASE
-)
-
-URGENCY_PHRASES = (
-    '24 hours', '24 horas', 'immediately', 'inmediatamente', 'de inmediato', 
-    'right now', 'ahora mismo', 'expire today', 'expira hoy', 'final notice', 
-    'aviso final', 'ultimo aviso', 'último aviso', 'last chance', 'última oportunidad', 
-    'act now', 'actúa ahora', 'actua ahora', 'expira en', 'en 2 horas', 
-    'evite el bloqueo', 'evite multas', 'evite la suspensión', 'evite la suspension', 
-    'inmediata requerida', 'correos entrantes pendientes', 'perder el acceso',
-    'perderás el acceso', 'perderas el acceso', 'solicitud de autenticación', 'solicitud de autenticacion'
-)
-
-ACTION_REQUESTS = (
-    'haga clic', 'haga click', 'click aqui', 'clic aqui', 'ingrese a', 
-    'ingrese su', 'actualice sus', 'verifique su', 'cancele la', 
-    'desconoce la', 'solvente', 'reclamar', 'descargue el archivo', 
-    'para desbloquear', 'para verificar', 'continúe la verificación',
-    'continue la verificacion', 'verifique que este'
-)
-
-ALL_PHISHING_KEYWORDS = (
-    'urgente', 'verificar', 'suspender', 'bloquead', 'confirm', 'actualiz', 
-    'caduc', 'expir', 'inmediatamente', 'premio', 'ganador', 'ganaste',
-    'reclam', 'haga clic', 'click aqui', 'alert', 'seguridad', 'cuenta',
-    'tarjeta', 'contraseña', 'clave', 'pin', 'urgent', 'verify', 'suspend', 
-    'blocked', 'confirm', 'update', 'expire', 'prize', 'winner', 'won'
-)
-
-OFFER_WORDS = (
-    'free iphone', 'iphone gratis', 'won', 'ganaste', 'winner', 'ganador',
-    'prize', 'premio', 'lottery', 'lotería', 'loteria', '$1,000', '1000 usd', 'sorteo'
-)
-
-GENERIC_GREETINGS = (
-    'dear customer', 'estimado cliente', 'dear user', 'estimado usuario',
-    'dear sir', 'estimado señor', 'valued customer', 'cliente valorado'
-)
-
-BRAND_TYPOS = (
-    'paypa1', 'g00gle', 'micros0ft', 'amaz0n', 'facebok', 'faceb00k', 'appl3', 'netfIix', 'netfl1x'
-)
-
-DANGEROUS_EXTS = frozenset([
-    '.exe', '.scr', '.vbs', '.bat', '.cmd', '.ps1', '.iso', '.img', 
-    '.html', '.htm', '.hta', '.docm', '.xlsm', '.pptm', '.wsf', '.cpl', '.pif',
-    '.xla', '.xlam', '.001', '.r00', '.r01', '.r11', '.vhd', '.jar', '.ace', '.dll', '.com'
-])
-
-CLOUD_ABUSE_HOSTS = (
-    'cloudapp.azure.com', 'firebaseapp.com', 'appspot.com',
-    'pages.dev', 'workers.dev', 's3.amazonaws.com', 'storage.googleapis.com',
-    'app.goo.gl', 'azurewebsites.net'
-)
-
-DOC_MEDIA_EXTS = frozenset(['.pdf', '.xlsx', '.xls', '.docx', '.doc', '.png', '.jpg', '.jpeg', '.xml', '.csv', '.ppt', '.pptx'])
-MASKING_FINAL_EXTS = frozenset(['.txt', '.html', '.htm', '.zip', '.rar', '.7z', '.exe', '.scr', '.vbs', '.bat', '.cmd', '.js', '.wsf', '.xla', '.iso'])
-
-RE_AV_SUBJECT_ALERT = re.compile(
-    r'\[(detecci[oó]n|alerta|malware|virus|troyano|trojan|exploit|cve-\d+|spam)\]|troyano|cve-2017-|win32/exploit',
-    re.IGNORECASE
-)
-
-RE_FISCAL_CFDI = re.compile(
-    r'\b(cfdi|factura|facturaci[oó]n|comprobante fiscal|reciba su cfdi|no pagada|pago pendiente|segundo aviso|cfe en mora|devoluci[oó]n de pago|spei liquidado|cep liquidado|comprobantede de pago|envio de factura|env[ií]o del factura|env[ií]o del comprobante|factura de cfe|cancelaci[oó]n de cfdi|cfdi cancelado)\b',
-    re.IGNORECASE
-)
-
-RE_CAMPAIGN_ID = re.compile(
-    r'\b(cfdi|factura|facturaci[oó]n|comprobante fiscal|solicitud|aviso de factura|notificaci[oó]n|env[ií]o|presupuesto|lineas telef[oó]nicas|cfe|informaci[oó]n del proceso)\b.*?\(\d{5,8}\)',
-    re.IGNORECASE
-)
-
-RE_EXTORTION = re.compile(
-    r'\b(su cuenta ha sido hackeada|he robado sus datos|recuperar el acceso|datos personales debido a ciertas actividades|sitios sospechosos|grabar un video|c[aá]mara web|bitcoin|cartera btc|transferir bitcoins?)\b',
-    re.IGNORECASE
-)
-
-RE_LOGISTICS = re.compile(
-    r'\b(dhl on demand|estafeta entrega|fedex entrega|paquete retenido|gu[ií]a de entrega pendiente)\b',
-    re.IGNORECASE
-)
-
-RE_PORT_PADDING_EVASION = re.compile(r':0{3,}\d+')
-RE_WORK_FROM_HOME_SCAM = re.compile(r'\b(ganar \d+.*?al d[ií]a|sin salir de casa es posible|trabajo desde casa)\b', re.IGNORECASE)
-RE_FINANCIAL_ATTACHMENT_LURE = re.compile(r'\b(spei|cep)\b|transferencia|comprobante.*pago|estado.*pago|swift|factura.*cfdi', re.IGNORECASE)
-
-@lru_cache(maxsize=4096)
-def analyze_single_url(url: str) -> dict:
-    """Cached domain and threat analysis for a single URL string."""
-    url_lower = url.lower()
-    if any(url_lower.startswith(p) for p in ('http://', 'https://', 'www.')):
-        parsed = urlparse(url if url.startswith('http') else 'http://' + url)
-        host = parsed.netloc.split(':')[0]
-        path = parsed.path.lower()
-        fragment = (parsed.fragment or '').lower()
-    else:
-        host = url_lower
-        path = ""
-        fragment = ""
-
-    has_ip = bool(RE_IPV4_HOST.match(host) or RE_IPV4_IN_URL.search(url_lower))
-    has_tld = any(host.endswith(tld) for tld in SUSPICIOUS_TLDS)
-    has_shortener = any(host == shortener or host.endswith('.' + shortener) for shortener in URL_SHORTENERS)
-    has_hash_email = bool(re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', fragment))
-    has_port_padding = bool(RE_PORT_PADDING_EVASION.search(url))
-    has_cloud_abuse = any(host.endswith(cloud) for cloud in CLOUD_ABUSE_HOSTS)
-
-    # Impersonation
-    is_legit = (host in LEGIT_DOMAINS) or any(host.endswith('.' + legit) for legit in LEGIT_DOMAINS)
-    has_impersonation = False
-    has_suspicious_hyphen = False
-    if not is_legit:
-        for target in KNOWN_TARGETS:
-            if target in host:
-                has_impersonation = True
-                break
-        if host.count('-') >= 2 or ('-' in host and any(t in host for t in SUSPICIOUS_DOMAIN_HYPHEN_KEYWORDS)):
-            has_suspicious_hyphen = True
-
-    has_login = any(kw in path for kw in ACTION_PATH_KEYWORDS) or has_hash_email
-
+# --- SEO, Analytics & Indexing Endpoints ---
+@app.context_processor
+def inject_seo_and_analytics():
     return {
-        'host': host,
-        'has_ip': has_ip,
-        'has_tld': has_tld,
-        'has_shortener': has_shortener,
-        'has_impersonation': has_impersonation,
-        'has_suspicious_hyphen': has_suspicious_hyphen,
-        'has_login': has_login,
-        'has_hash_email': has_hash_email,
-        'has_port_padding': has_port_padding,
-        'has_cloud_abuse': has_cloud_abuse,
-        'is_legit': is_legit
+        'ga_measurement_id': os.environ.get('GA_MEASUREMENT_ID', ''),
+        'gsc_verification_code': os.environ.get('GOOGLE_SEARCH_CONSOLE_CODE', '')
     }
 
-def extract_basic_features(text, attachments=None):
-    """Extract comprehensive features for phishing detection including domain analysis, localized threats, and attachment risks."""
-    if not text or not isinstance(text, str):
-        text = ""
-    
-    text_lower = text.lower()
-    
-    # Extract URLs and clean trailing punctuation
-    raw_urls = RE_URLS.findall(text)
-    urls = [u.rstrip('.,;:)!?"\'') for u in raw_urls]
-    
-    has_suspicious_tld = False
-    has_url_shortener = False
-    has_ip_in_url = False
-    has_brand_impersonation = False
-    has_login_path = False
-    has_suspicious_domain_hyphen = False
-    has_unverified_url = False
-    all_urls_legit = (len(urls) > 0)
-    
-    for url in urls:
-        u_info = analyze_single_url(url)
-        if u_info['has_ip']:
-            has_ip_in_url = True
-        if u_info['has_tld']:
-            has_suspicious_tld = True
-        if u_info['has_shortener']:
-            has_url_shortener = True
-        if u_info['has_impersonation']:
-            has_brand_impersonation = True
-        if u_info['has_suspicious_hyphen']:
-            has_suspicious_domain_hyphen = True
-        if u_info['has_login']:
-            has_login_path = True
-        if not u_info['is_legit']:
-            all_urls_legit = False
-            has_unverified_url = True
-    
-    # Fiscal & Government Coercion
-    # Fiscal & Government Coercion (Regex estricto de límites de palabra para evitar falsos positivos como "versatilidad")
-    has_fiscal_context = bool(RE_FISCAL_KEYWORDS.search(text))
-    
-    # Banking, FinTech & Payment Alerts (Límites de palabra para evitar colisiones con palabras como "manipular")
-    has_banking_context = bool(RE_BANKING_KEYWORDS.search(text))
-    
-    # Financial/credential requests (Límites de palabra para evitar falsos positivos como "opinión" con pin)
-    requests_credentials = bool(RE_CREDENTIAL_WORDS.search(text))
-    
-    # Social engineering / urgency tactics
-    has_urgency = any(phrase in text_lower for phrase in URGENCY_PHRASES)
-    
-    # Action requests & Click coercion
-    has_action_request = any(ar in text_lower for ar in ACTION_REQUESTS)
-    
-    # Phishing keywords count
-    keyword_matches = sum(1 for kw in ALL_PHISHING_KEYWORDS if kw in text_lower)
-    
-    # Too-good-to-be-true offers
-    has_unrealistic_offer = any(word in text_lower for word in OFFER_WORDS)
-    
-    # Macro execution lures in text
-    macro_lures = ('habilitar macros', 'activar macros', 'enable macros', 'habilitar contenido', 'activar edicion')
-    has_macro_lure = any(lure in text_lower for lure in macro_lures)
-    
-    # Emoji spam
-    emoji_count = len(RE_EMOJIS.findall(text))
-    
-    # Excessive punctuation
-    multiple_exclamation = len(RE_EXCLAMATIONS.findall(text))
-    multiple_question = len(RE_QUESTIONS.findall(text))
-    
-    # Greeting mismatch
-    has_generic_greeting = any(greeting in text_lower for greeting in GENERIC_GREETINGS)
-    
-    # Typosquatting in raw text
-    has_brand_typo = any(typo in text_lower for typo in BRAND_TYPOS)
-    
-    # Suspicious attachment scanning
-    has_dangerous_attachment = False
-    has_double_extension = False
-    has_quarantined_attachment = False
-    has_financial_archive_lure = False
-    has_fake_invoice_attachment = False
-    suspicious_attachments = []
-    
-    if attachments:
-        for att in attachments:
-            att_clean = str(att).strip().lower()
-            clean_name = re.sub(r'\s+', ' ', att_clean).strip('. ')
-            
-            # Quarantined by mail server
-            if 'deleted_attachments.txt' in clean_name:
-                has_quarantined_attachment = True
-                has_dangerous_attachment = True
-                suspicious_attachments.append(att)
-                continue
-                
-            # Compound / double extensions (e.g. .xlsx.txt, .pdf.html.zip)
-            dots = clean_name.split('.')
-            if len(dots) >= 3:
-                ext1 = '.' + dots[-2].lower()
-                ext2 = '.' + dots[-1].lower()
-                if ext1 in DOC_MEDIA_EXTS and ext2 in MASKING_FINAL_EXTS:
-                    has_double_extension = True
-                    has_dangerous_attachment = True
-                    suspicious_attachments.append(att)
-            
-            # Dangerous extensions
-            if any(clean_name.endswith(ext) for ext in DANGEROUS_EXTS):
-                has_dangerous_attachment = True
-                suspicious_attachments.append(att)
-                
-            # Financial archive lure
-            if any(clean_name.endswith(ext) for ext in ('.zip', '.rar', '.7z', '.iso', '.img', '.001')):
-                if RE_FINANCIAL_ATTACHMENT_LURE.search(clean_name):
-                    has_financial_archive_lure = True
-                    has_dangerous_attachment = True
-                    suspicious_attachments.append(att)
-                    
-            # HTML disguised as CFDI/Factura
-            if (clean_name.endswith('.html') or clean_name.endswith('.htm')) and any(k in clean_name for k in ['factura', 'cfdi', 'comprobante', 'recibo']):
-                has_fake_invoice_attachment = True
-                has_dangerous_attachment = True
-                suspicious_attachments.append(att)
+@app.route('/robots.txt')
+def robots_txt():
+    """Directorio de indexación para robots y motores de búsqueda."""
+    return send_from_directory(os.path.join(APP_ROOT, 'static'), 'robots.txt', mimetype='text/plain')
 
-            # Weaponized Office doc with financial transfer lure (e.g. transferencia.docx, comprobante.doc)
-            if any(clean_name.endswith(ext) for ext in ('.docx', '.doc')) and RE_FINANCIAL_ATTACHMENT_LURE.search(clean_name):
-                has_financial_archive_lure = True
-                has_dangerous_attachment = True
-                suspicious_attachments.append(att)
-    
-    features = {
-        'length': len(text),
-        'word_count': len(text.split()),
-        'uppercase_ratio': sum(1 for c in text if c.isupper()) / max(len(text), 1),
-        'digit_count': sum(1 for c in text if c.isdigit()),
-        'exclamation_count': text.count('!'),
-        'question_count': text.count('?'),
-        'url_count': len(urls),
-        'urls': urls,
-        'all_urls_legit': all_urls_legit,
-        'has_unverified_url': has_unverified_url,
-        'email_count': len(RE_EMAIL_ADDRS.findall(text)),
-        
-        # Advanced features
-        'has_suspicious_tld': has_suspicious_tld,
-        'has_url_shortener': has_url_shortener,
-        'has_ip_in_url': has_ip_in_url,
-        'has_brand_impersonation': has_brand_impersonation,
-        'has_login_path': has_login_path,
-        'has_suspicious_domain_hyphen': has_suspicious_domain_hyphen,
-        'has_fiscal_context': has_fiscal_context,
-        'has_banking_context': has_banking_context,
-        'keyword_matches': keyword_matches,
-        'has_urgency': has_urgency,
-        'has_action_request': has_action_request,
-        'requests_credentials': requests_credentials,
-        'has_unrealistic_offer': has_unrealistic_offer,
-        'has_macro_lure': has_macro_lure,
-        'emoji_count': emoji_count,
-        'multiple_exclamation': multiple_exclamation,
-        'multiple_question': multiple_question,
-        'has_generic_greeting': has_generic_greeting,
-        'has_brand_typo': has_brand_typo,
-        'has_dangerous_attachment': has_dangerous_attachment,
-        'has_double_extension': has_double_extension,
-        'has_quarantined_attachment': has_quarantined_attachment,
-        'has_financial_archive_lure': has_financial_archive_lure,
-        'has_fake_invoice_attachment': has_fake_invoice_attachment,
-        'suspicious_attachments': suspicious_attachments,
-        'attachment_count': len(attachments) if attachments else 0,
-    }
-    
-    return features
-
-def get_hf_embeddings(text):
-    """Get text embeddings from HuggingFace API."""
-    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
-    
-    response = requests.post(
-        f"{HF_API_URL}{EMBEDDING_MODEL}",
-        headers=headers,
-        json={"inputs": text}
-    )
-    
-    if response.status_code == 200:
-        return response.json()
-    else:
-        logger.error(f"HF API error: {response.status_code} - {response.text}")
-        return None
-
-def check_urls_with_safe_browsing(urls):
-    """
-    Check URLs against Google Safe Browsing API.
-    
-    Args:
-        urls: List of URLs to check
-        
-    Returns:
-        dict: {
-            'malicious_urls': list of malicious URLs found,
-            'threats_found': list of threat types,
-            'is_safe': bool
-        }
-    """
-    if not urls or not GOOGLE_SAFE_BROWSING_API_KEY:
-        return {
-            'malicious_urls': [],
-            'threats_found': [],
-            'is_safe': True,
-            'api_available': bool(GOOGLE_SAFE_BROWSING_API_KEY)
-        }
-    
-    # Prepare the request payload
-    threat_entries = [{"url": url} for url in urls]
-    
-    payload = {
-        "client": {
-            "clientId": "dory-phishing-detector",
-            "clientVersion": "2.1"
-        },
-        "threatInfo": {
-            "threatTypes": [
-                "MALWARE",
-                "SOCIAL_ENGINEERING",
-                "UNWANTED_SOFTWARE",
-                "POTENTIALLY_HARMFUL_APPLICATION"
-            ],
-            "platformTypes": ["ANY_PLATFORM"],
-            "threatEntryTypes": ["URL"],
-            "threatEntries": threat_entries
-        }
-    }
-    
-    try:
-        response = requests.post(
-            f"{GOOGLE_SAFE_BROWSING_URL}?key={GOOGLE_SAFE_BROWSING_API_KEY}",
-            json=payload,
-            timeout=5
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            
-            # Parse the response
-            matches = result.get('matches', [])
-            malicious_urls = []
-            threats_found = []
-            
-            for match in matches:
-                url = match.get('threat', {}).get('url', '')
-                threat_type = match.get('threatType', '')
-                
-                if url and url not in malicious_urls:
-                    malicious_urls.append(url)
-                
-                if threat_type and threat_type not in threats_found:
-                    # Convert threat type to user-friendly name
-                    threat_mapping = {
-                        'MALWARE': 'Malware',
-                        'SOCIAL_ENGINEERING': 'Phishing/Social Engineering',
-                        'UNWANTED_SOFTWARE': 'Unwanted Software',
-                        'POTENTIALLY_HARMFUL_APPLICATION': 'Harmful Application'
-                    }
-                    threats_found.append(threat_mapping.get(threat_type, threat_type))
-            
-            return {
-                'malicious_urls': malicious_urls,
-                'threats_found': threats_found,
-                'is_safe': len(malicious_urls) == 0,
-                'api_available': True
-            }
-        else:
-            logger.error(f"Google Safe Browsing API error: {response.status_code}")
-            return {
-                'malicious_urls': [],
-                'threats_found': [],
-                'is_safe': True,
-                'api_available': True,
-                'error': f"API returned {response.status_code}"
-            }
-            
-    except requests.exceptions.Timeout:
-        logger.warning("Google Safe Browsing API timeout")
-        return {
-            'malicious_urls': [],
-            'threats_found': [],
-            'is_safe': True,
-            'api_available': True,
-            'error': 'API timeout'
-        }
-    except Exception as e:
-        logger.error(f"Google Safe Browsing API error: {str(e)}")
-        return {
-            'malicious_urls': [],
-            'threats_found': [],
-            'is_safe': True,
-            'api_available': True,
-            'error': str(e)
-        }
-
-def predict_phishing_hf(text, attachments=None, raw_html="", email_info=None):
-    """
-    Enhanced prediction using calibrated multi-tier heuristics + Google Safe Browsing
-    + Automated Second-Pass Deep Inspection Filter (L2) for the intermediate zone (26-40 pts).
-    Returns probability score from 0 (legitimate) to 1 (phishing).
-    """
-    # Extract comprehensive features
-    features = extract_basic_features(text, attachments=attachments)
-    
-    # Clean extracted URLs & merge with raw_html hrefs and email_info
-    urls = list(features.get('urls', []))
-    if raw_html:
-        href_urls = re.findall(r'href=["\'](https?://[^"\']+|www\.[^"\']+)["\']', raw_html, flags=re.IGNORECASE)
-        for hu in href_urls:
-            clean_hu = hu.rstrip('.,;:)!?"\'')
-            if clean_hu and clean_hu not in urls:
-                urls.append(clean_hu)
-    if email_info and email_info.get('urls'):
-        for eu in email_info['urls']:
-            clean_eu = eu.rstrip('.,;:)!?"\'')
-            if clean_eu and clean_eu not in urls:
-                urls.append(clean_eu)
-    
-    # Re-evaluate features based on merged URLs
-    for url in urls:
-        u_info = analyze_single_url(url)
-        if u_info['has_ip']: features['has_ip_in_url'] = True
-        if u_info['has_tld']: features['has_suspicious_tld'] = True
-        if u_info['has_shortener']: features['has_url_shortener'] = True
-        if u_info['has_impersonation']: features['has_brand_impersonation'] = True
-        if u_info['has_suspicious_hyphen']: features['has_suspicious_domain_hyphen'] = True
-        if u_info['has_login']: features['has_login_path'] = True
-        if u_info.get('has_hash_email'): features['has_hash_email'] = True
-        if u_info.get('has_port_padding'): features['has_port_padding'] = True
-        if u_info.get('has_cloud_abuse'): features['has_cloud_abuse'] = True
-        if not u_info['is_legit']:
-            features['all_urls_legit'] = False
-            features['has_unverified_url'] = True
-    features['urls'] = urls
-    features['url_count'] = len(urls)
-
-    # Check URLs with Google Safe Browsing API (if configured)
-    safe_browsing_result = check_urls_with_safe_browsing(urls)
-    
-    score = 0
-    threats = []
-    
-    subject_str = (email_info.get('subject') if email_info else '') or ''
-    sender_str = (email_info.get('sender_email') if email_info else '') or ''
-    x_spam_status = (email_info.get('x_spam_status') if email_info else '') or ''
-    x_spam_flag = (email_info.get('x_spam_flag') if email_info else '') or ''
-    x_virus_status = (email_info.get('x_virus_status') if email_info else '') or ''
-
-    # === TIER 1: Critical Indicators (30-65 points) ===
-    # 1. Perimeter Antivirus & Mail Server Threat Flags
-    if RE_AV_SUBJECT_ALERT.search(subject_str) or RE_AV_SUBJECT_ALERT.search(text[:300]):
-        score += 65
-        threats.append('Mail server perimeter antivirus alert in subject (Malware/Trojan/Exploit signature)')
-    elif 'yes' in x_spam_status.lower() or 'yes' in x_spam_flag.lower() or 'infected' in x_virus_status.lower():
-        score += 50
-        threats.append('Perimeter spam/threat flag confirmed in mail headers (X-Spam-Status / X-Virus)')
-
-    if safe_browsing_result.get('api_available') and not safe_browsing_result.get('is_safe', True):
-        score += 50
-        for threat in safe_browsing_result.get('threats_found', []):
-            threats.append(f'Google Safe Browsing: {threat}')
-
-    # Threat Intelligence Feeds (URLhaus, Regional Mexico CERT-MX, Corpus)
-    try:
-        from threat_feed_sync import ThreatIntelligenceFeedManager
-        is_threat_feed, feed_threats = ThreatIntelligenceFeedManager.check_indicators(urls)
-        if is_threat_feed:
-            score += 50
-            threats.extend(feed_threats)
-    except Exception as e:
-        logger.debug(f"Threat intelligence lookup error: {e}")
-            
-    # Attachment Threats
-    if features.get('has_quarantined_attachment'):
-        score += 55
-        threats.append('Mail server policy quarantined/deleted executable attachment (deleted_attachments.txt)')
-
-    if features.get('has_double_extension'):
-        score += 50
-        threats.append(f'Deceptive compound/double-extension file attachment ({", ".join(features["suspicious_attachments"])})')
-    elif features.get('has_financial_archive_lure'):
-        score += 45
-        threats.append(f'High-risk archive masquerading as Mexican financial document/CFDI ({", ".join(features["suspicious_attachments"])})')
-    elif features.get('has_fake_invoice_attachment'):
-        score += 45
-        threats.append(f'HTML file masquerading as electronic invoice ({", ".join(features["suspicious_attachments"])})')
-    elif features.get('has_dangerous_attachment'):
-        score += 45
-        threats.append(f'High-risk file attachment ({", ".join(features["suspicious_attachments"])})')
-        if features.get('has_macro_lure'):
-            score += 15
-            threats.append('Macro activation lure for dangerous attachment')
-
-    # Advanced URL Evasion: Port Padding Attack
-    if features.get('has_port_padding'):
-        score += 55
-        threats.append('Port padding zero-evasion attack detected in URL')
-
-    # Cloud Storage Abuse for Phishing / CFDI
-    has_cfdi_lure = bool(RE_FISCAL_CFDI.search(subject_str) or RE_FISCAL_CFDI.search(text[:800]))
-    if features.get('has_cloud_abuse'):
-        if has_cfdi_lure:
-            score += 40
-            threats.append('Cloud storage host abused for fake fiscal/CFDI invoice download')
-        else:
-            score += 25
-            threats.append('Public cloud hosting subdomain used for external redirect/phishing kit')
-
-    if features.get('has_url_shortener') and has_cfdi_lure:
-        score += 35
-        threats.append('URL shortener concealing fake fiscal/CFDI invoice link')
-
-    # Automated Bot Campaign ID in Subject
-    if RE_CAMPAIGN_ID.search(subject_str):
-        score += 40
-        threats.append('Automated phishing campaign batch identifier detected in subject')
-
-    # Extortion & Financial Scams
-    if RE_EXTORTION.search(text) or RE_EXTORTION.search(subject_str):
-        score += 45
-        threats.append('Extortion / blackmail scam pattern detected')
-
-    if RE_WORK_FROM_HOME_SCAM.search(subject_str) or RE_WORK_FROM_HOME_SCAM.search(text):
-        score += 45
-        threats.append('Work-from-home financial scam lure detected')
-
-    if RE_LOGISTICS.search(subject_str) and any(att for att in (attachments or []) if any(str(att).lower().endswith(x) for x in ['.docx', '.doc', '.xlsx', '.zip', '.html', '.scr'])):
-        score += 35
-        threats.append('Fake logistics delivery lure with dangerous/office attachment')
-
-    if ('no pagada' in subject_str.lower() or 'segundo aviso' in subject_str.lower()):
-        if score < 40 and not sender_str.endswith('@quimicaboss.com.mx'):
-            score += 30
-            threats.append('Fiscal urgency coercion tactic (No pagada / Segundo aviso)')
-
-    if features.get('has_hash_email'):
-        score += 40
-        threats.append('Target email embedded in URL fragment (Credential harvesting kit signature)')
-
-    if features['has_ip_in_url']:
-        score += 35
-        threats.append('IP address in URL')
-        
-    if features['has_brand_impersonation']:
-        score += 35
-        threats.append('Brand impersonation in domain')
-        
-    if features['requests_credentials'] and features['has_unverified_url']:
-        score += 30
-        threats.append('Credential harvesting link')
-    elif features['requests_credentials'] and not features['all_urls_legit']:
-        score += 15
-        threats.append('Requests credentials')
-        
-    if features['has_brand_typo']:
-        score += 25
-        threats.append('Brand name misspelling')
-
-    # === TIER 2: Strong Indicators (20-25 points) ===
-    if features['has_suspicious_tld']:
-        score += 25
-        threats.append('Suspicious domain extension')
-        
-    if features['has_url_shortener']:
-        score += 20
-        threats.append('URL shortener detected')
-        
-    if features['has_urgency']:
-        score += 20
-        threats.append('Urgent language tactics')
-        
-    if features['has_unrealistic_offer']:
-        score += 20
-        threats.append('Too-good-to-be-true offer')
-
-    # === TIER 3: Contextual Indicators (10-15 points) ===
-    if features['has_fiscal_context'] and features['has_unverified_url']:
-        score += 15
-        threats.append('Tax authority / fiscal coercion with unverified link')
-    elif features['has_fiscal_context'] and not features['all_urls_legit']:
-        score += 5
-        
-    if features['has_banking_context'] and features['has_unverified_url']:
-        score += 15
-        threats.append('Banking / transaction alert with unverified link')
-    elif features['has_banking_context'] and not features['all_urls_legit']:
-        score += 5
-        
-    if features['has_login_path'] and features['has_unverified_url']:
-        score += 12
-        threats.append('Suspicious action or login link')
-        
-    if features['has_suspicious_domain_hyphen']:
-        score += 12
-        threats.append('Hyphenated lookalike domain')
-        
-    if features['has_action_request'] and features['has_unverified_url']:
-        score += 10
-        threats.append('Action request with link')
-        
-    if features['keyword_matches'] > 4:
-        score += 15
-        threats.append(f'{features["keyword_matches"]} phishing keywords')
-    elif features['keyword_matches'] > 2:
-        score += 10
-        threats.append(f'{features["keyword_matches"]} phishing keywords')
-    elif features['keyword_matches'] > 0:
-        score += 5
-
-    # === TIER 4: Minor Indicators (3-8 points) ===
-    if features['has_generic_greeting']:
-        score += 8
-        threats.append('Generic greeting')
-        
-    if features['uppercase_ratio'] > 0.25:
-        score += 6
-        threats.append('Excessive capitalization')
-        
-    if features['exclamation_count'] > 3 or features['multiple_exclamation'] > 0:
-        score += 6
-        
-    if features['multiple_question'] > 0:
-        score += 4
-        
-    if features['emoji_count'] > 3:
-        score += 5
-
-    # === Synergistic boost: Composite Phishing Triad ===
-    # (Suspicious Link + Urgency/Coercion + Action/Credentials)
-    has_phishing_link = (
-        features['has_brand_impersonation'] or 
-        features['has_suspicious_tld'] or 
-        features['has_url_shortener'] or 
-        features['has_ip_in_url'] or 
-        features['has_login_path']
-    )
-    has_coercion = (
-        features['has_urgency'] or 
-        features['has_fiscal_context'] or 
-        features['has_banking_context']
-    )
-    if features['url_count'] > 0 and has_phishing_link and has_coercion:
-        score += 15
-        threats.append('High-confidence composite phishing pattern')
-
-    # === Whitelist Trust Bonus: All links point to verified official domains ===
-    if features['url_count'] > 0 and features['all_urls_legit']:
-        score = max(0, score - 20)
-
-    # Normalize score to 0 - 100
-    normalized_score = min(score, 100)
-    
-    # === SEGUNDO FILTRO ESPECIALIZADO: Deep Inspection L2 (Zona Intermedia 26-40 pts) ===
-    l2_analysis = None
-    if 26 <= normalized_score <= 40:
-        try:
-            from deep_inspection_l2 import DeepInspectionFilterL2
-            l2_res = DeepInspectionFilterL2.analyze(
-                text=text,
-                urls=urls,
-                attachments=attachments,
-                raw_html=raw_html,
-                email_info=email_info,
-                initial_score=normalized_score
-            )
-            l2_analysis = l2_res
-            normalized_score = l2_res['resolved_score']
-            if l2_res['l2_threats']:
-                threats.extend(l2_res['l2_threats'])
-        except Exception as e:
-            logger.error(f"Error en ejecución de Filtro L2: {e}")
-
-    # Calibrated 3-Tier Classification:
-    # Tier 1 (0 - 25):   Seguro / Confiable (Verde)
-    # Tier 2 (26 - 40):  Sospechoso / Advertencia (Ámbar / Naranja)
-    # Tier 3 (41 - 100): Phishing Confirmado / Crítico (Rojo)
-    if normalized_score <= 25:
-        category = 'SAFE'
-        category_label_es = 'Seguro'
-        category_label_en = 'Safe'
-        category_color = '#10b981'
-        is_phishing = False
-    elif normalized_score <= 40:
-        category = 'SUSPICIOUS'
-        category_label_es = 'Sospechoso / Advertencia'
-        category_label_en = 'Suspicious / Warning'
-        category_color = '#ea580c'
-        is_phishing = False
-    else:
-        category = 'PHISHING'
-        category_label_es = 'Phishing Confirmado'
-        category_label_en = 'Confirmed Phishing'
-        category_color = '#dc2626'
-        is_phishing = True
-    
-    # Calibrated confidence value
-    if normalized_score > 40:
-        confidence = min(max(normalized_score / 100.0, 0.65), 0.99)
-    elif normalized_score <= 25:
-        confidence = min(max((100.0 - normalized_score) / 100.0, 0.65), 0.99)
-    else:
-        confidence = 0.75
-        
-    return {
-        'is_phishing': is_phishing,
-        'category': category,
-        'category_label_es': category_label_es,
-        'category_label_en': category_label_en,
-        'category_color': category_color,
-        'confidence': round(confidence, 2),
-        'risk_score': normalized_score,
-        'max_possible_score': 100,
-        'features': features,
-        'threats': threats,
-        'safe_browsing': safe_browsing_result,
-        'l2_analysis': l2_analysis
-    }
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    """Mapa del sitio XML oficial para Google Search Console y Bing Webmaster."""
+    return send_from_directory(os.path.join(APP_ROOT, 'static'), 'sitemap.xml', mimetype='application/xml')
 
 # --- Routes ---
 @app.route('/')
@@ -936,18 +407,312 @@ def index():
     """Render the main page."""
     return render_template('index.html')
 
-@app.route('/health', methods=['GET'])
-def health():
-    """Health check endpoint for Render and Merlin Orchestrator."""
-    reports_count = 0
+@app.route('/preview')
+@app.route('/stitch-preview')
+def stitch_preview():
+    """Render the new Stitch-designed Dory.mx dashboard preview."""
+    return render_template('stitch_preview.html')
+
+@app.route('/dev/login', methods=['GET', 'POST'])
+def dev_portfolio_login():
+    """Zero-Trust Access Gate for dev.dory.mx."""
+    next_url = request.args.get('next') or request.form.get('next') or '/'
+    if not next_url.startswith('/'):
+        next_url = '/'
+    if _is_dev_portfolio_authorized():
+        return redirect(next_url)
+
+    error = None
+    if request.method == 'POST':
+        username = (request.form.get('username') or '').strip().lower()
+        password = request.form.get('password') or ''
+        allowed_users = _get_allowed_dev_users()
+        expected_pass = (os.environ.get('DEV_PORTFOLIO_PASS') or '').strip()
+        if not expected_pass:
+            logger.error('DEV_PORTFOLIO_PASS no configurado en .env; rechazando login por contraseña en /dev/login.')
+        matched = bool(expected_pass) and hmac.compare_digest(password.encode('utf-8'), expected_pass.encode('utf-8'))
+        if username in allowed_users and matched:
+            session['dev_authenticated'] = True
+            session['edu_authenticated'] = True
+            session['edu_user'] = username
+            session['edu_name'] = 'Carlos Aceves (@Charly-bite)' if 'carlos' in username or username in ('admin', '225361954') else username
+            logger.info(f"🔐 [DEV.DORY.MX] Acceso autorizado para '{username}'")
+            return redirect(next_url)
+        error = 'Invalid credentials or access key. Use your institutional account, admin credentials, or Google OAuth 2.0.'
+
+    sso_target = f"https://dev.dory.mx/dev/sso-callback?next={quote(next_url)}"
+    google_sso_url = f"https://edu.dory.mx/edu/auth/google/login?next={quote(sso_target)}"
+    return render_template('dev_login.html', error=error, next_url=next_url, google_sso_url=google_sso_url)
+
+
+@app.route('/dev/sso-callback')
+def dev_portfolio_sso_callback():
+    """Valida el token firmado por Google OAuth en edu.dory.mx y abre sesión en dev.dory.mx."""
+    import hashlib as _hashlib
+    import time as _time
+    email = (request.args.get('email') or '').strip().lower()
+    ts = (request.args.get('ts') or '').strip()
+    sig = (request.args.get('sig') or '').strip()
+    next_url = request.args.get('next') or '/'
+    if not next_url.startswith('/'):
+        next_url = '/'
     try:
-        conn = sqlite3.connect(DATABASE_PATH, timeout=5.0)
-        cur = conn.cursor()
-        cur.execute('SELECT COUNT(*) FROM incoming_phishing_reports')
-        reports_count = cur.fetchone()[0]
-        conn.close()
+        ts_int = int(ts)
+        if abs(int(_time.time()) - ts_int) <= 180 and email and sig:
+            if email not in _get_allowed_dev_users():
+                logger.warning(f"⛔ [DEV.DORY.MX] Intento de SSO bloqueado para cuenta no autorizada: '{email}'")
+                return redirect('/dev/login')
+            secret_key = (app.secret_key or os.environ.get('FLASK_SECRET_KEY') or '').strip()
+            if not secret_key:
+                return redirect('/dev/login')
+            payload = f"{email}|{ts}"
+            expected_sig = hmac.new(secret_key.encode('utf-8'), payload.encode('utf-8'), _hashlib.sha256).hexdigest()
+            if hmac.compare_digest(sig, expected_sig):
+                session['dev_authenticated'] = True
+                session['edu_authenticated'] = True
+                session['edu_user'] = email
+                session['edu_role'] = 'admin'
+                return redirect(next_url)
     except Exception:
         pass
+    return redirect('/dev/login')
+
+
+@app.route('/dev/logout')
+def dev_portfolio_logout():
+    """Cierra la sesión en dev.dory.mx y regresa al Zero-Trust Access Gate."""
+    session.pop('dev_authenticated', None)
+    session.pop('edu_authenticated', None)
+    session.pop('edu_user', None)
+    return redirect('/dev/login')
+
+
+@app.route('/dev')
+@app.route('/portfolio')
+def dev_portfolio_page():
+    """Render the Stitch-designed Cyber-Research Dark Glassmorphism Portfolio (dev.dory.mx)."""
+    if not _is_dev_portfolio_authorized():
+        return redirect(f"/dev/login?next={quote(request.path)}")
+    return render_template('dev_portfolio.html')
+
+@app.route('/vault/<doc_type>')
+def download_vault_pdf(doc_type):
+    """Serve certified Vault PDFs (cv, kardex, carta) directly on dev.dory.mx and dory.mx."""
+    if not _is_dev_portfolio_authorized():
+        return redirect(f"/dev/login?next={quote(request.path)}")
+    candidate_dirs = [
+        r'C:\Users\QB_DESARROLLO\Desktop\03-Orquestador-y-Proyectos-Home\Proyectos_Home\Proyectos\Buscador_Academico\server\vault_docs\carlos_aceves6195_alumnos_udg_mx',
+        r'C:\Users\CarlosAlbertoAcevesC\Desktop\02-plataformas-activas\buscador-academico\server\vault_docs\carlos_aceves6195_alumnos_udg_mx',
+    ]
+    vault_dir = next((d for d in candidate_dirs if os.path.isdir(d)), candidate_dirs[-1])
+    mapping = {
+        'cv': 'CV_Ejecutivo_225361954.pdf',
+        'kardex': 'Kardex_Oficial_UDG_225361954.pdf',
+        'carta': 'Carta_Motivacion_225361954.pdf',
+    }
+    filename = mapping.get(doc_type.lower())
+    if not filename or not os.path.exists(os.path.join(vault_dir, filename)):
+        return jsonify({'error': 'Vault document not found'}), 404
+    return send_from_directory(vault_dir, filename, mimetype='application/pdf')
+
+@app.route('/privacidad')
+@app.route('/privacy')
+def privacy():
+    """Render the Privacy Policy and Security page."""
+    return render_template('privacy.html')
+
+@app.route('/terminos')
+@app.route('/terms')
+def terms():
+    """Render the Terms of Service page."""
+    return render_template('terms.html')
+
+@app.route('/faq')
+def faq():
+    """Render the Frequently Asked Questions page."""
+    return render_template('faq.html')
+
+@app.route('/contacto')
+@app.route('/contact')
+def contact():
+    """Render the Contact and Service Request page."""
+    return render_template('contact.html')
+
+@app.route('/anon')
+@app.route('/anonimizador')
+def anonymizer_page():
+    """Render the Dory AI Data Anonymizer & Sanitizer interactive tool."""
+    return render_template('anonymizer.html')
+
+@app.route('/como-funciona')
+@app.route('/how-it-works')
+@app.route('/semaforo')
+def como_funciona():
+    """Render the explanation of Dory's ML engine and risk traffic light."""
+    return render_template('como_funciona.html')
+
+@app.route('/api/anonymize', methods=['POST'])
+def api_anonymize():
+    """Sanitize text removing PII, financial, and secret data with reversible or blackout mode."""
+    try:
+        data = request.get_json(silent=True) or {}
+        text = data.get('text', '')
+        options = data.get('options', None)
+        mode = data.get('mode', 'reversible')
+        
+        from dory_anonymizer import anonymizer_instance
+        res = anonymizer_instance.anonymize(text, options=options)
+        
+        if mode == 'blackout':
+            blackout_text = res['anonymized_text']
+            for ph in sorted(res['mapping'].keys(), key=lambda k: len(k), reverse=True):
+                blackout_text = blackout_text.replace(ph, '████████')
+            res['anonymized_text'] = blackout_text
+
+        return jsonify({
+            'success': True,
+            'anonymized_text': res['anonymized_text'],
+            'mapping': res['mapping'],
+            'summary': res['summary'],
+            'total_redactions': res['total_redactions']
+        }), 200
+    except Exception as e:
+        logger.error(f"Error in /api/anonymize: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/deanonymize', methods=['POST'])
+def api_deanonymize():
+    """Restore original sensitive values into an AI-generated response using session mapping."""
+    try:
+        data = request.get_json(silent=True) or {}
+        text = data.get('text', '')
+        mapping = data.get('mapping', {})
+        
+        from dory_anonymizer import anonymizer_instance
+        restored = anonymizer_instance.deanonymize(text, mapping)
+        return jsonify({
+            'success': True,
+            'restored_text': restored
+        }), 200
+    except Exception as e:
+        logger.error(f"Error in /api/deanonymize: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contact', methods=['POST'])
+def api_contact():
+    """Handle service request / contact form submissions."""
+    try:
+        data = request.get_json(silent=True) or request.form.to_dict() or {}
+        name = (data.get('name') or '').strip()
+        email = (data.get('email') or '').strip()
+        company = (data.get('company') or '').strip()
+        team_size = (data.get('team_size') or '').strip()
+        interest = (data.get('interest') or '').strip()
+        message = (data.get('message') or '').strip()
+        
+        if not name or not email:
+            return jsonify({'error': 'Nombre y correo son campos obligatorios.'}), 400
+
+        ip_address = request.headers.get('CF-Connecting-IP') or request.remote_addr
+        user_agent = request.headers.get('User-Agent', '')
+
+        with closing(get_db_connection()) as conn, conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO contact_leads (name, email, company, team_size, interest, message, ip_address, user_agent)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (name, email, company, team_size, interest, message, ip_address, user_agent))
+            lead_id = cursor.lastrowid
+
+        logger.info(f"💼 [LEAD DORY] Nueva solicitud #{lead_id} de '{name}' ({company}) - {email} [{interest}]")
+        return jsonify({
+            'success': True,
+            'lead_id': lead_id,
+            'message': 'Solicitud registrada exitosamente.'
+        }), 200
+    except Exception as e:
+        logger.error(f"Error registrando lead de contacto: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/consent', methods=['POST'])
+def api_consent():
+    """Registra consentimientos de usuarios (cookies, términos, privacidad, análisis)."""
+    try:
+        data = request.get_json(silent=True) or request.form.to_dict() or {}
+        session_id = (data.get('session_id') or '').strip()
+        user_email = (data.get('user_email') or '').strip()
+        consent_type = (data.get('consent_type') or 'web_privacy_cookies').strip()
+        version = (data.get('version') or 'v2.4').strip()
+        granted = bool(data.get('granted', True))
+        scope = (data.get('scope') or 'all').strip()
+        source_url = (data.get('source_url') or request.referrer or '').strip()
+        metadata_val = json.dumps(data.get('metadata') or {})
+        
+        if not session_id and not user_email:
+            import uuid
+            session_id = str(uuid.uuid4())
+
+        ip_address = request.headers.get('CF-Connecting-IP') or request.remote_addr
+        user_agent = request.headers.get('User-Agent', '')
+
+        with closing(get_db_connection()) as conn, conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO user_consents (session_id, user_email, consent_type, version, granted, scope, ip_address, user_agent, source_url, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (session_id, user_email, consent_type, version, 1 if granted else 0, scope, ip_address, user_agent, source_url, metadata_val))
+            consent_id = cursor.lastrowid
+
+        logger.info(f"📋 [CONSENTIMIENTO DORY] Registrado #{consent_id} [{consent_type} - {scope}] para {user_email or session_id[:12]}")
+        return jsonify({
+            'success': True,
+            'consent_id': consent_id,
+            'session_id': session_id,
+            'message': 'Consentimiento registrado exitosamente.'
+        }), 200
+    except Exception as e:
+        logger.error(f"Error registrando consentimiento: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/consent/stats', methods=['GET'])
+def api_consent_stats():
+    """Métricas anónimas de consentimientos registrados."""
+    try:
+        with closing(get_db_connection()) as conn:
+            cur = conn.cursor()
+            cur.execute('SELECT COUNT(*) FROM user_consents WHERE granted = 1')
+            granted_cnt = cur.fetchone()[0]
+            cur.execute('SELECT COUNT(*) FROM user_consents WHERE granted = 0')
+            revoked_cnt = cur.fetchone()[0]
+            cur.execute('SELECT consent_type, COUNT(*) FROM user_consents GROUP BY consent_type')
+            by_type = dict(cur.fetchall())
+        return jsonify({
+            'total_granted': granted_cnt,
+            'total_revoked': revoked_cnt,
+            'by_type': by_type
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+import time as _time
+
+_HEALTH_CACHE = {'count': 0, 'ts': 0.0}
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint for Render and Merlin Orchestrator (cached 60s TTL)."""
+    now_ts = _time.monotonic()
+    if now_ts - _HEALTH_CACHE['ts'] > 60.0 or _HEALTH_CACHE['ts'] == 0.0:
+        try:
+            with closing(get_db_connection(timeout=1.5)) as conn:
+                cur = conn.cursor()
+                cur.execute('SELECT COUNT(*) FROM incoming_phishing_reports')
+                _HEALTH_CACHE['count'] = cur.fetchone()[0]
+                _HEALTH_CACHE['ts'] = now_ts
+        except Exception:
+            pass
+    reports_count = _HEALTH_CACHE['count']
 
     return jsonify({
         'status': 'healthy',
@@ -979,26 +744,12 @@ def predict():
     - Form: subject=...&body=...
     """
     try:
-        # Debug logging
-        print(f"DEBUG: Request content type: {request.content_type}")
-        if request.is_json:
-            print(f"DEBUG: JSON data: {request.get_json()}")
-        else:
-            print(f"DEBUG: Form data: {request.form}")
-
+        subject = ''
+        data = {}
         # Check if JSON or form data
         if request.is_json:
-            data = request.get_json()
-            
-            # Robustness: Handle case where get_json() returns None
-            if data is None:
-                try:
-                    import json
-                    data = json.loads(request.get_data(as_text=True))
-                    print(f"DEBUG: Manually parsed JSON: {data}")
-                except Exception as e:
-                    print(f"DEBUG: Failed to manually parse JSON: {e}")
-                    data = {}
+            # (Se eliminaron los print de depuración: volcaban el correo completo a los logs.)
+            data = request.get_json(silent=True) or {}
 
             # Try to get email_text first (standard for this app)
             if 'email_text' in data:
@@ -1058,9 +809,14 @@ def predict():
         
         # Get optional attachments
         attachments = data.get('attachments', []) if request.is_json and data else []
+        if not isinstance(attachments, list):
+            attachments = []
+
+        # Asunto explícito -> el motor evalúa las alertas AV solo sobre el asunto real
+        email_info = {'subject': subject} if subject else None
 
         # Get prediction from calibrated engine using sanitized text
-        result = predict_phishing_hf(text_to_analyze, attachments=attachments)
+        result = predict_phishing_hf(text_to_analyze, attachments=attachments, email_info=email_info)
         
         is_phishing = result['is_phishing']
         confidence = float(result['confidence'])
@@ -1094,6 +850,7 @@ def predict():
             'threats_detected': threats_detected,
             'google_safe_browsing': google_verdict,
             'l2_deep_inspection': result.get('l2_analysis'),
+            'ml_analysis': result.get('ml_analysis'),
             'privacy_shield': privacy_audit,
             'analysis': {
                 'text_length': result['features']['length'],
@@ -1143,7 +900,7 @@ def predict():
 def submit_feedback():
     """Store user feedback about prediction accuracy."""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         
         # Validate required fields
         required_fields = ['email_text', 'prediction', 'user_feedback']
@@ -1165,7 +922,7 @@ def submit_feedback():
         user_agent = request.headers.get('User-Agent', 'Unknown')
         
         # Store in database
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -1208,11 +965,15 @@ def submit_feedback():
 
 # --- Admin Dashboard ---
 def check_auth(username, password):
-    """Check if username/password is valid."""
-    # Simple authentication - in production, use environment variables
+    """Check if username/password is valid (comparación en tiempo constante).
+    Sin ADMIN_PASSWORD configurado el panel queda deshabilitado (antes: 'dory2024' publicado en el repo)."""
     admin_user = os.environ.get('ADMIN_USERNAME', 'admin')
-    admin_pass = os.environ.get('ADMIN_PASSWORD', 'dory2024')
-    return username == admin_user and password == admin_pass
+    admin_pass = os.environ.get('ADMIN_PASSWORD', '')
+    if not admin_pass or username is None or password is None:
+        return False
+    user_ok = hmac.compare_digest(str(username).encode(), admin_user.encode())
+    pass_ok = hmac.compare_digest(str(password).encode(), admin_pass.encode())
+    return user_ok and pass_ok
 
 def authenticate():
     """Send 401 response for authentication."""
@@ -1235,7 +996,7 @@ def requires_auth(f):
 def view_feedback():
     """Admin endpoint to view feedback statistics and data."""
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -1299,7 +1060,7 @@ def view_feedback():
 def export_feedback():
     """Export all feedback data as JSON."""
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -1333,13 +1094,14 @@ def export_feedback():
 
 # --- Mail Service API Endpoints ---
 @app.route('/api/mail/status', methods=['GET'])
+@requires_auth
 def mail_status():
     """Get status of the automated email inbox service and database counts."""
     try:
         from mail_service import MailConfig
         cfg = MailConfig()
         
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute('''
             SELECT 
@@ -1372,10 +1134,11 @@ def mail_status():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/mail/simulate', methods=['POST'])
+@requires_auth
 def mail_simulate():
     """Simulate an incoming email and return the generated security report."""
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         sample_key = data.get('sample', 'sat')
         custom_sender = data.get('sender', '')
         custom_text = data.get('body', '')
@@ -1402,11 +1165,12 @@ def mail_simulate():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/mail/reports', methods=['GET'])
+@requires_auth
 def mail_reports():
     """List recent incoming email reports from the corporate phishing corpus."""
     try:
         limit = min(int(request.args.get('limit', 50)), 100)
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
@@ -1439,8 +1203,297 @@ def mail_reports():
         logger.error(f"Error in mail_reports: {e}")
         return jsonify({'error': str(e)}), 500
 
-# Webhook secret for Cloudflare Worker & external tunnels
-DORY_WEBHOOK_SECRET = os.environ.get('DORY_WEBHOOK_SECRET', 'dory-sec-defense-key-2026')
+# Webhook secret for Cloudflare Worker & external tunnels (OBLIGATORIO: sin valor por defecto en el código)
+DORY_WEBHOOK_SECRET = os.environ.get('DORY_WEBHOOK_SECRET', '')
+
+# ═══════════════════════════════════════════════════════════════════════
+# STALWART LOCAL DELIVERY — Puente Cloudflare → Thunderbird
+# ═══════════════════════════════════════════════════════════════════════
+# Mapeo de buzones @dory.mx reconocidos por Stalwart local
+STALWART_SMTP_HOST = os.environ.get('STALWART_SMTP_HOST', '127.0.0.1')
+STALWART_SMTP_PORT = int(os.environ.get('STALWART_SMTP_PORT', 25))
+# Credenciales IMAP desde entorno (antes la contraseña estaba escrita 3 veces en el código versionado)
+STALWART_IMAP_HOST = os.environ.get('STALWART_IMAP_HOST', '127.0.0.1')
+STALWART_IMAP_PORT = int(os.environ.get('STALWART_IMAP_PORT', 993))
+STALWART_IMAP_USER = os.environ.get('STALWART_IMAP_USER', 'carlos@dory.mx')
+STALWART_IMAP_PASSWORD = os.environ.get('STALWART_IMAP_PASSWORD', '')
+# Certificado autofirmado en loopback: verificación desactivable solo de forma explícita
+STALWART_IMAP_INSECURE = os.environ.get('STALWART_IMAP_INSECURE', '1').lower() in ('1', 'true', 'yes')
+# Carpeta de cuarentena para correos con veredicto PHISHING
+DORY_QUARANTINE_FOLDER = os.environ.get('DORY_QUARANTINE_FOLDER', 'Junk')
+DORY_MAILBOXES = {
+    'carlos@dory.mx', 'contacto@dory.mx', 'soporte@dory.mx',
+    'alerta@dory.mx', 'seguridad@dory.mx', 'spam@dory.mx'
+}
+
+# Efectos secundarios lentos (copia de reporte, respuesta SMTP/Resend, ARCO) fuera del ciclo
+# petición/respuesta: el Worker de Cloudflare ya no espera segundos de SMTP por cada correo.
+from concurrent.futures import ThreadPoolExecutor
+_BG_EXECUTOR = ThreadPoolExecutor(max_workers=int(os.environ.get('DORY_BG_WORKERS', 2)),
+                                  thread_name_prefix='DoryInboundBG')
+_MAIL_WORKER = None
+
+
+def _get_mail_worker():
+    """Instancia única de MailMonitorWorker (antes se creaba una, con su propio pool, por petición)."""
+    global _MAIL_WORKER
+    if _MAIL_WORKER is None:
+        from mail_service import MailMonitorWorker
+        _MAIL_WORKER = MailMonitorWorker()
+    return _MAIL_WORKER
+
+
+def _quote_imap_folder(folder: str) -> str:
+    folder = folder.strip()
+    return folder if folder.startswith('"') or folder.upper() == 'INBOX' else f'"{folder}"'
+
+
+def _get_peer_stalwart_host() -> str:
+    import socket
+    try:
+        local_ips = socket.gethostbyname_ex(socket.gethostname())[2]
+    except Exception:
+        local_ips = []
+    if '192.168.2.218' in local_ips:
+        return '192.168.2.222'
+    return '192.168.2.218'
+
+
+def _stalwart_imap_connect(host: str = None):
+    """Abre una sesión IMAP autenticada contra Stalwart (local o réplica HA)."""
+    import imaplib, ssl
+    if not STALWART_IMAP_PASSWORD:
+        raise RuntimeError('STALWART_IMAP_PASSWORD no configurado')
+    target_host = host or STALWART_IMAP_HOST
+    ctx = ssl.create_default_context()
+    if STALWART_IMAP_INSECURE:
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    cli = imaplib.IMAP4_SSL(target_host, STALWART_IMAP_PORT, ssl_context=ctx, timeout=8)
+    try:
+        cli.login(STALWART_IMAP_USER, STALWART_IMAP_PASSWORD)
+    except Exception:
+        try:
+            cli.shutdown()
+        except Exception:
+            pass
+        raise
+    return cli
+
+
+def _stalwart_replicate_to_peer(folder: str, raw_bytes: bytes):
+    """Replica asíncronamente un mensaje IMAP en el nodo hermano (.218 <-> .222)."""
+    import imaplib, time
+    peer_host = _get_peer_stalwart_host()
+    try:
+        with _stalwart_imap_connect(peer_host) as peer_cli:
+            _ensure_imap_folder(peer_cli, folder)
+            peer_cli.append(folder, '', imaplib.Time2Internaldate(time.time()), raw_bytes)
+            logger.info(f"🔄 [STALWART-HA] Mensaje replicado en nodo hermano {peer_host}:993 ({folder})")
+    except Exception as ex:
+        logger.debug(f"Réplica HA Stalwart ({peer_host}) omitida: {ex}")
+
+
+def _ensure_imap_folder(cli, folder: str):
+    """imaplib.select() devuelve 'NO' (no lanza) si la carpeta no existe: antes el create() nunca corría."""
+    typ, _ = cli.select(folder)
+    if typ != 'OK':
+        cli.create(folder)
+
+
+def _stamp_dory_headers(raw: bytes, verdict: str, score) -> bytes:
+    """Antepone X-Dory-Verdict / X-Dory-Score y elimina copias previas inyectadas por el remitente."""
+    sep = raw.find(b'\r\n\r\n')
+    if sep == -1:
+        sep = raw.find(b'\n\n')
+    head, body = (raw[:sep], raw[sep:]) if sep != -1 else (raw, b'')
+    head = re.sub(rb'(?im)^x-dory-(?:verdict|score):[^\n]*\n?(?:[ \t][^\n]*\n?)*', b'', head)
+    stamp = f"X-Dory-Verdict: {verdict}\r\nX-Dory-Score: {int(score)}\r\n".encode('ascii')
+    return stamp + head + body
+
+
+def handle_arco_request(sender_email: str, subject: str, raw_body_text: str = '') -> str:
+    """
+    Registra formalmente una solicitud ARCO en la base de datos feedback.db,
+    asigna un número de folio único con fecha límite (5 días hábiles) conforme a la LFPDPPP,
+    y deposita un Acuse de Recibo formal en la carpeta 'Soporte ARCO' para trazabilidad en Thunderbird.
+    """
+    import email.utils
+    from datetime import datetime, timedelta
+    
+    now = datetime.now()
+    # Folio no predecible (antes random.randint(1000, 9999): colisiones y enumeración triviales)
+    folio = f"ARCO-{now.strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
+    deadline = (now + timedelta(days=7)).strftime('%d/%m/%Y')
+    
+    try:
+        with closing(get_db_connection()) as conn, conn:
+            cur = conn.cursor()
+            cur.execute('''
+                INSERT INTO arco_requests (folio, sender_email, subject, body_preview, deadline_date, ack_sent)
+                VALUES (?, ?, ?, ?, ?, 1)
+            ''', (folio, sender_email, subject, raw_body_text[:500], deadline))
+        logger.info(f"⚖️ [ARCO RADICADA] Folio {folio} asignado a {sender_email} | Límite: {deadline}")
+    except Exception as e:
+        logger.error(f"Error guardando solicitud ARCO en DB: {e}")
+
+    try:
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        import imaplib, time
+
+        ack_msg = MIMEMultipart('alternative')
+        ack_msg['Subject'] = f"[{folio}] Acuse de Recibo — Solicitud de Derechos ARCO (Dory.mx)"
+        ack_msg['From'] = "Dory.mx Privacidad y Cumplimiento <soporte@dory.mx>"
+        ack_msg['To'] = sender_email
+        ack_msg['Date'] = email.utils.formatdate(localtime=True)
+
+        text_content = f"""Estimado(a) Titular,\n\nHemos recibido formalmente su comunicación en el buzón oficial de soporte@dory.mx solicitando la atención y ejercicio de Derechos ARCO (Acceso, Rectificación, Cancelación y Oposición), en estricto apego a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).\n\n--------------------------------------------------\nNÚMERO DE FOLIO ASIGNADO: {folio}\nFecha de radicación: {now.strftime('%d/%m/%Y %H:%M')}\nFecha límite de resolución legal: {deadline}\n--------------------------------------------------\n\nPRÓXIMOS PASOS EN EL PROCESO:\n1. Cotejo y Verificación: Nuestro Oficial de Privacidad verificará los registros administrativos asociados a su dirección.\n2. Cero Retención de Contenido: Dory no almacena cuerpos de correos analizados; las acciones aplican sobre registros de contacto o remitentes autorizados.\n3. Dictamen Formal: Recibirá la resolución definitiva a esta misma dirección de correo en un plazo no mayor a 5 días hábiles.\n\nAtentamente,\nOficialía de Privacidad y Cumplimiento Normativo\nDory Intelligence — Guadalajara, Jalisco, México\nContacto: soporte@dory.mx\n"""
+
+        html_content = f"""<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+    <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 18px;">
+      <h2 style="margin: 0; color: #0284c7; font-size: 20px;">Dory.mx — Oficialía de Privacidad y Cumplimiento</h2>
+    </div>
+    <p style="font-size: 15px;">Estimado(a) Titular,</p>
+    <p style="font-size: 14px;">Hemos recibido formalmente su comunicación en el buzón oficial de <strong>soporte@dory.mx</strong> solicitando la atención y ejercicio de Derechos ARCO (Acceso, Rectificación, Cancelación y Oposición), en estricto apego a la <em>Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP)</em>.</p>
+    
+    <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 14px 18px; border-radius: 6px; margin: 20px 0;">
+      <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase;">Número de Folio Asignado</div>
+      <div style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 4px; font-family: monospace;">{folio}</div>
+      <div style="font-size: 12px; color: #64748b; margin-top: 6px;">Fecha de Radicación: {now.strftime('%d/%m/%Y %H:%M')} | Límite de resolución: {deadline}</div>
+    </div>
+
+    <h3 style="font-size: 15px; color: #0f172a; margin-top: 20px;">Próximos Pasos en el Proceso:</h3>
+    <ol style="font-size: 13.5px; color: #334155; padding-left: 20px;">
+      <li style="margin-bottom: 8px;"><strong>Cotejo y Verificación:</strong> Nuestro Oficial de Privacidad verificará los registros administrativos asociados a su dirección.</li>
+      <li style="margin-bottom: 8px;"><strong>Cero Retención de Contenido:</strong> Dory no conserva cuerpos de correos analizados; las cancelaciones aplican sobre registros de contacto o remitentes autorizados.</li>
+      <li style="margin-bottom: 8px;"><strong>Dictamen Formal:</strong> Recibirá la resolución definitiva a esta misma cuenta en un plazo no mayor a 5 días hábiles.</li>
+    </ol>
+
+    <p style="font-size: 13px; color: #64748b; margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+      Atentamente,<br>
+      <strong>Oficialía de Privacidad y Cumplimiento Normativo</strong><br>
+      Dory Intelligence — Guadalajara, Jalisco, México<br>
+      Correo oficial: <a href="mailto:soporte@dory.mx" style="color: #0284c7; text-decoration: none;">soporte@dory.mx</a>
+    </p>
+  </div>
+</body>
+</html>"""
+
+        ack_msg.attach(MIMEText(text_content, 'plain', 'utf-8'))
+        ack_msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+
+        with _stalwart_imap_connect() as imap_cli:
+            _ensure_imap_folder(imap_cli, '"Soporte ARCO"')
+            imap_cli.append('"Soporte ARCO"', '', imaplib.Time2Internaldate(time.time()), ack_msg.as_bytes())
+            logger.info(f"⚖️ [ARCO] Acuse de recibo {folio} generado y depositado en 'Soporte ARCO' para {sender_email}")
+    except Exception as e:
+        logger.error(f"Error depositando acuse de recibo ARCO: {e}")
+
+    return folio
+
+def stalwart_deliver_local(raw_rfc822: bytes, recipient: str, sender: str = '', folder: str = None) -> bool:
+    """
+    Deposita una copia del correo entrante en el buzón local de Stalwart.
+    Si el correo está dirigido a soporte@dory.mx, lo filtra directamente en la
+    carpeta dedicada 'Soporte ARCO' de Thunderbird. De lo contrario, lo entrega en INBOX.
+    folder: carpeta forzada (p. ej. cuarentena para veredicto PHISHING).
+    """
+    recipient = recipient.strip().lower() if recipient else 'soporte@dory.mx'
+    if folder:
+        target_folder = _quote_imap_folder(folder)
+    else:
+        target_folder = '"Soporte ARCO"' if 'soporte@dory.mx' in recipient else 'INBOX'
+    
+    # 1. Intento directo vía IMAP APPEND a la carpeta correspondiente
+    try:
+        import imaplib, time
+        with _stalwart_imap_connect() as imap_cli:
+            # Garantizar que la carpeta destino existe
+            _ensure_imap_folder(imap_cli, target_folder)
+
+            res = imap_cli.append(target_folder, '', imaplib.Time2Internaldate(time.time()), raw_rfc822)
+            if res and res[0] == 'OK':
+                logger.info(f"📬 [STALWART/IMAP] Correo dirigido a '{recipient}' depositado exitosamente en '{target_folder}' de '{STALWART_IMAP_USER}' (Thunderbird)")
+                _BG_EXECUTOR.submit(_stalwart_replicate_to_peer, target_folder, raw_rfc822)
+                return True
+    except Exception as imap_err:
+        logger.warning(f"IMAP APPEND local no disponible ({imap_err}), intentando Failover HA en {_get_peer_stalwart_host()}:993...")
+        try:
+            import imaplib, time
+            peer_host = _get_peer_stalwart_host()
+            with _stalwart_imap_connect(peer_host) as peer_cli:
+                _ensure_imap_folder(peer_cli, target_folder)
+                res = peer_cli.append(target_folder, '', imaplib.Time2Internaldate(time.time()), raw_rfc822)
+                if res and res[0] == 'OK':
+                    logger.info(f"📬 [STALWART/HA-FAILOVER] Correo depositado en nodo hermano {peer_host}:993 ('{target_folder}')")
+                    return True
+        except Exception as peer_err:
+            logger.debug(f"IMAP APPEND HA tampoco disponible, fallback a SMTP: {peer_err}")
+
+    # 2. Fallback vía SMTP local
+    import smtplib
+    try:
+        if not sender:
+            import email as email_mod
+            from email.utils import parseaddr
+            parsed = email_mod.message_from_bytes(raw_rfc822)
+            sender = parseaddr(parsed.get('From', ''))[1] or 'unknown@external.sender'
+        with smtplib.SMTP(STALWART_SMTP_HOST, STALWART_SMTP_PORT, timeout=10) as smtp:
+            smtp.sendmail(sender, [recipient], raw_rfc822)
+        logger.info(f"📬 [STALWART/SMTP] Correo depositado en buzón local '{recipient}' (de: {sender})")
+        return True
+    except Exception as e:
+        logger.warning(f"⚠️ [STALWART] Error depositando correo en buzón local: {e}")
+        return False
+
+
+def stalwart_deliver_report(report: dict, email_info: dict) -> bool:
+    """
+    Deposita una copia idéntica del reporte de análisis generado por Dory en la carpeta
+    'Respuestas Dory' de Thunderbird vía IMAP local para consulta y auditoría inmediata.
+    """
+    try:
+        import imaplib, time, os
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        from email.mime.image import MIMEImage
+        from mail_service import get_dory_icon_base64, DORY_ICON_PATH
+        
+        msg = MIMEMultipart('related')
+        msg['Subject'] = report.get('subject', 'Reporte de Ciberseguridad Dory')
+        msg['From'] = 'Dory Ciberseguridad <spam@dory.mx>'
+        msg['To'] = email_info.get('sender_email', '')
+        
+        alt = MIMEMultipart('alternative')
+        msg.attach(alt)
+        alt.attach(MIMEText(report.get('plain', ''), 'plain', 'utf-8'))
+        
+        html_content = report.get('html', '')
+        dory_https_url = 'https://engine.dory.mx/static/dory_logo.png'
+        if dory_https_url in html_content:
+            html_content = html_content.replace(dory_https_url, 'cid:dory_logo')
+        alt.attach(MIMEText(html_content, 'html', 'utf-8'))
+        
+        if os.path.exists(DORY_ICON_PATH):
+            with open(DORY_ICON_PATH, 'rb') as f:
+                img = MIMEImage(f.read(), _subtype='png')
+                img.add_header('Content-ID', '<dory_logo>')
+                img.add_header('Content-Disposition', 'inline', filename='dory_logo.png')
+                msg.attach(img)
+                
+        with _stalwart_imap_connect() as client:
+            _ensure_imap_folder(client, '"Respuestas Dory"')
+            client.append('"Respuestas Dory"', '', imaplib.Time2Internaldate(time.time()), msg.as_bytes())
+            logger.info(f"📬 [STALWART/REPORTE] Copia de respuesta depositada en 'Respuestas Dory' para {email_info.get('sender_email')}")
+            return True
+    except Exception as e:
+        logger.warning(f"⚠️ [STALWART/REPORTE] Error depositando reporte en buzón local: {e}")
+        return False
+
 
 @app.route('/api/mail/inbound', methods=['POST'])
 def mail_inbound():
@@ -1448,56 +1501,132 @@ def mail_inbound():
     Ingesta directa de correos RFC822 desde Cloudflare Email Worker vía Tunnel.
     Recibe el flujo MIME raw, lo analiza con Dory AI Engine + Deep Inspection L2
     y lo almacena en feedback.db.
+
+    Flujo v4:
+      1. Autenticación OBLIGATORIA con X-Dory-Key (antes: si la cabecera faltaba se aceptaba
+         cualquier petición, permitiendo inyectar correos y disparar respuestas desde Dory).
+      2. Análisis ANTES de la entrega (antes el phishing llegaba a INBOX antes de analizarse).
+      3. Entrega con cabeceras X-Dory-Verdict / X-Dory-Score; PHISHING va a la carpeta de cuarentena.
+      4. Persistencia sincrónica (record_id) y efectos lentos en segundo plano (copia del reporte,
+         respuesta SMTP/Resend, ARCO), actualizando reply_sent al terminar.
     """
+    # 1. Autenticación del webhook (tiempo constante, rechazo si no hay secreto configurado)
+    provided_key = request.headers.get('X-Dory-Key', '')
+    if not DORY_WEBHOOK_SECRET:
+        logger.error("DORY_WEBHOOK_SECRET no configurado: /api/mail/inbound deshabilitado.")
+        return jsonify({'error': 'Inbound webhook not configured'}), 503
+    if not provided_key or not hmac.compare_digest(provided_key.encode(), DORY_WEBHOOK_SECRET.encode()):
+        logger.warning(f"Intento de acceso no autorizado a /api/mail/inbound desde {request.remote_addr}")
+        return jsonify({'error': 'Unauthorized: invalid X-Dory-Key'}), 403
+
+    raw_data = request.get_data()
+    if not raw_data:
+        return jsonify({'error': 'Empty email payload received'}), 400
+
+    dory_recipient = (request.headers.get('X-Dory-Recipient') or 'carlos@dory.mx').strip().lower()
+    dory_sender = request.headers.get('X-Dory-Sender', '')
+
+    # 2. Análisis (fail-open: si el motor falla, el correo se entrega igualmente marcado UNSCANNED)
     try:
-        # Validación opcional de cabecera secreta
-        provided_key = request.headers.get('X-Dory-Key', '')
-        if provided_key and provided_key != DORY_WEBHOOK_SECRET:
-            logger.warning(f"Intento de acceso no autorizado a /api/mail/inbound desde {request.remote_addr}")
-            return jsonify({'error': 'Unauthorized: invalid X-Dory-Key'}), 403
-
-        raw_data = request.get_data()
-        if not raw_data:
-            return jsonify({'error': 'Empty email payload received'}), 400
-
-        from mail_service import MailMonitorWorker, save_incoming_report
-        worker = MailMonitorWorker()
-        
-        # Procesar con motor de IA y L2
-        result = worker.process_single_message(raw_data)
-        
-        # Sanitizar cuerpo de correo con Escudo de Privacidad antes de persistir en feedback.db
-        from privacy_shield import PrivacyShield
-        if 'email_body' in result['db_payload'] and result['db_payload']['email_body']:
-            shield_res = PrivacyShield.anonymize_text(result['db_payload']['email_body'])
-            result['db_payload']['email_body'] = shield_res['sanitized_text']
-
-        # Almacenar en feedback.db
-        record_id = save_incoming_report(result['db_payload'])
-        
-        logger.info(
-            f"✅ [INBOUND DORY] Correo procesado #{record_id} de '{result['email_info']['sender_email']}' | "
-            f"Asunto: '{result['email_info']['subject']}' | "
-            f"Dictamen: {result['prediction']['is_phishing']} (Score: {result['prediction']['risk_score']}) | "
-            f"Tiempo: {result['processing_time_ms']}ms"
-        )
-        
-        return jsonify({
-            'status': 'success',
-            'record_id': record_id,
-            'sender': result['email_info']['sender_email'],
-            'subject': result['email_info']['subject'],
-            'is_phishing': result['prediction']['is_phishing'],
-            'risk_score': result['prediction']['risk_score'],
-            'confidence': result['prediction']['confidence'],
-            'threats': result['prediction'].get('threats', []),
-            'urls_found': result['email_info'].get('urls', []),
-            'processing_time_ms': result['processing_time_ms']
-        }), 200
-
+        worker = _get_mail_worker()
+        result = worker.process_single_message(raw_data, recipient_email=dory_recipient)
     except Exception as e:
-        logger.error(f"Error procesando correo entrante en /api/mail/inbound: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error analizando correo entrante en /api/mail/inbound: {e}", exc_info=True)
+        stalwart_ok = stalwart_deliver_local(_stamp_dory_headers(raw_data, 'UNSCANNED', 0),
+                                             dory_recipient, dory_sender)
+        return jsonify({'status': 'delivered_unscanned', 'stalwart_delivered': stalwart_ok,
+                        'error': str(e)}), (200 if stalwart_ok else 500)
+
+    prediction = result['prediction']
+    email_info = result['email_info']
+    category = prediction.get('category', 'SAFE')
+
+    # 3. Entrega local con veredicto; PHISHING -> cuarentena
+    stamped = _stamp_dory_headers(raw_data, category, prediction.get('risk_score', 0))
+    target_folder = DORY_QUARANTINE_FOLDER if category == 'PHISHING' and DORY_QUARANTINE_FOLDER else None
+    stalwart_ok = stalwart_deliver_local(stamped, dory_recipient, dory_sender, folder=target_folder)
+    if not stalwart_ok and os.environ.get('DORY_REQUIRE_LOCAL_DELIVERY', '1').lower() in ('1', 'true', 'yes'):
+        # 502 -> el Worker reintenta y, si persiste, usa su reenvío/rechazo de respaldo (no se pierde el correo)
+        return jsonify({'status': 'delivery_failed', 'category': category}), 502
+
+    # 4. Persistencia (cuerpo saneado con el Escudo de Privacidad)
+    try:
+        from mail_service import save_incoming_report
+        from privacy_shield import PrivacyShield
+        if result['db_payload'].get('email_body'):
+            result['db_payload']['email_body'] = PrivacyShield.anonymize_text(
+                result['db_payload']['email_body'])['sanitized_text']
+        record_id = save_incoming_report(result['db_payload'])
+    except Exception as e:
+        logger.error(f"Error persistiendo reporte entrante: {e}", exc_info=True)
+        record_id = -1
+
+    # ── Atención Automática de Derechos ARCO ──
+    # Si el correo va a soporte@dory.mx o el asunto menciona ARCO (palabra completa; antes "Marcos"
+    # o "marco" disparaban un folio), radicar formalmente y generar acuse. Nunca para phishing.
+    subject = email_info.get('subject') or ''
+    is_arco = ('soporte@dory.mx' == dory_recipient or re.search(r'\barco\b', subject, re.IGNORECASE)) \
+        and category != 'PHISHING'
+
+    _BG_EXECUTOR.submit(_inbound_background_tasks, worker, result, record_id, dory_recipient, bool(is_arco))
+
+    logger.info(
+        f"✅ [INBOUND DORY] Correo procesado #{record_id} de '{email_info.get('sender_email')}' | "
+        f"Dictamen: {category} (Score: {prediction.get('risk_score')}) | "
+        f"Carpeta: {target_folder or 'INBOX'} | Tiempo: {result['processing_time_ms']}ms"
+    )
+
+    return jsonify({
+        'status': 'success',
+        'record_id': record_id,
+        'sender': email_info.get('sender_email'),
+        'subject': subject,
+        'category': category,
+        'is_phishing': prediction.get('is_phishing'),
+        'risk_score': prediction.get('risk_score'),
+        'confidence': prediction.get('confidence'),
+        'threats': prediction.get('threats', []),
+        'urls_found': email_info.get('urls', []),
+        'processing_time_ms': result['processing_time_ms'],
+        'stalwart_delivered': stalwart_ok,
+        'delivered_folder': target_folder or 'INBOX',
+        'reply_status': 'queued',
+    }), 200
+
+
+def _inbound_background_tasks(worker, result, record_id, dory_recipient, is_arco):
+    """Efectos secundarios lentos del webhook, fuera del ciclo petición/respuesta."""
+    email_info = result['email_info']
+    try:
+        stalwart_deliver_report(result['report'], email_info)
+    except Exception as e:
+        logger.warning(f"No se pudo copiar el reporte a 'Respuestas Dory': {e}")
+
+    reply_ok = False
+    try:
+        reply_ok = worker.send_smtp_reply(email_info, result['report'], envelope_recipient=dory_recipient)
+    except Exception as smtp_err:
+        logger.warning(f"No se pudo despachar respuesta SMTP externa: {smtp_err}")
+
+    if record_id and record_id > 0 and reply_ok:
+        try:
+            with closing(get_db_connection()) as conn, conn:
+                conn.execute('UPDATE incoming_phishing_reports SET reply_sent = 1 WHERE id = ?', (record_id,))
+        except Exception as e:
+            logger.warning(f"No se pudo actualizar reply_sent para #{record_id}: {e}")
+
+    if is_arco:
+        try:
+            handle_arco_request(email_info.get('sender_email', ''), email_info.get('subject', ''),
+                                result['db_payload'].get('email_body', ''))
+            # También registrar el consentimiento de interacción
+            with closing(get_db_connection()) as conn, conn:
+                conn.execute('''
+                    INSERT INTO user_consents (session_id, user_email, consent_type, version, granted, scope, source_url)
+                    VALUES (?, ?, 'email_arco_request', 'v2.4', 1, 'arco', 'email:soporte@dory.mx')
+                ''', (f"eml_{record_id}", email_info.get('sender_email', '')))
+        except Exception as e:
+            logger.warning(f"Error en atención ARCO automática: {e}")
 
 @app.route('/api/privacy/anonymize', methods=['POST'])
 def privacy_anonymize():
@@ -1524,9 +1653,157 @@ def privacy_anonymize():
         logger.error(f"Error in privacy_anonymize: {e}")
         return jsonify({'error': str(e)}), 500
 
+
+def _render_dory_error(status_code: int, code_label: str, title: str, message: str, auto_retry: bool = False, node_state_text: str = 'ERROR'):
+    accept_hdr = request.headers.get('Accept', '')
+    if request.path.startswith('/api/') or '/api/' in request.path or (
+        'application/json' in accept_hdr and 'text/html' not in accept_hdr
+    ):
+        return jsonify({
+            'error': title,
+            'message': message,
+            'code': code_label,
+            'status': status_code
+        }), status_code
+
+    host_hdr = (request.headers.get('X-Forwarded-Host') or request.headers.get('Host') or '').lower()
+    is_edu = 'edu.dory.mx' in host_hdr or request.path.startswith(('/edu', '/tareas', '/becas', '/juegos', '/splunk'))
+    is_dev = 'dev.dory.mx' in host_hdr or request.path.startswith(('/dev', '/portfolio'))
+
+    brand_name = 'Dory EDU' if is_edu else ('Dory DEV' if is_dev else 'Dory.mx')
+    service_tag = '🎓 EDU' if is_edu else ('💻 DEV' if is_dev else '🛡️ SHIELD')
+    accent_color = '#0284C7' if is_edu else ('#8B5CF6' if is_dev else '#38BDF8')
+    home_url = '/edu' if is_edu else ('/dev' if is_dev else '/')
+
+    # Si es 502 o 504 en HTML, enviar 503 al borde para evitar que Cloudflare reemplace nuestra vista
+    http_status = 503 if status_code in (502, 504) else status_code
+
+    html_body = render_template(
+        'error_page.html',
+        page_title=f"{title} — {brand_name}",
+        brand_name=brand_name,
+        service_tag=service_tag,
+        service_name=brand_name,
+        accent_color=accent_color,
+        status_code=status_code,
+        error_code_label=code_label,
+        error_title=title,
+        error_message=message,
+        auto_retry=auto_retry,
+        node_state_text=node_state_text,
+        home_url=home_url,
+        timestamp=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+    )
+    return html_body, http_status, {'Cache-Control': 'no-store, no-cache, must-revalidate'}
+
+
+@app.errorhandler(403)
+def handle_403_error(e):
+    return _render_dory_error(
+        403,
+        'ACCESS_RESTRICTED',
+        'Acceso restringido por Dory Security Shield',
+        'No cuentas con permisos suficientes para acceder a este recurso o la sesión de seguridad ha expirado.',
+        auto_retry=False,
+        node_state_text='RESTRINGIDO'
+    )
+
+
+@app.errorhandler(404)
+def handle_404_error(e):
+    return _render_dory_error(
+        404,
+        'ROUTE_NOT_FOUND',
+        'Ruta no encontrada en Dory.mx',
+        f"La dirección '{request.path}' no existe o fue movida dentro del ecosistema Dory.",
+        auto_retry=False,
+        node_state_text='NO ENCONTRADO'
+    )
+
+
+@app.errorhandler(429)
+def handle_429_error(e):
+    return _render_dory_error(
+        429,
+        'RATE_LIMIT_SHIELD',
+        'Demasiadas solicitudes consecutivas',
+        'Por protección anti-abuso de Dory Security Shield, espera unos segundos antes de volver a intentar.',
+        auto_retry=True,
+        node_state_text='RATE LIMIT'
+    )
+
+
+@app.errorhandler(500)
+def handle_500_error(e):
+    return _render_dory_error(
+        500,
+        'INTERNAL_ENGINE_ERROR',
+        'Incidencia interna en el motor de Dory',
+        'Se produjo una excepción inesperada al procesar tu solicitud. Nuestro sistema de monitoreo ya la registró.',
+        auto_retry=False,
+        node_state_text='EXCEPCIÓN'
+    )
+
+
+@app.errorhandler(502)
+@app.errorhandler(503)
+@app.errorhandler(504)
+def handle_50x_error(e):
+    code = getattr(e, 'code', 503) or 503
+    return _render_dory_error(
+        code,
+        'SERVICE_RECONNECTING',
+        'Sincronizando servicio interno...',
+        'El túnel de Cloudflare y Dory Gateway están activos. El módulo solicitado se está reiniciando automáticamente.',
+        auto_retry=True,
+        node_state_text='REINICIANDO'
+    )
+
+
 if __name__ == '__main__':
-    # Development server
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    port = int(os.environ.get('PORT', 5050))
+    use_waitress = os.environ.get('DORY_USE_WAITRESS', '1').lower() in ('1', 'true', 'yes')
+    if use_waitress:
+        try:
+            import socket
+            import waitress
+            from waitress.server import TcpWSGIServer
+
+            if os.name == 'nt' and hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
+                def _exclusive_reuse_addr(self):
+                    try:
+                        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+                    except OSError:
+                        pass
+                TcpWSGIServer.set_reuse_addr = _exclusive_reuse_addr
+
+            logger.info(f"🚀 Starting Dory Production WSGI Server (Waitress) on 0.0.0.0:{port} [SO_EXCLUSIVEADDRUSE active]")
+            waitress.serve(
+                app,
+                host='0.0.0.0',
+                port=port,
+                threads=int(os.environ.get('DORY_THREADS', 12)),
+                connection_limit=256,
+                channel_timeout=60,
+                ident='Dory-Security-Gateway'
+            )
+            raise SystemExit(0)
+        except ImportError:
+            logger.warning("Waitress no disponible; usando Werkzeug con SO_EXCLUSIVEADDRUSE.")
+
+    if os.name == 'nt':
+        import socket
+        from werkzeug.serving import BaseWSGIServer
+        BaseWSGIServer.allow_reuse_address = False
+        _orig_server_bind = BaseWSGIServer.server_bind
+
+        def _exclusive_server_bind(self):
+            if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            return _orig_server_bind(self)
+
+        BaseWSGIServer.server_bind = _exclusive_server_bind
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+
 
 

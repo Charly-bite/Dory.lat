@@ -21,8 +21,13 @@ if sys.platform == 'win32':
         pass
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-API_URL = "http://127.0.0.1:5000/api/mail/inbound"
-API_KEY = "dory-sec-defense-key-2026"
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(APP_DIR, '.env'))
+except ImportError:
+    pass
+API_URL = os.environ.get("DORY_INBOUND_URL", "http://127.0.0.1:5000/api/mail/inbound")
+API_KEY = os.environ.get("DORY_WEBHOOK_SECRET", "")  # antes escrito en el código (versionado)
 OUTPUT_REPORT = os.path.join(APP_DIR, "logs", "test_real_100_results.json")
 HTML_REPORT = os.path.join(APP_DIR, "logs", "test_real_100_report.html")
 
