@@ -901,8 +901,8 @@ def proxy_to_microservice(target_url, extra_headers=None):
     logger.error(f"Error en reverse proxy tras probar pool HA para {target_url}: {last_error}")
 
     is_becas = ':3012' in target_url or ':3002' in target_url or '/becas' in request.path
-    service_name = 'BecaFinder UDG' if is_becas else 'TaskHub (Nemo)'
-    service_tag = '🎓 UDG' if is_becas else '⚡ NEMO'
+    service_name = 'BecaFinder (Crush)' if is_becas else 'TaskHub (Nemo)'
+    service_tag = '🐢 CRUSH' if is_becas else '⚡ NEMO'
     accent_color = '#06b6d4' if is_becas else '#6366f1'
 
     # Si es llamada API o probe JSON, devolver JSON con 503
@@ -977,11 +977,11 @@ def handle_becas_request(subpath="", prefix="/becas"):
             'edu_login.html',
             service_id='becas',
             service_brand='BecaFinder',
-            service_title='Acceso a BecaFinder',
-            service_tag='🎓 UDG',
+            service_title='Acceso a BecaFinder (Crush)',
+            service_tag='🐢 CRUSH',
             service_desc='Control de acceso independiente para el <strong>Buscador Académico y Convocatorias UDG</strong>',
             accent_color='#06b6d4',
-            btn_text='Ingresar a BecaFinder',
+            btn_text='Ingresar a BecaFinder (Crush)',
             error=error_msg,
             form_action=f"{prefix}/login",
             next_url=next_url
