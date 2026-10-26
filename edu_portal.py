@@ -904,6 +904,7 @@ def proxy_to_microservice(target_url, extra_headers=None):
     service_name = 'BecaFinder (Crush)' if is_becas else 'TaskHub (Nemo)'
     service_tag = '🐢 CRUSH' if is_becas else '⚡ NEMO'
     accent_color = '#06b6d4' if is_becas else '#6366f1'
+    brand_logo = '/static/crush_logo.svg' if is_becas else '/static/nemo_logo.svg'
 
     # Si es llamada API o probe JSON, devolver JSON con 503
     accept_hdr = request.headers.get('Accept', '')
@@ -922,6 +923,7 @@ def proxy_to_microservice(target_url, extra_headers=None):
         'error_page.html',
         page_title=f"Reconectando {service_name} — Dory.mx EDU",
         brand_name=service_name.split()[0],
+        brand_logo=brand_logo,
         service_tag=service_tag,
         service_name=service_name,
         accent_color=accent_color,
@@ -1061,11 +1063,11 @@ def handle_tareas_request(subpath="", prefix="/tareas"):
             'edu_login.html',
             service_id='tareas',
             service_brand='TaskHub',
-            service_title='Acceso a TaskHub',
+            service_title='Acceso a TaskHub (Nemo)',
             service_tag='⚡ NEMO',
             service_desc='Control de acceso independiente para <strong>Gestor de Tareas, Classroom y Moodle</strong>',
             accent_color='#6366f1',
-            btn_text='Ingresar a TaskHub',
+            btn_text='Ingresar a TaskHub (Nemo)',
             error=error_msg,
             form_action=f"{prefix}/login",
             next_url=next_url

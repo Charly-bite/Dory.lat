@@ -21,6 +21,7 @@ elif hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import re
+import time
 import hmac
 import secrets
 import logging
@@ -572,13 +573,13 @@ def api_anonymize():
         return jsonify({
             'success': True,
             'anonymized_text': res['anonymized_text'],
-            'mapping': res['mapping'],
+            'mapping': res['mapping'] if mode != 'blackout' else {},  # blackout is final: never ship the real values back
             'summary': res['summary'],
             'total_redactions': res['total_redactions']
         }), 200
     except Exception as e:
         logger.error(f"Error in /api/anonymize: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'No pudimos procesar el texto.'}), 500
 
 @app.route('/api/deanonymize', methods=['POST'])
 def api_deanonymize():
@@ -596,25 +597,42 @@ def api_deanonymize():
         }), 200
     except Exception as e:
         logger.error(f"Error in /api/deanonymize: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'No pudimos procesar el texto.'}), 500
+
+_CONTACT_HITS = {}  # ip -> recent submit timestamps (per process; each HA node counts its own)
+_EMAIL_OK = re.compile(r'^[^@\s]{1,64}@[^@\s]+\.[a-zA-Z]{2,}$')
 
 @app.route('/api/contact', methods=['POST'])
 def api_contact():
     """Handle service request / contact form submissions."""
     try:
         data = request.get_json(silent=True) or request.form.to_dict() or {}
-        name = (data.get('name') or '').strip()
-        email = (data.get('email') or '').strip()
-        company = (data.get('company') or '').strip()
-        team_size = (data.get('team_size') or '').strip()
-        interest = (data.get('interest') or '').strip()
-        message = (data.get('message') or '').strip()
-        
-        if not name or not email:
-            return jsonify({'error': 'Nombre y correo son campos obligatorios.'}), 400
+        clip = lambda k, n: str(data.get(k) or '').strip()[:n]
+        name = clip('name', 120)
+        email = clip('email', 200)
+        company = clip('company', 160)
+        team_size = clip('team_size', 20)
+        interest = clip('interest', 40)
+        message = clip('message', 4000)
 
         ip_address = request.headers.get('CF-Connecting-IP') or request.remote_addr
-        user_agent = request.headers.get('User-Agent', '')
+        user_agent = request.headers.get('User-Agent', '')[:400]
+
+        # Honeypot: humans never see the "website" field; bots fill it. Pretend success, store nothing.
+        if data.get('website'):
+            return jsonify({'success': True, 'message': 'Solicitud registrada exitosamente.'}), 200
+
+        if not name or not email:
+            return jsonify({'error': 'Nombre y correo son campos obligatorios.'}), 400
+        if not _EMAIL_OK.match(email):
+            return jsonify({'error': 'Revisa tu correo: parece incompleto.'}), 400
+
+        # shortcut: in-memory limiter (5 per 10 min per IP), resets on restart; move to Redis/DB if abuse grows.
+        now = time.time()
+        recent = [t for t in _CONTACT_HITS.get(ip_address, []) if now - t < 600]
+        if len(recent) >= 5:
+            return jsonify({'error': 'Recibimos varias solicitudes seguidas. Escríbenos a contacto@dory.mx.'}), 429
+        _CONTACT_HITS[ip_address] = recent + [now]
 
         with closing(get_db_connection()) as conn, conn:
             cursor = conn.cursor()
@@ -632,7 +650,7 @@ def api_contact():
         }), 200
     except Exception as e:
         logger.error(f"Error registrando lead de contacto: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'No pudimos registrar tu solicitud. Escríbenos a contacto@dory.mx.'}), 500
 
 @app.route('/api/consent', methods=['POST'])
 def api_consent():
@@ -1667,23 +1685,44 @@ def _render_dory_error(status_code: int, code_label: str, title: str, message: s
         }), status_code
 
     host_hdr = (request.headers.get('X-Forwarded-Host') or request.headers.get('Host') or '').lower()
-    is_edu = 'edu.dory.mx' in host_hdr or request.path.startswith(('/edu', '/tareas', '/becas', '/juegos', '/splunk'))
-    is_dev = 'dev.dory.mx' in host_hdr or request.path.startswith(('/dev', '/portfolio'))
+    req_path = request.path or ''
+    is_tareas = req_path.startswith(('/tareas', '/edu/tareas'))
+    is_becas = req_path.startswith(('/becas', '/edu/becas'))
+    is_edu = 'edu.dory.mx' in host_hdr or req_path.startswith(('/edu', '/tareas', '/becas', '/juegos', '/splunk'))
+    is_dev = 'dev.dory.mx' in host_hdr or req_path.startswith(('/dev', '/portfolio'))
 
-    brand_name = 'Dory EDU' if is_edu else ('Dory DEV' if is_dev else 'Dory.mx')
-    service_tag = '🎓 EDU' if is_edu else ('💻 DEV' if is_dev else '🛡️ SHIELD')
-    accent_color = '#0284C7' if is_edu else ('#8B5CF6' if is_dev else '#38BDF8')
-    home_url = '/edu' if is_edu else ('/dev' if is_dev else '/')
+    if is_tareas:
+        brand_name = 'TaskHub'
+        service_name = 'TaskHub (Nemo)'
+        service_tag = '⚡ NEMO'
+        accent_color = '#6366f1'
+        brand_logo = '/static/nemo_logo.svg'
+        home_url = '/edu/tareas/'
+    elif is_becas:
+        brand_name = 'BecaFinder'
+        service_name = 'BecaFinder (Crush)'
+        service_tag = '🐢 CRUSH'
+        accent_color = '#06b6d4'
+        brand_logo = '/static/crush_logo.svg'
+        home_url = '/edu/becas/'
+    else:
+        brand_name = 'Dory EDU' if is_edu else ('Dory DEV' if is_dev else 'Dory.mx')
+        service_name = brand_name
+        service_tag = '🎓 EDU' if is_edu else ('💻 DEV' if is_dev else '🛡️ SHIELD')
+        accent_color = '#0284C7' if is_edu else ('#8B5CF6' if is_dev else '#38BDF8')
+        brand_logo = '/static/Favicon Gabo 512x512.png'
+        home_url = '/edu' if is_edu else ('/dev' if is_dev else '/')
 
     # Si es 502 o 504 en HTML, enviar 503 al borde para evitar que Cloudflare reemplace nuestra vista
     http_status = 503 if status_code in (502, 504) else status_code
 
     html_body = render_template(
         'error_page.html',
-        page_title=f"{title} — {brand_name}",
+        page_title=f"{title} — {service_name}",
         brand_name=brand_name,
+        brand_logo=brand_logo,
         service_tag=service_tag,
-        service_name=brand_name,
+        service_name=service_name,
         accent_color=accent_color,
         status_code=status_code,
         error_code_label=code_label,
@@ -1695,6 +1734,30 @@ def _render_dory_error(status_code: int, code_label: str, title: str, message: s
         timestamp=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
     )
     return html_body, http_status, {'Cache-Control': 'no-store, no-cache, must-revalidate'}
+
+
+@app.errorhandler(400)
+def handle_400_error(e):
+    return _render_dory_error(
+        400,
+        'BAD_REQUEST_PAYLOAD',
+        'Solicitud inválida o incompleta',
+        'Los parámetros enviados no pudieron ser procesados por el Gateway de Dory.mx.',
+        auto_retry=False,
+        node_state_text='SOLICITUD INVÁLIDA'
+    )
+
+
+@app.errorhandler(401)
+def handle_401_error(e):
+    return _render_dory_error(
+        401,
+        'AUTH_REQUIRED',
+        'Autenticación requerida en Dory.mx',
+        'Inicia sesión en el portal para acceder a este módulo o sincronizar tu cuenta.',
+        auto_retry=False,
+        node_state_text='NO AUTENTICADO'
+    )
 
 
 @app.errorhandler(403)
