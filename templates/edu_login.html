@@ -11,7 +11,8 @@
   <link rel="icon" type="image/svg+xml" href="/static/crush_logo.svg">
   <link rel="alternate icon" type="image/png" href="/static/crush_logo_512.png">
   {% else %}
-  <link rel="icon" type="image/png" href="/static/Favicon Gabo 512x512.png">
+  <link rel="icon" type="image/svg+xml" href="/static/dory_edu_logo.svg">
+  <link rel="alternate icon" type="image/png" href="/static/dory_edu_logo_512.png">
   {% endif %}
 
   <!-- Google Fonts -->
@@ -327,7 +328,7 @@
   <div class="login-container">
     <div class="brand-header">
       <div class="logo-badge" {% if accent_color %}style="background: {{ accent_color }}22; border-color: {{ accent_color }}55;"{% endif %}>
-        <img src="{{ '/static/nemo_logo.svg' if service_id == 'tareas' else ('/static/crush_logo.svg' if service_id == 'becas' else '/static/Favicon Gabo 512x512.png') }}" alt="{{ service_brand or 'Dory.mx' }}">
+        <img src="{{ '/static/nemo_logo.svg' if service_id == 'tareas' else ('/static/crush_logo.svg' if service_id == 'becas' else '/static/dory_edu_logo.svg') }}" alt="{{ service_brand or 'Dory.mx' }}">
         <span>{{ service_brand or 'Dory.mx' }}</span>
         <span class="portal-tag" {% if accent_color %}style="background: {{ accent_color }}; color: #fff;"{% endif %}>{{ service_tag or 'EDU' }}</span>
       </div>

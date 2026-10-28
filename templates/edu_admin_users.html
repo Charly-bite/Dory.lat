@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administración de Usuarios Beta — Dory EDU</title>
+  <link rel="icon" type="image/png" href="/static/dory_edu_logo.svg">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --canvas-bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --border-subtle: #E2E8F0;
+      --border-hover: #CBD5E1;
+      --text-heavy: #0F172A;
+      --text-subdued: #334155;
+      --text-muted: #64748B;
+      --primary-ocean: #0284C7;
+      --primary-hover: #0369A1;
+      --primary-wash: #E0F2FE;
+      --safe-emerald: #059669;
+      --safe-bg: #ECFDF5;
+      --safe-border: #A7F3D0;
+      --admin-purple: #7C3AED;
+      --admin-bg: rgba(139, 92, 246, 0.1);
+      --admin-border: rgba(139, 92, 246, 0.25);
+      --danger-rose: #E11D48;
+      --danger-bg: #FFF1F2;
+      --danger-border: #FECDD3;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
+      --shadow-lg: 0 10px 25px -3px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--canvas-bg);
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: var(--text-subdued);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navbar */
+    .admin-navbar {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.9rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+
+    .brand-logo img {
+      width: 28px;
+      height: 28px;
+    }
+
+    .brand-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: var(--text-heavy);
+      letter-spacing: -0.02em;
+    }
+
+    .badge-edu {
+      background: #0284C7;
+      color: #FFFFFF;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.05em;
+    }
+
+    .badge-admin-tag {
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      color: #7C3AED;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.65rem;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.03em;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn-nav-hub {
+      background: #F1F5F9;
+      color: #334155;
+      border: 1px solid var(--border-subtle);
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-nav-hub:hover {
+      background: #E2E8F0;
+      color: #0F172A;
+      transform: translateY(-1px);
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--safe-bg);
+      border: 1px solid var(--safe-border);
+      color: var(--safe-emerald);
+      padding: 0.3rem 0.8rem;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .user-pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--safe-emerald);
+      box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+    }
+
+    .user-pill-img {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .user-role-chip {
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .user-role-chip.admin { background: rgba(139, 92, 246, 0.15); color: #7C3AED; }
+
+    .btn-logout {
+      background: #F1F5F9;
+      color: #475569;
+      border: none;
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-logout:hover {
+      background: #E2E8F0;
+      color: #0F172A;
+    }
+
+    /* Main Container */
+    .admin-main {
+      flex: 1;
+      max-width: 1240px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2.2rem 1.5rem;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .page-title-group h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-heavy);
+      margin-bottom: 0.35rem;
+    }
+
+    .page-title-group p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    /* Metric Cards Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.4rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      display: flex;
+      align-items: center;
+      gap: 1.1rem;
+    }
+
+    .stat-card:hover {
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .stat-icon.total { background: #EFF6FF; color: var(--primary-ocean); border: 1px solid #BFDBFE; }
+    .stat-icon.beta { background: var(--safe-bg); color: var(--safe-emerald); border: 1px solid var(--safe-border); }
+    .stat-icon.admin { background: var(--admin-bg); color: var(--admin-purple); border: 1px solid var(--admin-border); }
+    .stat-icon.suspended { background: var(--danger-bg); color: var(--danger-rose); border: 1px solid var(--danger-border); }
+
+    .stat-meta h3 {
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.2rem;
+      font-weight: 700;
+    }
+
+    .stat-meta .stat-value {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.9rem;
+      font-weight: 800;
+      color: var(--text-heavy);
+      line-height: 1.1;
+    }
+
+    /* Content Area & Table */
+    .content-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .content-toolbar {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      background: #FFFFFF;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      flex: 1;
+      max-width: 360px;
+    }
+
+    .search-input-wrapper svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    .search-input {
+      width: 100%;
+      background: #F8FAFC;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.65rem 0.85rem 0.65rem 2.4rem;
+      color: var(--text-heavy);
+      font-size: 0.88rem;
+      font-family: inherit;
+      outline: none;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .search-input:focus {
+      background: #FFFFFF;
+      border-color: var(--primary-ocean);
+      box-shadow: 0 0 0 3px var(--primary-wash);
+    }
+
+    .btn-add-user {
+      background: var(--primary-ocean);
+      color: #FFFFFF;
+      border: none;
+      padding: 0.65rem 1.25rem;
+      border-radius: var(--radius-md);
+      font-size: 0.86rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-add-user:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+    }
+
+    /* Table Styles */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background: #F8FAFC;
+      color: #475569;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.95rem 1.25rem;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 1.1rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.88rem;
+      vertical-align: middle;
+      color: var(--text-subdued);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: #F8FAFC;
+    }
+
+    /* User Profile Info */
+    .user-info-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .user-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .user-avatar-placeholder {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0284C7, #8B5CF6);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+
+    .user-name {
+      font-weight: 700;
+      color: var(--text-heavy);
+      line-height: 1.2;
+      font-size: 0.92rem;
+    }
+
+    .user-email {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Role & Status Badges */
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: var(--radius-full);
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .role-badge.admin {
+      background: var(--admin-bg);
+      border: 1px solid var(--admin-border);
+      color: var(--admin-purple);
+    }
+
+    .role-badge.beta_tester {
+      background: var(--safe-bg);
+      border: 1px solid var(--safe-border);
+      color: var(--safe-emerald);
+    }
+
+    .role-badge.student {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      color: var(--primary-ocean);
+    }
+
+    .role-badge.docente {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      color: #D97706;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-pill.active { color: var(--safe-emerald); }
+    .status-pill.active .status-dot { background: var(--safe-emerald); box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2); }
+
+    .status-pill.suspended { color: var(--danger-rose); }
+    .status-pill.suspended .status-dot { background: var(--danger-rose); box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.2); }
+
+    .time-cell {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* Actions */
+    .actions-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-action {
+      background: #F1F5F9;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-subdued);
+      padding: 0.4rem 0.75rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .btn-action:hover {
+      background: #E2E8F0;
+      color: var(--text-heavy);
+      border-color: var(--border-hover);
+    }
+
+    .btn-action.btn-toggle-suspend {
+      background: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger-rose);
+    }
+
+    .btn-action.btn-toggle-suspend:hover {
+      background: #FFE4E6;
+    }
+
+    .btn-action.btn-activate {
+      background: var(--safe-bg);
+      border-color: var(--safe-border);
+      color: var(--safe-emerald);
+    }
+
+    .btn-action.btn-activate:hover {
+      background: #D1FAE5;
+    }
+
+    .btn-action.btn-delete {
+      color: #94A3B8;
+    }
+
+    .btn-action.btn-delete:hover {
+      background: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger-rose);
+    }
+
+    .empty-state {
+      padding: 4rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-state svg {
+      margin-bottom: 1rem;
+      color: #94A3B8;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 480px;
+      padding: 2rem;
+      box-shadow: var(--shadow-lg);
+      animation: modalFadeIn 0.25s ease-out;
+      color: var(--text-heavy);
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-header h3 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text-heavy);
+    }
+
+    .btn-close-modal {
+      background: #F1F5F9;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-close-modal:hover {
+      background: #E2E8F0;
+      color: var(--text-heavy);
+    }
+
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-subdued);
+      margin-bottom: 0.4rem;
+    }
+
+    .form-control {
+      width: 100%;
+      background: #F8FAFC;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 0.95rem;
+      color: var(--text-heavy);
+      font-size: 0.9rem;
+      font-family: inherit;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .form-control:focus {
+      outline: none;
+      background: #FFFFFF;
+      border-color: var(--primary-ocean);
+      box-shadow: 0 0 0 3px var(--primary-wash);
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.8rem;
+      margin-top: 1.8rem;
+    }
+
+    .btn-modal-cancel {
+      background: #F1F5F9;
+      color: var(--text-subdued);
+      border: 1px solid var(--border-subtle);
+      padding: 0.6rem 1.1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-modal-cancel:hover {
+      background: #E2E8F0;
+      color: var(--text-heavy);
+    }
+
+    .btn-modal-save {
+      background: var(--primary-ocean);
+      color: #FFFFFF;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-modal-save:hover {
+      background: var(--primary-hover);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+    }
+
+    /* Toast Notification */
+    .toast-box {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0F172A;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 0.9rem 1.4rem;
+      border-radius: var(--radius-md);
+      font-size: 0.88rem;
+      color: #FFFFFF;
+      display: none;
+      align-items: center;
+      gap: 0.6rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      z-index: 200;
+    }
+
+    .toast-box.show {
+      display: flex;
+      animation: toastIn 0.3s ease-out;
+    }
+
+    @keyframes toastIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  
+    /* === EMIL KOWALSKI DESIGN ENGINEERING & 120HZ COMPOSITE LAYER === */
+    :root {
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .kpi-val, .stat-val, .stat-number, .metric-val, .badge, code, pre {
+      font-variant-numeric: tabular-nums;
+    }
+    button, .btn, [class*="btn-"], a[class*="btn"], .pill, .filter-tab, .project-card, .service-card, .faq-item {
+      transition: transform 180ms var(--ease-out), opacity 180ms var(--ease-out), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+    button:active:not(:disabled), .btn:active, [class*="btn-"]:active, a[class*="btn"]:active, .filter-tab:active {
+      transform: scale(0.97) !important;
+      transition-duration: 110ms !important;
+    }
+    @media (hover: none), (pointer: coarse) {
+      .project-card:hover, .service-card:hover, .bento-card:hover, [class*="btn"]:hover {
+        transform: none !important;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 150ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 150ms !important;
+        scroll-behavior: auto !important;
+      }
+      .project-card:hover, .service-card:hover, button:active, .btn:active {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="admin-navbar">
+    <div class="brand-group">
+      <a href="/edu/" class="brand-logo">
+        <img src="/static/dory_edu_logo.svg" alt="Dory.mx">
+        <span class="brand-name">Dory.mx</span>
+        <span class="badge-edu">EDU</span>
+      </a>
+      <span class="badge-admin-tag">🛡️ Consola de Usuarios</span>
+    </div>
+
+    <div class="nav-actions">
+      <a href="/edu/" class="btn-nav-hub" title="Volver al Hub Académico Central">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        <span>Hub Académico</span>
+      </a>
+      <div class="user-pill">
+        {% if session.get('edu_picture') %}
+          <img src="{{ session.get('edu_picture') }}" alt="{{ session.get('edu_name') }}" class="user-pill-img">
+        {% else %}
+          <span class="user-pill-dot"></span>
+        {% endif %}
+        <span>{{ session.get('edu_name') or session.get('edu_user') }}</span>
+        <span class="user-role-chip admin">ADMIN</span>
+      </div>
+      <a href="/edu/logout" class="btn-logout">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        <span>Salir</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="admin-main">
+    <div class="page-header">
+      <div class="page-title-group">
+        <h1>Gestión de Usuarios Beta</h1>
+        <p>Control centralizado de acceso, roles y primeros beta testers autenticados mediante Google OAuth.</p>
+      </div>
+      <div>
+        <button class="btn-add-user" onclick="openCreateModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>Dar de Alta Usuario Beta</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon total">👥</div>
+        <div class="stat-meta">
+          <h3>Total Registrados</h3>
+          <div class="stat-value">{{ stats.total }}</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon beta">⚡</div>
+        <div class="stat-meta">
+          <h3>Beta Testers Activos</h3>
+          <div class="stat-value">{{ stats.active_beta }}</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon admin">🛡️</div>
+        <div class="stat-meta">
+          <h3>Administradores</h3>
+          <div class="stat-value">{{ stats.admins }}</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon suspended">⛔</div>
+        <div class="stat-meta">
+          <h3>Suspendidos</h3>
+          <div class="stat-value">{{ stats.suspended }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="content-box">
+      <div class="content-toolbar">
+        <div class="search-input-wrapper">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="searchInput" class="search-input" placeholder="Buscar por nombre o correo..." oninput="filterTable()">
+        </div>
+        <div style="font-size: 0.82rem; color: var(--text-muted);">
+          Registro abierto activo: nuevos accesos Google se configuran automáticamente en <strong>Beta Tester</strong>.
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table id="usersTable">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Rol en Dory EDU</th>
+              <th>Estado</th>
+              <th>Fecha de Registro</th>
+              <th>Último Acceso</th>
+              <th style="text-align: right;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr data-user-id="{{ u.id }}" data-search="{{ (u.full_name or '')|lower }} {{ u.email|lower }}">
+              <td>
+                <div class="user-info-cell">
+                  {% if u.picture_url %}
+                    <img src="{{ u.picture_url }}" alt="{{ u.full_name }}" class="user-avatar" onerror="this.style.display='none'">
+                  {% else %}
+                    <div class="user-avatar-placeholder">
+                      {{ (u.full_name or u.email)[0]|upper }}
+                    </div>
+                  {% endif %}
+                  <div>
+                    <div class="user-name">{{ u.full_name or 'Sin nombre registrado' }}</div>
+                    <div class="user-email">{{ u.email }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="role-badge {{ u.role }}">
+                  {% if u.role == 'admin' %}🛡️ Administrador
+                  {% elif u.role == 'beta_tester' %}⚡ Beta Tester
+                  {% elif u.role == 'docente' %}🎓 Docente
+                  {% else %}📚 Estudiante{% endif %}
+                </span>
+              </td>
+              <td>
+                <span class="status-pill {{ u.status }}">
+                  <span class="status-dot"></span>
+                  <span>{{ 'Activo' if u.status == 'active' else 'Suspendido' }}</span>
+                </span>
+              </td>
+              <td class="time-cell">
+                {{ u.created_at or '—' }}
+              </td>
+              <td class="time-cell">
+                {{ u.last_login or 'Sin inicios recientes' }}
+              </td>
+              <td style="text-align: right;">
+                <div class="actions-cell" style="justify-content: flex-end;">
+                  <button class="btn-action" onclick="openEditRoleModal('{{ u.id }}', '{{ u.email }}', '{{ u.role }}')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    <span>Rol</span>
+                  </button>
+
+                  {% if u.status == 'active' %}
+                    <button class="btn-action btn-toggle-suspend" onclick="toggleUserStatus('{{ u.id }}', 'suspended')">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                      <span>Suspender</span>
+                    </button>
+                  {% else %}
+                    <button class="btn-action btn-activate" onclick="toggleUserStatus('{{ u.id }}', 'active')">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      <span>Activar</span>
+                    </button>
+                  {% endif %}
+
+                  <button class="btn-action btn-delete" onclick="deleteUser('{{ u.id }}', '{{ u.email }}')" title="Eliminar registro">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                  <h3>Aún no hay usuarios beta registrados</h3>
+                  <p>En cuanto tus usuarios beta inicien sesión con Google OAuth aparecerán listados aquí automáticamente.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL: CAMBIAR ROL -->
+  <div id="roleModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Modificar Rol de Usuario</h3>
+        <button class="btn-close-modal" onclick="closeRoleModal()">✕</button>
+      </div>
+      <form id="roleForm" onsubmit="submitRoleChange(event)">
+        <input type="hidden" id="modalUserId" name="user_id">
+        <div class="form-group">
+          <label class="form-label">Correo Electrónico</label>
+          <input type="text" id="modalUserEmail" class="form-control" readonly style="opacity: 0.75; background: #F1F5F9;">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modalUserRole">Seleccionar Rol</label>
+          <select id="modalUserRole" name="role" class="form-control">
+            <option value="beta_tester">⚡ Beta Tester (Acceso a TaskHub & Becas)</option>
+            <option value="student">📚 Estudiante UDG</option>
+            <option value="docente">🎓 Docente / Investigador</option>
+            <option value="admin">🛡️ Administrador (Acceso total)</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-modal-cancel" onclick="closeRoleModal()">Cancelar</button>
+          <button type="submit" class="btn-modal-save">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CREAR / PRE-REGISTRAR USUARIO -->
+  <div id="createModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Dar de Alta Usuario Beta</h3>
+        <button class="btn-close-modal" onclick="closeCreateModal()">✕</button>
+      </div>
+      <form id="createForm" onsubmit="submitCreateUser(event)">
+        <div class="form-group">
+          <label class="form-label" for="newEmail">Correo Electrónico (Google o UDG)</label>
+          <input type="email" id="newEmail" name="email" class="form-control" placeholder="usuario@gmail.com o @alumnos.udg.mx" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="newName">Nombre Completo (Opcional)</label>
+          <input type="text" id="newName" name="full_name" class="form-control" placeholder="Ej. Juan Pérez">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="newRole">Rol Asignado</label>
+          <select id="newRole" name="role" class="form-control">
+            <option value="beta_tester">⚡ Beta Tester</option>
+            <option value="student">📚 Estudiante UDG</option>
+            <option value="docente">🎓 Docente</option>
+            <option value="admin">🛡️ Administrador</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-modal-cancel" onclick="closeCreateModal()">Cancelar</button>
+          <button type="submit" class="btn-modal-save">Crear Registro</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toastBox" class="toast-box">
+    <span id="toastIcon">✅</span>
+    <span id="toastMsg">Operación completada</span>
+  </div>
+
+  <script>
+    function showToast(msg, isSuccess = true) {
+      const toast = document.getElementById('toastBox');
+      document.getElementById('toastMsg').innerText = msg;
+      document.getElementById('toastIcon').innerText = isSuccess ? '✅' : '⚠️';
+      toast.classList.add('show');
+      setTimeout(() => { toast.classList.remove('show'); }, 3000);
+    }
+
+    function filterTable() {
+      const q = document.getElementById('searchInput').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#usersTable tbody tr[data-search]');
+      rows.forEach(row => {
+        const text = row.getAttribute('data-search') || '';
+        row.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    function openEditRoleModal(id, email, currentRole) {
+      document.getElementById('modalUserId').value = id;
+      document.getElementById('modalUserEmail').value = email;
+      document.getElementById('modalUserRole').value = currentRole;
+      document.getElementById('roleModal').classList.add('active');
+    }
+
+    function closeRoleModal() {
+      document.getElementById('roleModal').classList.remove('active');
+    }
+
+    function openCreateModal() {
+      document.getElementById('createModal').classList.add('active');
+    }
+
+    function closeCreateModal() {
+      document.getElementById('createModal').classList.remove('active');
+    }
+
+    async function submitRoleChange(e) {
+      e.preventDefault();
+      const userId = document.getElementById('modalUserId').value;
+      const role = document.getElementById('modalUserRole').value;
+
+      try {
+        const resp = await fetch('/edu/admin/users/update-role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, role: role })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          showToast('Rol actualizado con éxito.');
+          closeRoleModal();
+          setTimeout(() => { window.location.reload(); }, 900);
+        } else {
+          showToast(data.error || 'Error al actualizar rol', false);
+        }
+      } catch (err) {
+        showToast('Error de conexión: ' + err.message, false);
+      }
+    }
+
+    async function toggleUserStatus(userId, newStatus) {
+      try {
+        const resp = await fetch('/edu/admin/users/toggle-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, status: newStatus })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          showToast(`Estado cambiado a ${newStatus}.`);
+          setTimeout(() => { window.location.reload(); }, 900);
+        } else {
+          showToast(data.error || 'Error al cambiar estado', false);
+        }
+      } catch (err) {
+        showToast('Error de conexión: ' + err.message, false);
+      }
+    }
+
+    async function deleteUser(userId, email) {
+      if (!confirm(`¿Estás seguro de que deseas eliminar al usuario ${email}?`)) return;
+
+      try {
+        const resp = await fetch('/edu/admin/users/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          showToast('Usuario eliminado.');
+          setTimeout(() => { window.location.reload(); }, 900);
+        } else {
+          showToast(data.error || 'Error al eliminar', false);
+        }
+      } catch (err) {
+        showToast('Error de conexión: ' + err.message, false);
+      }
+    }
+
+    async function submitCreateUser(e) {
+      e.preventDefault();
+      const email = document.getElementById('newEmail').value.trim();
+      const fullName = document.getElementById('newName').value.trim();
+      const role = document.getElementById('newRole').value;
+
+      try {
+        const resp = await fetch('/edu/admin/users/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, full_name: fullName, role: role })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          showToast('Usuario dado de alta.');
+          closeCreateModal();
+          setTimeout(() => { window.location.reload(); }, 900);
+        } else {
+          showToast(data.error || 'Error al registrar', false);
+        }
+      } catch (err) {
+        showToast('Error de conexión: ' + err.message, false);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<svg width="512" height="512" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Sky-Ocean Circular Badge (identical to Nemo & Crush family) -->
+    <linearGradient id="doryBadgeBg" x1="15" y1="10" x2="85" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A5D4FF" />
+      <stop offset="55%" stop-color="#8BC4FF" />
+      <stop offset="100%" stop-color="#6BB0FF" />
+    </linearGradient>
+
+    <!-- Vibrant Regal Blue Tang Body Gradient -->
+    <linearGradient id="doryBlue" x1="22" y1="30" x2="80" y2="68" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="55%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+
+    <!-- Clearly Visible Royal Blue for Dorsal & Ventral Fins -->
+    <linearGradient id="doryFinBlue" x1="25" y1="22" x2="65" y2="76" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+
+    <!-- Vibrant Lemon-Gold for Tail & Pectoral Tip -->
+    <linearGradient id="doryYellow" x1="8" y1="36" x2="26" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="55%" stop-color="#FFE600" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+
+    <!-- Clip path for clean markings inside the fish body -->
+    <clipPath id="doryBodyClip">
+      <path d="M22 50C22 36.5 36 29.5 54.5 30C70 30.5 81.8 39.2 83.8 49C84.4 52 83 55.2 80 57.8C74.5 65.2 61.2 69.5 46.8 69C32.8 68.5 22 61.5 22 50Z" />
+    </clipPath>
+  </defs>
+
+  <!-- Circular Sky-Blue Badge -->
+  <circle cx="50" cy="50" r="48" fill="url(#doryBadgeBg)" />
+  <circle cx="50" cy="50" r="46.5" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="1.2" />
+
+  <!-- Subtle Water Bubbles on Right (Echoing Nemo's exact layout) -->
+  <circle cx="86.5" cy="34" r="2.6" fill="#FFFFFF" fill-opacity="0.68" />
+  <circle cx="89" cy="43" r="1.6" fill="#FFFFFF" fill-opacity="0.52" />
+  <circle cx="84" cy="25.5" r="1.4" fill="#FFFFFF" fill-opacity="0.48" />
+
+  <!-- Sweeping Surgeonfish Dorsal Fin (Top - bright blue interior with bold dark rim) -->
+  <path
+    d="M30 33.5C34.5 23 49.5 21.5 65.5 27.5C67 29.5 67 32.5 65 34.5L30 33.5Z"
+    fill="url(#doryFinBlue)"
+    stroke="#0B0F19"
+    stroke-width="3"
+    stroke-linejoin="round"
+  />
+
+  <!-- Sweeping Ventral Fin (Bottom - bright blue interior with bold dark rim) -->
+  <path
+    d="M32 65.5C36.5 74.5 50 75.5 63.5 68.5L61 64.5L32 65.5Z"
+    fill="url(#doryFinBlue)"
+    stroke="#0B0F19"
+    stroke-width="3"
+    stroke-linejoin="round"
+  />
+
+  <!-- Iconic Yellow Caudal Fin (Tail on Left) -->
+  <path
+    d="M24 44.5L12.5 36.5C9 34.8 7.6 41.2 8.6 50C7.6 58.8 9 65.2 12.5 63.5L24 55.5Z"
+    fill="url(#doryYellow)"
+    stroke="#0B0F19"
+    stroke-width="3.2"
+    stroke-linejoin="round"
+  />
+  <!-- Tail Inner Accent Rays (matching Nemo's tail style) -->
+  <path d="M12.8 45.5L20.5 48.5M12.8 54.5L20.5 51.5" stroke="#0B0F19" stroke-width="1.8" stroke-linecap="round" opacity="0.45" />
+
+  <!-- Main Regal Blue Tang Body -->
+  <path
+    d="M22 50C22 36.5 36 29.5 54.5 30C70 30.5 81.8 39.2 83.8 49C84.4 52 83 55.2 80 57.8C74.5 65.2 61.2 69.5 46.8 69C32.8 68.5 22 61.5 22 50Z"
+    fill="url(#doryBlue)"
+  />
+
+  <!-- Clipped Iconic Palette-Tang Marking (Leaves bright blue top ridge, center oval, and lower belly) -->
+  <g clip-path="url(#doryBodyClip)">
+    <!-- Subtle Top Highlight -->
+    <path
+      d="M28 38C40 31.5 62 31.5 77 39.5"
+      stroke="#93C5FD"
+      stroke-width="3"
+      stroke-linecap="round"
+      opacity="0.55"
+    />
+
+    <!-- Outer Black Palette Tang Arch from Eye to Tail -->
+    <path
+      d="M21 50C26 39 40 35 56 35.5C65.5 35.8 71.5 39.5 74.5 44.5C69 44.5 65.5 48 63 52C58.5 57.5 48.5 59.5 38.5 57.5C31 56 25.5 53.5 21 50Z"
+      fill="#0B0F19"
+    />
+
+    <!-- Inner Royal-Blue Island Window Inside the Black Arch -->
+    <ellipse
+      cx="47.5"
+      cy="47.5"
+      rx="11.5"
+      ry="5.2"
+      transform="rotate(-6 47.5 47.5)"
+      fill="url(#doryBlue)"
+    />
+  </g>
+
+  <!-- Body Outer Contour for Crisp Contrast at Small Favicon Sizes -->
+  <path
+    d="M22 50C22 36.5 36 29.5 54.5 30C70 30.5 81.8 39.2 83.8 49C84.4 52 83 55.2 80 57.8C74.5 65.2 61.2 69.5 46.8 69C32.8 68.5 22 61.5 22 50Z"
+    stroke="#0B0F19"
+    stroke-width="2.8"
+    stroke-linejoin="round"
+  />
+
+  <!-- Dory's Pectoral Fin (Center-Right, Rounded with Black Rim & Bright Yellow Tip) -->
+  <path
+    d="M55.5 52C61 50.5 64 55 61 59C58.5 62 53 60.5 52 57C51.5 54.5 53 52.7 55.5 52Z"
+    fill="url(#doryYellow)"
+    stroke="#0B0F19"
+    stroke-width="2.8"
+    stroke-linejoin="round"
+  />
+
+  <!-- Expressive Eye (Matching Nemo's clean icon style with Dory's magenta-berry rim) -->
+  <circle cx="74.8" cy="45.2" r="4.6" fill="#0B0F19" />
+  <circle cx="74.8" cy="45.2" r="3.4" fill="#BE185D" />
+  <circle cx="74.8" cy="45.2" r="2.2" fill="#0B0F19" />
+  <circle cx="76" cy="43.9" r="1.4" fill="#FFFFFF" />
+
+  <!-- Subtle Friendly Smile (Matching Nemo) -->
+  <path
+    d="M82.5 53.2C80.2 54.6 77.2 54.3 75.5 52.8"
+    stroke="#0B0F19"
+    stroke-width="2.2"
+    stroke-linecap="round"
+  />
+</svg>

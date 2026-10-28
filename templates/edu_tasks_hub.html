@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskHub — Gestor Unificado de Tareas | Dory EDU</title>
+  <link rel="icon" type="image/png" href="/static/dory_edu_logo.svg">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --canvas-bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --border-subtle: #E2E8F0;
+      --border-active: #CBD5E1;
+      --text-heavy: #0F172A;
+      --text-subdued: #334155;
+      --text-muted: #64748B;
+      --primary-ocean: #0284C7;
+      --primary-hover: #0369A1;
+      --primary-wash: #E0F2FE;
+      --safe-emerald: #059669;
+      --safe-bg: #ECFDF5;
+      --safe-border: #A7F3D0;
+      --warning-amber: #D97706;
+      --warning-bg: #FFFBEB;
+      --danger-rose: #E11D48;
+      --danger-bg: #FFF1F2;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: var(--canvas-bg); font-family: 'Inter', sans-serif; color: var(--text-subdued); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Top Bar */
+    .task-header {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.85rem 1.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #475569;
+      text-decoration: none;
+      font-size: 0.84rem;
+      font-weight: 600;
+      padding: 0.45rem 0.8rem;
+      border-radius: var(--radius-md);
+      background: #F1F5F9;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-back:hover { background: #E2E8F0; color: #0F172A; }
+
+    .brand-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-heavy);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .badge-chip {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.55rem;
+      border-radius: var(--radius-full);
+      background: #DCFCE7;
+      color: #15803D;
+      font-weight: 700;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .btn-sync-permanent {
+      background: linear-gradient(135deg, #0284C7, #0369A1);
+      color: #FFFFFF;
+      border: none;
+      padding: 0.55rem 1.15rem;
+      border-radius: var(--radius-md);
+      font-size: 0.86rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-sync-permanent:hover {
+      background: linear-gradient(135deg, #0369A1, #075985);
+      transform: translateY(-1px);
+    }
+
+    .btn-sync-permanent.spinning svg {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* Main Container */
+    .task-container {
+      flex: 1;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 1.8rem 1.5rem;
+      width: 100%;
+    }
+
+    /* Stats Strip */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.8rem;
+    }
+
+    .stat-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.2rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-value { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.7rem; font-weight: 800; color: var(--text-heavy); margin-top: 0.3rem; }
+
+    /* Filter & Search Bar */
+    .filter-bar {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.9rem 1.2rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.4rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      padding: 0.45rem 0.85rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .filter-btn:hover { background: #F1F5F9; color: var(--text-heavy); }
+    .filter-btn.active { background: #E0F2FE; color: var(--primary-ocean); font-weight: 700; }
+
+    .filter-controls {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      flex: 1;
+      justify-content: flex-end;
+      min-width: 260px;
+    }
+
+    .search-box {
+      padding: 0.45rem 0.8rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      outline: none;
+      width: 100%;
+      max-width: 240px;
+    }
+
+    .course-select {
+      padding: 0.45rem 0.8rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      outline: none;
+      background: #FFF;
+      cursor: pointer;
+      max-width: 220px;
+    }
+
+    /* Task Card */
+    .task-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 0.85rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1.1rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .task-card:hover { border-color: #CBD5E1; box-shadow: var(--shadow-md); }
+    .task-card.completed { opacity: 0.65; background: #F8FAFC; }
+    .task-card.completed .task-title { text-decoration: line-through; color: #94A3B8; }
+
+    .task-checkbox-wrap {
+      padding-top: 0.2rem;
+    }
+
+    .task-checkbox {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 2px solid #CBD5E1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      background: #FFF;
+    }
+
+    .task-checkbox:hover { border-color: var(--primary-ocean); }
+    .task-checkbox.checked {
+      background: var(--safe-emerald);
+      border-color: var(--safe-emerald);
+      color: #FFF;
+    }
+
+    .task-info { flex: 1; }
+    .task-course { font-size: 0.74rem; font-weight: 700; color: var(--primary-ocean); text-transform: uppercase; margin-bottom: 0.25rem; }
+    .task-title { font-size: 1.02rem; font-weight: 700; color: var(--text-heavy); margin-bottom: 0.35rem; line-height: 1.35; }
+    .task-desc { font-size: 0.84rem; color: var(--text-muted); line-height: 1.45; }
+
+    .task-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.5rem;
+      min-width: 140px;
+    }
+
+    .due-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: var(--radius-full);
+      background: var(--warning-bg);
+      color: var(--warning-amber);
+      border: 1px solid #FDE68A;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      white-space: nowrap;
+    }
+
+    .btn-link-moodle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #475569;
+      text-decoration: none;
+      padding: 0.25rem 0.55rem;
+      border-radius: var(--radius-sm);
+      background: #F1F5F9;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-link-moodle:hover { background: #E2E8F0; color: #0F172A; }
+
+    .empty-state {
+      background: #FFFFFF;
+      border: 2px dashed var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 3rem 1.5rem;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    /* MODAL DE SINCRONIZACIÓN */
+    .sync-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .sync-modal.open { display: flex; }
+
+    .modal-box {
+      background: #FFFFFF;
+      border-radius: var(--radius-lg);
+      padding: 2.2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1.2rem;
+      right: 1.2rem;
+      background: #F1F5F9;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748B;
+    }
+
+    .modal-close:hover { background: #E2E8F0; color: #0F172A; }
+
+    .modal-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 1.4rem;
+      gap: 0.5rem;
+    }
+
+    .modal-tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 0.6rem 0.8rem;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .modal-tab-btn.active {
+      color: var(--primary-ocean);
+      border-bottom-color: var(--primary-ocean);
+      font-weight: 700;
+    }
+
+    /* GOOGLE OAUTH CARD IN MODAL */
+    .google-auth-box {
+      background: #F8FAFC;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.4rem;
+      text-align: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .btn-google-sso {
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1.4rem;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #1E293B;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.7rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .btn-google-sso:hover {
+      background: #F8FAFC;
+      border-color: #94A3B8;
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .btn-google-sso:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Progress Radar */
+    .sync-progress-box {
+      display: none;
+      margin-top: 1rem;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-radius: var(--radius-sm);
+      padding: 0.9rem;
+      font-size: 0.84rem;
+      color: #166534;
+      text-align: left;
+    }
+
+    .sync-progress-box.active { display: block; }
+    .sync-progress-box.error { background: #FFF1F2; border-color: #FECDD3; color: #9F1239; }
+
+    .modal-input {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      font-family: inherit;
+    }
+
+    .modal-actions { display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1rem; }
+    .btn-secondary { background: #F1F5F9; border: none; padding: 0.6rem 1rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; }
+    .btn-primary { background: var(--primary-ocean); color: #FFF; border: none; padding: 0.6rem 1.2rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; }
+  
+    /* === EMIL KOWALSKI DESIGN ENGINEERING & 120HZ COMPOSITE LAYER === */
+    :root {
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .kpi-val, .stat-val, .stat-number, .metric-val, .badge, code, pre {
+      font-variant-numeric: tabular-nums;
+    }
+    button, .btn, [class*="btn-"], a[class*="btn"], .pill, .filter-tab, .project-card, .service-card, .faq-item {
+      transition: transform 180ms var(--ease-out), opacity 180ms var(--ease-out), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+    button:active:not(:disabled), .btn:active, [class*="btn-"]:active, a[class*="btn"]:active, .filter-tab:active {
+      transform: scale(0.97) !important;
+      transition-duration: 110ms !important;
+    }
+    @media (hover: none), (pointer: coarse) {
+      .project-card:hover, .service-card:hover, .bento-card:hover, [class*="btn"]:hover {
+        transform: none !important;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 150ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 150ms !important;
+        scroll-behavior: auto !important;
+      }
+      .project-card:hover, .service-card:hover, button:active, .btn:active {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <header class="task-header">
+    <div class="header-left">
+      <a href="/edu/" class="btn-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <span>Hub Dory EDU</span>
+      </a>
+
+      <div class="brand-title">
+        <span>TaskHub (Nemo)</span>
+        <span class="badge-chip">Base Local Activa</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button type="button" class="btn-sync-permanent" id="btnSyncMoodle" onclick="openSyncModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        <span>Sincronizar Moodle CUGDL</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="task-container">
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Materias Registradas</div>
+        <div class="stat-value">{{ courses|length }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Tareas Totales</div>
+        <div class="stat-value" id="totalTasksCount">{{ tasks|length }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Estudiante Vinculado</div>
+        <div class="stat-value" style="font-size: 1.15rem; margin-top: 0.5rem; color: var(--primary-ocean);">
+          {{ moodle_user or 'Sin vincular' }}
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Última Sincronización</div>
+        <div class="stat-value" style="font-size: 0.95rem; margin-top: 0.6rem; color: #475569;">
+          {{ last_sync or 'Pendiente de sincronizar' }}
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+      <div class="filter-tabs">
+        <button class="filter-btn active" data-filter="all" onclick="setTaskFilter('all')">Todas (<span id="countAll">{{ tasks|length }}</span>)</button>
+        <button class="filter-btn" data-filter="pending" onclick="setTaskFilter('pending')">Pendientes</button>
+        <button class="filter-btn" data-filter="completed" onclick="setTaskFilter('completed')">Completadas</button>
+      </div>
+
+      <div class="filter-controls">
+        <input type="text" class="search-box" id="taskSearch" placeholder="Buscar tarea..." oninput="applyFilters()">
+        <select class="course-select" id="courseFilter" onchange="applyFilters()">
+          <option value="ALL">Todas las materias</option>
+          {% for c in courses %}
+          <option value="{{ c.name }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- TASKS LIST -->
+    <div id="tasksList">
+      {% if tasks %}
+        {% for t in tasks %}
+        <div class="task-card {{ 'completed' if t.status == 'completed' else '' }}" data-id="{{ t.id }}" data-status="{{ t.status }}" data-course="{{ t.course_name }}">
+          <div class="task-checkbox-wrap">
+            <div class="task-checkbox {{ 'checked' if t.status == 'completed' else '' }}" onclick="toggleTask('{{ t.id }}', '{{ 'pending' if t.status == 'completed' else 'completed' }}')">
+              {% if t.status == 'completed' %}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="task-info">
+            <div class="task-course">{{ t.course_name }}</div>
+            <div class="task-title">{{ t.title }}</div>
+            {% if t.description %}
+            <div class="task-desc">{{ t.description|striptags }}</div>
+            {% endif %}
+          </div>
+
+          <div class="task-meta">
+            <span class="due-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+              {{ t.due_date }}
+            </span>
+            {% if t.raw_url %}
+            <a href="{{ t.raw_url }}" target="_blank" rel="noopener noreferrer" class="btn-link-moodle">
+              <span>Abrir en Moodle</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            </a>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.5" style="margin-bottom: 0.8rem;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <h3 style="font-size: 1.15rem; color: #1E293B; margin-bottom: 0.4rem;">No hay tareas almacenadas en academic.db</h3>
+          <p style="font-size: 0.86rem; max-width: 440px; margin: 0 auto 1.3rem;">
+            Presiona el botón <strong>«Sincronizar Moodle CUGDL»</strong> para vincular tu cuenta institucional con Google OAuth o credenciales UDG.
+          </p>
+          <button type="button" class="btn-primary" onclick="openSyncModal()">Sincronizar Ahora</button>
+        </div>
+      {% endif %}
+    </div>
+  </main>
+
+  <!-- MODAL DE SINCRONIZACIÓN -->
+  <div class="sync-modal" id="syncModal">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeSyncModal()">✕</button>
+      <h3 style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.25rem; font-weight: 800; color: #0F172A; margin-bottom: 0.3rem;">Sincronizar con Moodle CUGDL</h3>
+      <p style="font-size: 0.84rem; color: #64748B; margin-bottom: 1.2rem;">Conecta tu cuenta universitaria para descargar automáticamente tus materias y tareas vigentes.</p>
+
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" data-tab="tabGoogle" onclick="switchModalTab('tabGoogle')">Google OAuth UDG</button>
+        <button class="modal-tab-btn" data-tab="tabCreds" onclick="switchModalTab('tabCreds')">Código + NIP</button>
+        <button class="modal-tab-btn" data-tab="tabCookie" onclick="switchModalTab('tabCookie')">Cookie / Token</button>
+      </div>
+
+      <!-- TAB 1: GOOGLE OAUTH (RECOMENDADO) -->
+      <div id="tabGoogle" class="tab-pane">
+        <div class="google-auth-box">
+          <p style="font-size: 0.86rem; color: #334155; margin-bottom: 1rem; line-height: 1.45;">
+            Inicia sesión con tu correo institucional <strong>@alumnos.udg.mx</strong> a través del conmutador oficial de Moodle CUGDL.
+          </p>
+          <button type="button" class="btn-google-sso" id="btnGoogleStart" onclick="startGoogleOAuth()">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.92 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+            <span>Iniciar con Google UDG</span>
+          </button>
+        </div>
+
+        <div class="sync-progress-box" id="googleProgress">
+          <div style="font-weight: 700; margin-bottom: 0.3rem;" id="progressTitle">Iniciando asistente...</div>
+          <div id="progressDetail" style="font-size: 0.8rem; opacity: 0.9;">Espere un momento.</div>
+        </div>
+      </div>
+
+      <!-- TAB 2: CREDENCIALES DIRECTAS (CODIGO + NIP) -->
+      <div id="tabCreds" class="tab-pane" style="display: none;">
+        <form onsubmit="executeSyncCreds(event)">
+          <label style="font-size: 0.78rem; font-weight: 600; color: #475569; display: block; margin-bottom: 0.3rem;">Código de Estudiante</label>
+          <input type="text" class="modal-input" id="moodleUser" placeholder="Ej. 219485721" value="{{ moodle_user }}" required>
+
+          <label style="font-size: 0.78rem; font-weight: 600; color: #475569; display: block; margin-bottom: 0.3rem;">NIP / Contraseña</label>
+          <input type="password" class="modal-input" id="moodlePass" placeholder="••••••••" required>
+
+          <div id="credsFeedback" style="display: none; padding: 0.6rem; font-size: 0.8rem; border-radius: 6px; margin-bottom: 1rem;"></div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick="closeSyncModal()">Cancelar</button>
+            <button type="submit" class="btn-primary" id="btnDoCredsSync">Sincronizar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- TAB 3: COOKIE / TOKEN DIRECTO -->
+      <div id="tabCookie" class="tab-pane" style="display: none;">
+        <form onsubmit="executeSyncCookie(event)">
+          <label style="font-size: 0.78rem; font-weight: 600; color: #475569; display: block; margin-bottom: 0.3rem;">Valor de Cookie MoodleSession</label>
+          <input type="text" class="modal-input" id="moodleCookieVal" placeholder="Ej. 6ggue230lbu6bpn6migt9n5hup" required>
+
+          <div id="cookieFeedback" style="display: none; padding: 0.6rem; font-size: 0.8rem; border-radius: 6px; margin-bottom: 1rem;"></div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick="closeSyncModal()">Cancelar</button>
+            <button type="submit" class="btn-primary" id="btnDoCookieSync">Validar y Sincronizar</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let currentFilter = 'all';
+
+    function openSyncModal() {
+      document.getElementById('syncModal').classList.add('open');
+    }
+
+    function closeSyncModal() {
+      document.getElementById('syncModal').classList.remove('open');
+    }
+
+    function switchModalTab(tabId) {
+      document.querySelectorAll('.modal-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-tab') === tabId);
+      });
+      document.querySelectorAll('.tab-pane').forEach(p => {
+        p.style.display = p.id === tabId ? 'block' : 'none';
+      });
+    }
+
+    // Google OAuth Assistant Flow
+    let googlePollingInterval = null;
+
+    async function startGoogleOAuth() {
+      const btn = document.getElementById('btnGoogleStart');
+      const progressBox = document.getElementById('googleProgress');
+      const title = document.getElementById('progressTitle');
+      const detail = document.getElementById('progressDetail');
+
+      btn.disabled = true;
+      progressBox.className = 'sync-progress-box active';
+      title.innerText = 'Abriendo ventana de inicio de sesión...';
+      detail.innerText = 'Una ventana se abrirá en tu pantalla para conectar tu cuenta @alumnos.udg.mx.';
+
+      try {
+        const resp = await fetch('/edu/api/moodle/sync-google-start', { method: 'POST' });
+        const data = await resp.json();
+
+        // Empezar a monitorear el estado cada 1.5s
+        if (googlePollingInterval) clearInterval(googlePollingInterval);
+        googlePollingInterval = setInterval(pollGoogleStatus, 1500);
+
+      } catch (err) {
+        progressBox.className = 'sync-progress-box active error';
+        title.innerText = 'Error al iniciar asistente';
+        detail.innerText = err.message;
+        btn.disabled = false;
+      }
+    }
+
+    async function pollGoogleStatus() {
+      try {
+        const resp = await fetch('/edu/api/moodle/sync-google-status');
+        const st = await resp.json();
+        const progressBox = document.getElementById('googleProgress');
+        const title = document.getElementById('progressTitle');
+        const detail = document.getElementById('progressDetail');
+        const btn = document.getElementById('btnGoogleStart');
+
+        if (st.status === 'waiting_login') {
+          title.innerText = 'Esperando inicio de sesión';
+          detail.innerText = st.message || 'Por favor completa el acceso en la ventana que apareció en tu pantalla...';
+        } else if (st.status === 'syncing') {
+          title.innerText = '¡Sesión detectada!';
+          detail.innerText = st.message || 'Descargando materias y tareas de Moodle CUGDL...';
+        } else if (st.status === 'completed') {
+          clearInterval(googlePollingInterval);
+          progressBox.className = 'sync-progress-box active';
+          title.innerText = '✅ ¡Sincronización Exitosa!';
+          detail.innerText = `${st.message} Recargando tareas...`;
+          setTimeout(() => { window.location.reload(); }, 1200);
+        } else if (st.status === 'error') {
+          clearInterval(googlePollingInterval);
+          progressBox.className = 'sync-progress-box active error';
+          title.innerText = '⚠️ No se pudo completar';
+          detail.innerText = st.message;
+          btn.disabled = false;
+        }
+      } catch (e) {
+        console.error('Error polling status:', e);
+      }
+    }
+
+    // Direct Creds Sync (Código + NIP)
+    async function executeSyncCreds(event) {
+      event.preventDefault();
+      const user = document.getElementById('moodleUser').value.trim();
+      const pass = document.getElementById('moodlePass').value;
+      const feedback = document.getElementById('credsFeedback');
+      const btn = document.getElementById('btnDoCredsSync');
+
+      btn.disabled = true;
+      btn.innerText = 'Sincronizando...';
+      feedback.style.display = 'none';
+
+      try {
+        const resp = await fetch('/edu/api/moodle/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass })
+        });
+        const data = await resp.json();
+
+        feedback.style.display = 'block';
+        if (data.success) {
+          feedback.style.background = '#ECFDF5';
+          feedback.style.color = '#065F46';
+          feedback.innerHTML = `<strong>✅ Éxito:</strong> ${data.message}`;
+          setTimeout(() => { window.location.reload(); }, 1200);
+        } else {
+          feedback.style.background = '#FFF1F2';
+          feedback.style.color = '#9F1239';
+          feedback.innerHTML = `<strong>⚠️ Error:</strong> ${data.error}`;
+        }
+      } catch (err) {
+        feedback.style.display = 'block';
+        feedback.style.background = '#FFF1F2';
+        feedback.style.color = '#9F1239';
+        feedback.innerHTML = `<strong>❌ Error de red:</strong> ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Sincronizar';
+      }
+    }
+
+    // Direct Cookie Sync
+    async function executeSyncCookie(event) {
+      event.preventDefault();
+      const cookieVal = document.getElementById('moodleCookieVal').value.trim();
+      const feedback = document.getElementById('cookieFeedback');
+      const btn = document.getElementById('btnDoCookieSync');
+
+      btn.disabled = true;
+      btn.innerText = 'Validando sesión...';
+      feedback.style.display = 'none';
+
+      try {
+        const resp = await fetch('/edu/api/moodle/sync-cookie', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ moodle_session: cookieVal })
+        });
+        const data = await resp.json();
+
+        feedback.style.display = 'block';
+        if (data.success) {
+          feedback.style.background = '#ECFDF5';
+          feedback.style.color = '#065F46';
+          feedback.innerHTML = `<strong>✅ Éxito:</strong> ${data.message}`;
+          setTimeout(() => { window.location.reload(); }, 1200);
+        } else {
+          feedback.style.background = '#FFF1F2';
+          feedback.style.color = '#9F1239';
+          feedback.innerHTML = `<strong>⚠️ Error:</strong> ${data.error}`;
+        }
+      } catch (err) {
+        feedback.style.display = 'block';
+        feedback.style.background = '#FFF1F2';
+        feedback.style.color = '#9F1239';
+        feedback.innerHTML = `<strong>❌ Error de red:</strong> ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Validar y Sincronizar';
+      }
+    }
+
+    // Toggle Task Complete / Pending
+    async function toggleTask(taskId, newStatus) {
+      try {
+        const resp = await fetch('/edu/api/task/toggle-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task_id: taskId, status: newStatus })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          const card = document.querySelector(`.task-card[data-id="${taskId}"]`);
+          if (card) {
+            card.setAttribute('data-status', newStatus);
+            card.classList.toggle('completed', newStatus === 'completed');
+            const chk = card.querySelector('.task-checkbox');
+            chk.classList.toggle('checked', newStatus === 'completed');
+            chk.innerHTML = newStatus === 'completed' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '';
+            chk.setAttribute('onclick', `toggleTask('${taskId}', '${newStatus === 'completed' ? 'pending' : 'completed'}')`);
+          }
+          applyFilters();
+        }
+      } catch (e) {
+        console.error('Error toggling task:', e);
+      }
+    }
+
+    // Filter Logic
+    function setTaskFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-filter') === filter);
+      });
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const search = document.getElementById('taskSearch').value.toLowerCase().trim();
+      const course = document.getElementById('courseFilter').value;
+      const cards = document.querySelectorAll('.task-card');
+
+      cards.forEach(c => {
+        const cStatus = c.getAttribute('data-status') || 'pending';
+        const cCourse = c.getAttribute('data-course') || '';
+        const title = c.querySelector('.task-title').innerText.toLowerCase();
+
+        let matchStatus = (currentFilter === 'all') || (currentFilter === cStatus);
+        let matchCourse = (course === 'ALL') || (cCourse === course);
+        let matchSearch = !search || title.includes(search) || cCourse.toLowerCase().includes(search);
+
+        c.style.display = (matchStatus && matchCourse && matchSearch) ? 'flex' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

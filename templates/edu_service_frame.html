@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ service_title }} — Dory.mx EDU</title>
+  <link rel="icon" type="image/png" href="/static/dory_edu_logo.svg">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --canvas-bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --border-subtle: #E2E8F0;
+      --text-heavy: #0F172A;
+      --text-subdued: #334155;
+      --text-muted: #64748B;
+      --primary-ocean: #0284C7;
+      --primary-hover: #0369A1;
+      --primary-wash: #E0F2FE;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--canvas-bg);
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: var(--text-subdued);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Bar */
+    .service-topbar {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .btn-back-hub {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #475569;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      border-radius: var(--radius-md);
+      background: #F1F5F9;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-back-hub:hover {
+      background: #E2E8F0;
+      color: #0F172A;
+    }
+
+    .service-headline {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .service-headline h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-heavy);
+    }
+
+    .badge-stack {
+      font-size: 0.72rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-full);
+      background: var(--primary-wash);
+      color: var(--primary-ocean);
+      font-weight: 600;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .port-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      background: #F1F5F9;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      color: #334155;
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* Content Area */
+    .service-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .orchestration-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 1.5rem;
+    }
+
+    .status-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .status-pulse {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #0284C7;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+    }
+
+    .status-header h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-heavy);
+    }
+
+    .status-description {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+
+    .tech-specs-box {
+      background: #F8FAFC;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .spec-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #EDF2F7;
+      font-size: 0.86rem;
+    }
+
+    .spec-row:last-child {
+      border-bottom: none;
+    }
+
+    .spec-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .spec-val {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-heavy);
+      font-weight: 600;
+    }
+
+    .instructions-box {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: var(--radius-md);
+      padding: 1.2rem;
+      color: #1E40AF;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .instructions-box strong {
+      display: block;
+      margin-bottom: 0.4rem;
+      color: #1E3A8A;
+    }
+
+    .instructions-box ol {
+      margin-left: 1.2rem;
+      margin-top: 0.4rem;
+    }
+  
+    /* === EMIL KOWALSKI DESIGN ENGINEERING & 120HZ COMPOSITE LAYER === */
+    :root {
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .kpi-val, .stat-val, .stat-number, .metric-val, .badge, code, pre {
+      font-variant-numeric: tabular-nums;
+    }
+    button, .btn, [class*="btn-"], a[class*="btn"], .pill, .filter-tab, .project-card, .service-card, .faq-item {
+      transition: transform 180ms var(--ease-out), opacity 180ms var(--ease-out), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+    button:active:not(:disabled), .btn:active, [class*="btn-"]:active, a[class*="btn"]:active, .filter-tab:active {
+      transform: scale(0.97) !important;
+      transition-duration: 110ms !important;
+    }
+    @media (hover: none), (pointer: coarse) {
+      .project-card:hover, .service-card:hover, .bento-card:hover, [class*="btn"]:hover {
+        transform: none !important;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 150ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 150ms !important;
+        scroll-behavior: auto !important;
+      }
+      .project-card:hover, .service-card:hover, button:active, .btn:active {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <header class="service-topbar">
+    <div class="topbar-left">
+      <a href="/edu/" class="btn-back-hub">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <span>Hub Dory EDU</span>
+      </a>
+
+      <div class="service-headline">
+        <h1>{{ service_title }}</h1>
+        <span class="badge-stack">{{ service_badge }}</span>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <span class="port-pill">Puerto Asignado: :{{ service_port }}</span>
+      <a href="/edu/logout" style="color: #64748B; text-decoration: none; font-size: 0.8rem; font-weight: 600;">Cerrar Sesión</a>
+    </div>
+  </header>
+
+  <!-- CONTENT -->
+  <main class="service-viewport">
+    <div class="orchestration-card">
+      <div class="status-header">
+        <span class="status-pulse"></span>
+        <h2>Subruta Segura y Conectada</h2>
+      </div>
+
+      <p class="status-description">
+        {{ service_subtitle }}. Esta subruta se encuentra protegida bajo la sesión de <strong>{{ user }}</strong> y enlazada con la infraestructura de <strong>edu.dory.mx</strong>.
+      </p>
+
+      <div class="tech-specs-box">
+        <div class="spec-row">
+          <span class="spec-label">Repositorio GitHub Asociado:</span>
+          <span class="spec-val">{{ repo_name }}</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Subruta en Servidor:</span>
+          <span class="spec-val">edu.dory.mx/{{ service_id }}</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Puerto Destino de Microservicio:</span>
+          <span class="spec-val">localhost:{{ service_port }}</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Estado de Infraestructura:</span>
+          <span class="spec-val" style="color: #059669;">Ruta activa y conmutador preparado</span>
+        </div>
+      </div>
+
+      <div class="instructions-box">
+        <strong>🚀 Pasos para levantar este servicio cuando decidas clonarlo:</strong>
+        <ol>
+          <li>Clonar o mover la carpeta del repositorio en el servidor.</li>
+          <li>Instalar dependencias ejecutando: <code>npm run install:all</code>.</li>
+          <li>Iniciar el servidor en el puerto configurado (<code>localhost:{{ service_port }}</code>).</li>
+          <li>El conmutador de Dory EDU lo servirá de inmediato a través de esta subruta sin exponer puertos al exterior.</li>
+        </ol>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>

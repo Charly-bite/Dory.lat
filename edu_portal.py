@@ -1711,7 +1711,7 @@ def edu_error_preview():
         service_name = 'Dory EDU'
         service_tag = '🎓 EDU'
         accent_color = '#0284C7'
-        brand_logo = '/static/Favicon Gabo 512x512.png'
+        brand_logo = '/static/dory_edu_logo.svg'
         home_url = '/edu/'
     else:
         svc = 'nemo'

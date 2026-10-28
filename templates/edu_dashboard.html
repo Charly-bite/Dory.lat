@@ -806,6 +806,26 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
         </a>
       </div>
+
+      <!-- OWASP JUICE SHOP SECURITY TOUR CARD -->
+      <div class="service-card" id="tourStepOwasp">
+        <div class="card-top">
+          <div class="service-icon icon-owasp" style="background: #EFF6FF; padding: 0; overflow: hidden;">
+            <img src="/static/bruce_logo.svg" alt="OWASP Juice Shop Bruce" width="40" height="40" style="display: block;">
+          </div>
+          <span style="margin-left: auto; font-size: 0.72rem; font-weight: 700; color: #0284C7; background: #E0F2FE; border: 1px solid #BAE6FD; padding: 3px 9px; border-radius: 9999px; letter-spacing: 0.5px;">RUST SANDBOX</span>
+        </div>
+
+        <h2 class="service-title">OWASP Juice Shop (Bruce)</h2>
+        <p class="service-desc">
+          Laboratorio interactivo de <strong>Auditoría Web OWASP Top 10</strong> contenido en Rust con <strong>DevTools integrado</strong>, Repetidor HTTP tipo Burp Suite, decodificador criptográfico y guía paso a paso de código vulnerable vs remediado.
+        </p>
+
+        <a href="/edu/owasp/" class="btn-launch">
+          <span>Abrir OWASP Juice Shop (Bruce)</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+      </div>
     </div>
   </main>
 
@@ -815,7 +835,7 @@
 
   <div id="tourPopover" class="tour-popover">
     <div class="tour-popover-header">
-      <span class="tour-step-badge" id="tourStepBadge">Paso 1 de 5</span>
+      <span class="tour-step-badge" id="tourStepBadge">Paso 1 de 6</span>
       <button type="button" class="tour-close-btn" onclick="endOnboardingTour()" aria-label="Cerrar tour">✕</button>
     </div>
     <div class="tour-popover-body">
@@ -843,33 +863,39 @@
     const tourSteps = [
       {
         targetId: 'tourStepBecas',
-        badge: 'Paso 1 de 5 • BecaFinder (Crush)',
+        badge: 'Paso 1 de 6 • BecaFinder (Crush)',
         title: '🐢 Buscador de Becas UDG',
         desc: 'Explora convocatorias vigentes, apoyos económicos, estímulos y movilidad académica de la UDG y fundaciones internacionales con filtrado inteligente.'
       },
       {
         targetId: 'tourStepTareas',
-        badge: 'Paso 2 de 5 • TaskHub (Nemo)',
+        badge: 'Paso 2 de 6 • TaskHub (Nemo)',
         title: '⚡ Gestor Unificado de Tareas',
         desc: 'Sincroniza tus pendientes y cursos de Google Classroom y del campus virtual Moodle CUGDL en un solo panel para no perder ninguna entrega.'
       },
       {
         targetId: 'tourStepSplunk',
-        badge: 'Paso 3 de 5 • SplunkSim (Hank)',
+        badge: 'Paso 3 de 6 • SplunkSim (Hank)',
         title: '🛡️ Simulador Splunk & Threat Hunting',
         desc: 'Entrénate en ciberseguridad defensiva (Blue Team) con consultas SPL, análisis forense de ataques reales y preparación para certificaciones SOC.'
       },
       {
         targetId: 'tourStepJuegos',
-        badge: 'Paso 4 de 5 • Juegos CUGDL (Otto)',
+        badge: 'Paso 4 de 6 • Juegos CUGDL (Otto)',
         title: '🎮 Juegos Educativos (Acceso Libre)',
         desc: 'Desafíos interactivos offline de razonamiento deductivo, discriminación visual, física acústica y laboratorio de ciberseguridad. Disponibles abiertamente sin necesidad de autenticación.'
       },
       {
+        targetId: 'tourStepOwasp',
+        badge: 'Paso 5 de 6 • OWASP Juice Shop (Bruce)',
+        title: '🦈 Laboratorio OWASP Top 10 & Pentesting Web',
+        desc: 'Practica auditoría de vulnerabilidades reales (SQLi, DOM XSS, IDOR, Null Byte, SSRF) dentro de un contenedor seguro en Rust con DevTools y Repetidor HTTP integrados.'
+      },
+      {
         targetId: 'tourStepProfile',
-        badge: 'Paso 5 de 5 • Identidad y SSO',
+        badge: 'Paso 6 de 6 • Identidad y SSO',
         title: '🛡️ Sesión Activa Unificada (SSO)',
-        desc: 'Tu sesión protegida te permite navegar entre Becas, Tareas, SplunkSim y Juegos sin volver a iniciar sesión. ¡Listo! Explora libremente la beta.'
+        desc: 'Tu sesión protegida te permite navegar entre Becas, Tareas, SplunkSim, Juegos y OWASP Juice Shop sin volver a iniciar sesión. ¡Listo! Explora libremente la beta.'
       }
     ];
 

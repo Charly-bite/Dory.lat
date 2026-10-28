@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BecaFinder — Buscador Académico UDG | Dory EDU</title>
+  <link rel="icon" type="image/png" href="/static/Favicon Gabo 512x512.png">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --canvas-bg: #0B1120;
+      --surface-card: #131E32;
+      --surface-card-hover: #192742;
+      --border-subtle: #1E293B;
+      --border-bright: #334155;
+      --text-white: #F8FAFC;
+      --text-heading: #FFFFFF;
+      --text-subdued: #94A3B8;
+      --text-muted: #64748B;
+      
+      --accent-cyan: #06B6D4;
+      --accent-cyan-wash: rgba(6, 182, 212, 0.12);
+      --accent-blue: #3B82F6;
+      --accent-emerald: #10B981;
+      --accent-emerald-wash: rgba(16, 185, 129, 0.12);
+      --accent-amber: #F59E0B;
+      --accent-amber-wash: rgba(245, 158, 11, 0.12);
+      --accent-purple: #8B5CF6;
+      --accent-purple-wash: rgba(139, 92, 246, 0.12);
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--canvas-bg);
+      background-image: 
+        radial-gradient(at 15% 15%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+        radial-gradient(at 85% 20%, rgba(59, 130, 246, 0.08) 0px, transparent 50%);
+      font-family: 'Inter', sans-serif;
+      color: var(--text-white);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TOP BAR */
+    .beca-header {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.9rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #94A3B8;
+      text-decoration: none;
+      font-size: 0.84rem;
+      font-weight: 600;
+      padding: 0.45rem 0.8rem;
+      border-radius: var(--radius-md);
+      background: #1E293B;
+      border: 1px solid #334155;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-back:hover { background: #334155; color: #FFF; }
+
+    .brand-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #FFF;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .badge-chip {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-full);
+      background: var(--accent-cyan-wash);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      font-weight: 700;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+    }
+
+    .btn-favorites {
+      background: #1E293B;
+      color: #F8FAFC;
+      border: 1px solid #334155;
+      padding: 0.45rem 0.85rem;
+      border-radius: var(--radius-md);
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-favorites:hover { background: #334155; border-color: #64748B; }
+
+    /* HERO & SEARCH BANNER */
+    .hero-banner {
+      max-width: 1240px;
+      margin: 1.5rem auto 0 auto;
+      padding: 0 1.5rem;
+      width: 100%;
+    }
+
+    .hero-card {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.95));
+      border: 1px solid var(--border-bright);
+      border-radius: var(--radius-lg);
+      padding: 2.2rem;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 250px;
+      height: 250px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.6rem;
+    }
+
+    .hero-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.95rem;
+      font-weight: 800;
+      color: #FFF;
+      line-height: 1.25;
+      margin-bottom: 0.7rem;
+    }
+
+    .hero-desc {
+      color: #94A3B8;
+      font-size: 0.96rem;
+      max-width: 680px;
+      line-height: 1.5;
+      margin-bottom: 1.8rem;
+    }
+
+    /* SEARCH BAR & FILTERS STRIP */
+    .search-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      align-items: center;
+    }
+
+    .search-input-wrap {
+      flex: 1;
+      min-width: 280px;
+      position: relative;
+    }
+
+    .search-input-wrap svg {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #64748B;
+    }
+
+    .search-input {
+      width: 100%;
+      background: #0B1120;
+      border: 1px solid var(--border-bright);
+      padding: 0.85rem 1rem 0.85rem 2.8rem;
+      border-radius: var(--radius-md);
+      color: #FFF;
+      font-size: 0.94rem;
+      outline: none;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+    }
+
+    .select-filter {
+      background: #0B1120;
+      border: 1px solid var(--border-bright);
+      color: #F8FAFC;
+      padding: 0.85rem 1.2rem;
+      border-radius: var(--radius-md);
+      font-size: 0.9rem;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+      min-width: 180px;
+    }
+
+    .select-filter:focus { border-color: var(--accent-cyan); }
+
+    .btn-match-toggle {
+      background: linear-gradient(135deg, #0284C7, #0369A1);
+      color: #FFF;
+      border: none;
+      padding: 0.85rem 1.3rem;
+      border-radius: var(--radius-md);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-match-toggle:hover {
+      background: linear-gradient(135deg, #0369A1, #075985);
+      transform: translateY(-1px);
+    }
+
+    /* MATCH MAKER PANEL (CALCULATOR) */
+    .match-panel {
+      display: none;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      margin-top: 1.4rem;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .match-panel.active { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .match-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.2rem;
+      margin-top: 1rem;
+    }
+
+    .match-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .match-input {
+      width: 100%;
+      background: #0B1120;
+      border: 1px solid #334155;
+      padding: 0.65rem 0.8rem;
+      border-radius: var(--radius-sm);
+      color: #FFF;
+      font-size: 0.9rem;
+    }
+
+    /* CATEGORIES TABS */
+    .cat-strip {
+      max-width: 1240px;
+      margin: 1.8rem auto 0 auto;
+      padding: 0 1.5rem;
+      width: 100%;
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+    }
+
+    .cat-chip {
+      background: #131E32;
+      border: 1px solid var(--border-subtle);
+      color: #94A3B8;
+      padding: 0.55rem 1.1rem;
+      border-radius: var(--radius-full);
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .cat-chip:hover { background: #1E293B; color: #FFF; border-color: #475569; }
+    .cat-chip.active {
+      background: var(--accent-cyan);
+      color: #04101A;
+      font-weight: 800;
+      border-color: var(--accent-cyan);
+    }
+
+    /* MAIN CATALOG */
+    .catalog-container {
+      max-width: 1240px;
+      margin: 1.5rem auto 3rem auto;
+      padding: 0 1.5rem;
+      width: 100%;
+      flex: 1;
+    }
+
+    .catalog-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.2rem;
+      color: #94A3B8;
+      font-size: 0.88rem;
+    }
+
+    .scholarship-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 1.5rem;
+    }
+
+    /* SCHOLARSHIP CARD */
+    .scholarship-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scholarship-card:hover {
+      background: var(--surface-card-hover);
+      border-color: var(--border-bright);
+      transform: translateY(-4px);
+      box-shadow: 0 16px 30px -10px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .institution-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-full);
+      background: #1E293B;
+      color: #94A3B8;
+      border: 1px solid #334155;
+    }
+
+    .status-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-full);
+    }
+
+    .status-open { background: var(--accent-emerald-wash); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .status-upcoming { background: var(--accent-amber-wash); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .status-annual { background: var(--accent-purple-wash); color: var(--accent-purple); border: 1px solid rgba(139, 92, 246, 0.3); }
+
+    .card-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #FFF;
+      line-height: 1.35;
+      margin-bottom: 0.6rem;
+    }
+
+    .card-benefit {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.08);
+      padding: 0.45rem 0.75rem;
+      border-radius: var(--radius-sm);
+      margin-bottom: 0.9rem;
+      border: 1px solid rgba(6, 182, 212, 0.2);
+    }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: #94A3B8;
+      line-height: 1.5;
+      margin-bottom: 1.2rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .requirements-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1.3rem;
+    }
+
+    .req-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: #0F172A;
+      border: 1px solid #1E293B;
+      color: #CBD5E1;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .card-footer {
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+    }
+
+    .dates-info {
+      font-size: 0.76rem;
+      color: #64748B;
+      line-height: 1.3;
+    }
+
+    .dates-info strong { color: #CBD5E1; font-weight: 600; }
+
+    .btn-detail {
+      background: #1E293B;
+      color: #FFF;
+      border: 1px solid #334155;
+      padding: 0.5rem 0.9rem;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-detail:hover { background: var(--accent-cyan); color: #04101A; border-color: var(--accent-cyan); }
+
+    .btn-fav-card {
+      background: transparent;
+      border: none;
+      color: #64748B;
+      cursor: pointer;
+      padding: 0.4rem;
+      border-radius: var(--radius-sm);
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-fav-card:hover { color: #F43F5E; }
+    .btn-fav-card.saved { color: #F43F5E; }
+
+    /* DETAIL MODAL */
+    .detail-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 17, 32, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .detail-modal.open { display: flex; }
+
+    .modal-sheet {
+      background: #131E32;
+      border: 1px solid var(--border-bright);
+      border-radius: var(--radius-lg);
+      padding: 2.2rem;
+      max-width: 650px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1.2rem;
+      right: 1.2rem;
+      background: #1E293B;
+      border: none;
+      color: #94A3B8;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .modal-close:hover { color: #FFF; background: #334155; }
+
+    .modal-meta-row {
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    .modal-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #FFF;
+      line-height: 1.3;
+      margin-bottom: 0.8rem;
+    }
+
+    .modal-section-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      letter-spacing: 0.05em;
+      margin: 1.2rem 0 0.5rem 0;
+    }
+
+    .modal-req-box {
+      background: #0B1120;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      font-size: 0.88rem;
+      color: #CBD5E1;
+      line-height: 1.6;
+    }
+
+    .modal-req-box ul { padding-left: 1.2rem; }
+
+    .modal-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.8rem;
+      justify-content: flex-end;
+    }
+
+    .btn-apply-portal {
+      background: linear-gradient(135deg, #06B6D4, #0284C7);
+      color: #04101A;
+      font-weight: 800;
+      padding: 0.75rem 1.4rem;
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .btn-apply-portal:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4); }
+
+    /* EMPTY RESULTS */
+    .empty-state {
+      background: var(--surface-card);
+      border: 2px dashed var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 3rem 1.5rem;
+      text-align: center;
+      color: #94A3B8;
+      grid-column: 1 / -1;
+    }
+
+    @media (max-width: 768px) {
+      .beca-header { padding: 0.8rem 1rem; }
+      .hero-title { font-size: 1.5rem; }
+      .scholarship-grid { grid-template-columns: 1fr; }
+    }
+  
+    /* === EMIL KOWALSKI DESIGN ENGINEERING & 120HZ COMPOSITE LAYER === */
+    :root {
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .kpi-val, .stat-val, .stat-number, .metric-val, .badge, code, pre {
+      font-variant-numeric: tabular-nums;
+    }
+    button, .btn, [class*="btn-"], a[class*="btn"], .pill, .filter-tab, .project-card, .service-card, .faq-item {
+      transition: transform 180ms var(--ease-out), opacity 180ms var(--ease-out), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+    button:active:not(:disabled), .btn:active, [class*="btn-"]:active, a[class*="btn"]:active, .filter-tab:active {
+      transform: scale(0.97) !important;
+      transition-duration: 110ms !important;
+    }
+    @media (hover: none), (pointer: coarse) {
+      .project-card:hover, .service-card:hover, .bento-card:hover, [class*="btn"]:hover {
+        transform: none !important;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 150ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 150ms !important;
+        scroll-behavior: auto !important;
+      }
+      .project-card:hover, .service-card:hover, button:active, .btn:active {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="beca-header">
+    <div class="header-left">
+      <a href="/edu/" class="btn-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <span>Hub Dory EDU</span>
+      </a>
+
+      <div class="brand-title">
+        <span>BecaFinder</span>
+        <span class="badge-chip">UDG & Red Universitaria</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="btn-favorites" onclick="toggleFavoritesOnly()" id="favToggleBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        <span>Favoritos (<span id="favCount">0</span>)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- HERO / SEARCH BANNER -->
+  <section class="hero-banner">
+    <div class="hero-card">
+      <div class="hero-tag">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+        <span>Convocatorias 2026 Vigentes</span>
+      </div>
+      <h1 class="hero-title">Encuentra y Postula a Becas de la Universidad de Guadalajara</h1>
+      <p class="hero-desc">
+        Catálogo centralizado de becas Santander, SUBES Benito Juárez, intercambios internacionales CGCI UDG, estímulos económicos y programas de investigación científica.
+      </p>
+
+      <!-- SEARCH STRIP -->
+      <div class="search-row">
+        <div class="search-input-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" class="search-input" id="searchKeyword" placeholder="Buscar por nombre, apoyo económico, idioma o palabras clave..." oninput="filterScholarships()">
+        </div>
+
+        <select class="select-filter" id="campusFilter" onchange="filterScholarships()">
+          <option value="ALL">Todos los Centros (Red UDG)</option>
+          <option value="CUGDL">CUGDL (Guadalajara)</option>
+          <option value="CUCEI">CUCEI (Exactas e Ing.)</option>
+          <option value="CUCEA">CUCEA (Económico Adm.)</option>
+          <option value="CUCS">CUCS (Ciencias de la Salud)</option>
+          <option value="CUAAD">CUAAD (Arte y Diseño)</option>
+          <option value="CUCSH">CUCSH (Sociales y Hum.)</option>
+          <option value="REGIONALES">Centros Regionales UDG</option>
+          <option value="SEMS">SEMS (Preparatorias)</option>
+        </select>
+
+        <button class="btn-match-toggle" onclick="toggleMatchPanel()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          <span>Calculador de Elegibilidad</span>
+        </button>
+      </div>
+
+      <!-- MATCH CALCULATOR PANEL -->
+      <div class="match-panel" id="matchPanel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <h3 style="font-size: 1.05rem; font-weight: 700; color: #FFF;">🎯 Evaluador de Perfil y Compatibilidad</h3>
+          <span style="font-size: 0.8rem; color: #94A3B8;">Ingresa tus datos académicos para filtrar convocatorias a las que cumples 100% requisitos:</span>
+        </div>
+        <div class="match-grid">
+          <div>
+            <label class="match-label">Tu Promedio General</label>
+            <input type="number" class="match-input" id="profileGpa" placeholder="Ej. 92.5" min="60" max="100" step="0.1" oninput="filterScholarships()">
+          </div>
+          <div>
+            <label class="match-label">% de Créditos Aprobados</label>
+            <input type="number" class="match-input" id="profileCredits" placeholder="Ej. 50" min="0" max="100" oninput="filterScholarships()">
+          </div>
+          <div>
+            <label class="match-label">Nivel de Idioma (Inglés)</label>
+            <select class="match-input" id="profileLang" onchange="filterScholarships()">
+              <option value="NONE">Básico / Sin certificar</option>
+              <option value="A2">A2 (Elemental)</option>
+              <option value="B1">B1 (Intermedio)</option>
+              <option value="B2">B2 (Intermedio Alto)</option>
+              <option value="C1">C1 (Avanzado)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORY TABS -->
+  <div class="cat-strip" id="catStrip">
+    <button class="cat-chip active" data-cat="ALL" onclick="selectCategory('ALL')">Todas las Convocatorias</button>
+    <button class="cat-chip" data-cat="MOVILIDAD" onclick="selectCategory('MOVILIDAD')">✈️ Movilidad e Intercambio</button>
+    <button class="cat-chip" data-cat="MANUTENCION" onclick="selectCategory('MANUTENCION')">💵 Manutención y Apoyo Económico</button>
+    <button class="cat-chip" data-cat="EXCELENCIA" onclick="selectCategory('EXCELENCIA')">🏆 Excelencia y Talento UDG</button>
+    <button class="cat-chip" data-cat="INVESTIGACION" onclick="selectCategory('INVESTIGACION')">🔬 Verano e Investigación</button>
+    <button class="cat-chip" data-cat="IDIOMAS" onclick="selectCategory('IDIOMAS')">🌐 Idiomas y Tech Skills</button>
+  </div>
+
+  <!-- CATALOG GRID -->
+  <main class="catalog-container">
+    <div class="catalog-summary">
+      <div>Mostrando <strong id="visibleCount" style="color: #FFF;">0</strong> convocatorias disponibles</div>
+      <div id="filterStatusText" style="font-size: 0.8rem; color: var(--accent-cyan);"></div>
+    </div>
+
+    <div class="scholarship-grid" id="scholarshipGrid">
+      <!-- Dinámico vía JS -->
+    </div>
+  </main>
+
+  <!-- DETAIL MODAL -->
+  <div class="detail-modal" id="detailModal">
+    <div class="modal-sheet">
+      <button class="modal-close" onclick="closeDetailModal()">✕</button>
+      
+      <div class="modal-meta-row">
+        <span class="institution-pill" id="modalInst">UDG</span>
+        <span class="status-badge status-open" id="modalStatus">Abierta</span>
+      </div>
+
+      <h2 class="modal-title" id="modalTitle">Título de la Convocatoria</h2>
+
+      <div class="card-benefit" id="modalBenefit">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><line x1="12" y1="18" x2="12" y2="6"></line></svg>
+        <span id="modalBenefitText">Monto o beneficio</span>
+      </div>
+
+      <div class="modal-section-title">Descripción y Cobertura</div>
+      <p style="font-size: 0.9rem; color: #94A3B8; line-height: 1.6;" id="modalDesc">Descripción completa.</p>
+
+      <div class="modal-section-title">Requisitos Indispensables</div>
+      <div class="modal-req-box" id="modalReqs">
+        <!-- Requisitos -->
+      </div>
+
+      <div class="modal-section-title">Fechas Importantes</div>
+      <div style="font-size: 0.85rem; color: #CBD5E1; line-height: 1.5; margin-bottom: 1rem;" id="modalDates">
+        <!-- Fechas -->
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-detail" onclick="closeDetailModal()">Cerrar</button>
+        <a href="#" target="_blank" rel="noopener noreferrer" class="btn-apply-portal" id="modalLink">
+          <span>Ir a Portal Oficial de Postulación</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Catálogo Maestro de Becas UDG & Internacionales
+    const SCHOLARSHIPS_DATA = [
+      {
+        id: "santander-movilidad-2026",
+        title: "Beca Santander Movilidad Internacional de Grado",
+        institution: "Santander Open Academy / CGCI UDG",
+        category: "MOVILIDAD",
+        status: "open",
+        statusLabel: "Convocatoria Abierta",
+        benefit: "$100,000 MXN para estancia semestral",
+        desc: "Financiamiento para estudiantes de licenciatura de la UDG que deseen realizar un semestre de intercambio en universidades de América Latina, España, Portugal o Europa.",
+        minGpa: 85,
+        minCredits: 45,
+        minLang: "NONE",
+        campus: ["ALL", "CUGDL", "CUCEI", "CUCEA", "CUCS", "CUAAD", "CUCSH", "REGIONALES"],
+        reqs: [
+          "Ser alumno regular activo con mínimo el 45% de los créditos cubiertos.",
+          "Promedio general mínimo de 85 en kárdex oficial.",
+          "Carta de postulación avalada por el Centro Universitario / Coordinación de Carrera.",
+          "Haber sido aceptado por una universidad con convenio vigente UDG."
+        ],
+        dates: "Cierre de registro: 15 de Mayo de 2026. Publicación de resultados: 30 de Junio.",
+        url: "https://app.santanderopenacademy.com"
+      },
+      {
+        id: "santander-manutencion-2026",
+        title: "Beca Santander de Apoyo a la Manutención",
+        institution: "Banco Santander / Red UDG",
+        category: "MANUTENCION",
+        status: "open",
+        statusLabel: "Convocatoria Abierta",
+        benefit: "$9,000 MXN pago único directo",
+        desc: "Apoyo económico a nivel nacional destinado a que los estudiantes de educación superior continúen con sus estudios universitarios sin rezago financiero.",
+        minGpa: 80,
+        minCredits: 30,
+        minLang: "NONE",
+        campus: ["ALL", "CUGDL", "CUCEI", "CUCEA", "CUCS", "CUAAD", "CUCSH", "REGIONALES"],
+        reqs: [
+          "Estar matriculado en cualquier Centro Universitario de la UDG.",
+          "Promedio mínimo general de 8.0.",
+          "Realizar el curso en línea 'Habilidades y Competencias Digitales' en la plataforma Santander.",
+          "Cargar comprobante de kárdex oficial en PDF."
+        ],
+        dates: "Recepción de solicitudes hasta el 28 de Abril de 2026.",
+        url: "https://app.santanderopenacademy.com"
+      },
+      {
+        id: "pea-udg-internacional",
+        title: "Programa de Estancias Académicas (PEA) UDG",
+        institution: "CGCI — UDG Internacional",
+        category: "MOVILIDAD",
+        status: "open",
+        statusLabel: "Convocatoria Abierta",
+        benefit: "Exención 100% de matrícula + Apoyo Institucional",
+        desc: "El programa oficial de movilidad de la Universidad de Guadalajara para cursar asignaturas en el extranjero con revalidación completa de materias.",
+        minGpa: 85,
+        minCredits: 40,
+        minLang: "B1",
+        campus: ["ALL", "CUGDL", "CUCEI", "CUCEA", "CUCS", "CUAAD", "CUCSH", "REGIONALES"],
+        reqs: [
+          "Mínimo 40% de créditos de la carrera aprobados.",
+          "Promedio mínimo de 85 en kárdex sin materias reprobadas en ciclo anterior.",
+          "Certificación de idioma según el país destino (B1 o B2 mínimo para países de habla no hispana).",
+          "Aprobación del plan de revalidación por el Comité de Titulación/Carrera."
+        ],
+        dates: "Registro para el ciclo 2026-B: Cierre el 31 de Mayo de 2026.",
+        url: "http://cgci.udg.mx"
+      },
+      {
+        id: "estimulo-sobresalientes-udg",
+        title: "Beca de Estímulo para Estudiantes Sobresalientes",
+        institution: "Coordinación de Servicios Estudiantiles UDG",
+        category: "EXCELENCIA",
+        status: "open",
+        statusLabel: "Convocatoria Abierta",
+        benefit: "$1,400 MXN mensuales durante el ciclo lectivo",
+        desc: "Reconocimiento e incentivo económico para aquellos alumnos de pregrado con trayectorias académicas sobresalientes y promedio de excelencia.",
+        minGpa: 90,
+        minCredits: 20,
+        minLang: "NONE",
+        campus: ["ALL", "CUGDL", "CUCEI", "CUCEA", "CUCS", "CUAAD", "CUCSH", "REGIONALES"],
+        reqs: [
+          "Promedio global mínimo de 90.0 en el ciclo inmediato anterior.",
+          "Ser alumno regular sin adeudo de materias.",
+          "No contar con otro apoyo económico federal concurrente."
+        ],
+        dates: "Apertura en cada inicio de semestre. Ciclo vigente 2026-A.",
+        url: "http://www.estudiantes.udg.mx"
+      },
+      {
+        id: "programa-delfin-2026",
+        title: "Verano de la Investigación Científica — Programa Delfín",
+        institution: "Programa Delfín / Coordinación de Posgrado UDG",
+        category: "INVESTIGACION",
+        status: "open",
+        statusLabel: "Convocatoria Abierta",
+        benefit: "Estancia científica de 7 semanas con investigador tutor",
+        desc: "Movilidad presencial y virtual para incorporarse a proyectos de investigación de alto impacto en universidades de México, Colombia, Perú, Costa Rica y EE.UU.",
+        minGpa: 85,
+        minCredits: 50,
+        minLang: "NONE",
+        campus: ["ALL", "CUGDL", "CUCEI", "CUCEA", "CUCS", "CUAAD", "CUCSH", "REGIONALES"],
+        reqs: [
+          "Haber concluido al menos el cuarto semestre o 50% de los créditos.",
+          "Promedio general mínimo de 8.5.",
+          "Carta de exposición de motivos y carta de aceptación del investigador tutor.",
+          "Presentación del proyecto final en el Congreso Internacional Delfín."
+        ],
+        dates: "Límite de recepción de documentos: 24 de Abril de 2026.",
+        url: "https://www.programadelfin.org.mx"
+      },
+      {
+        id: "santander-tech-ai-2026",
+        title: "Santander Tech Skills | Data Analytics & AI for Students",
+        institution: "Santander Open Academy & Google",
+        category: "IDIOMAS",
+        status: "open",
+        statusLabel: "Convocatoria Abierta",
+        benefit: "100% de beca en certificación internacional Google/MIT",
+        desc: "Programa de formación práctica en habilidades clave de la era digital: análisis de datos, inteligencia artificial aplicada, python y visualización.",
+        minGpa: 75,
+        minCredits: 10,
+        minLang: "NONE",
+        campus: ["ALL", "CUGDL", "CUCEI", "CUCEA", "CUCS", "CUAAD", "CUCSH", "REGIONALES", "SEMS"],
+        reqs: [
+          "Estudiante activo o egresado reciente de cualquier programa educativo.",
+          "Completar la prueba diagnóstica de competencias digitales al postular.",
+          "Disponibilidad de 6 a 8 horas semanales para el programa de formación."
+        ],
+        dates: "Convocatoria abierta todo el semestre. Acceso inmediato a selección.",
+        url: "https://app.santanderopenacademy.com"
+      },
+      {
+        id: "benito-juarez-subes",
+        title: "Beca Jóvenes Escribiendo el Futuro (SUBES)",
+        institution: "Gobierno de México / SUBES",
+        category: "MANUTENCION",
+        status: "annual",
+        statusLabel: "Convocatoria Federal",
+        benefit: "$2,800 MXN mensuales ($5,600 bimestrales)",
+        desc: "Beca prioritaria federal orientada a combatir la deserción escolar en educación superior pública para alumnos en situación de vulnerabilidad o excelencia.",
+        minGpa: 70,
+        minCredits: 0,
+        minLang: "NONE",
+        campus: ["ALL", "CUGDL", "CUCEI", "CUCEA", "CUCS", "CUAAD", "CUCSH", "REGIONALES"],
+        reqs: [
+          "Estar registrado en la plataforma SUBES con ficha escolar activada por UDG.",
+          "No percibir otro subsidio federal para el mismo fin.",
+          "Contar con CURP y cuenta bancaria de débito a nombre del beneficiario."
+        ],
+        dates: "Registro por medio del portal oficial SUBES en los periodos del calendario oficial.",
+        url: "https://subes.becasbenitojuarez.gob.mx"
+      },
+      {
+        id: "proulex-jobs-udg",
+        title: "Beca Jobs UDG / Proulex de Inglés y Francés",
+        institution: "Proulex & Coordinación General Académica",
+        category: "IDIOMAS",
+        status: "open",
+        statusLabel: "Convocatoria Abierta",
+        benefit: "Beca de hasta 80% en colegiatura de idiomas",
+        desc: "Convenio universitario para certificar el dominio del idioma inglés bajo el marco común europeo (B2/C1) como requisito de titulación y movilidad.",
+        minGpa: 80,
+        minCredits: 20,
+        minLang: "NONE",
+        campus: ["ALL", "CUGDL", "CUCEI", "CUCEA", "CUCS", "CUAAD", "CUCSH", "REGIONALES"],
+        reqs: [
+          "Ser alumno regular de la Universidad de Guadalajara.",
+          "Presentar examen de ubicación o iniciar en nivel 1.",
+          "Mantener promedio aprobatorio de 85 en cada módulo para conservar el beneficio."
+        ],
+        dates: "Inscripciones bimestrales constantes en sedes Proulex y modalidad online.",
+        url: "https://www.proulex.com"
+      },
+      {
+        id: "conahcyt-posgrados",
+        title: "Becas Nacionales para Posgrado CONAHCYT",
+        institution: "CONAHCYT / Posgrados UDG",
+        category: "EXCELENCIA",
+        status: "open",
+        statusLabel: "Convocatoria Vigente",
+        benefit: "Estipendio mensual de hasta 4.5 a 6 UMAs ($14,500 - $19,500 MXN)",
+        desc: "Apoyo a estudiantes dedicados de tiempo completo a programas de Maestría y Doctorado inscritos en el Sistema Nacional de Posgrados (SNP) de la UDG.",
+        minGpa: 85,
+        minCredits: 100,
+        minLang: "B2",
+        campus: ["ALL", "CUGDL", "CUCEI", "CUCEA", "CUCS", "CUAAD", "CUCSH", "REGIONALES"],
+        reqs: [
+          "Haber sido formalmente aceptado en un posgrado acreditado en el SNP.",
+          "Promedio mínimo de 8.0 en el grado académico previo.",
+          "Dedicación de tiempo exclusivo al programa de investigación."
+        ],
+        dates: "Recepción de expedientes semestral (Enero y Agosto de cada año).",
+        url: "https://conahcyt.mx"
+      }
+    ];
+
+    let currentCategory = "ALL";
+    let showFavoritesOnly = false;
+    let favoritesList = JSON.parse(localStorage.getItem('dory_beca_favorites') || '[]');
+
+    function saveFavorites() {
+      localStorage.setItem('dory_beca_favorites', JSON.stringify(favoritesList));
+      document.getElementById('favCount').innerText = favoritesList.length;
+    }
+
+    function toggleFavorite(id, event) {
+      if (event) event.stopPropagation();
+      const idx = favoritesList.indexOf(id);
+      if (idx >= 0) {
+        favoritesList.splice(idx, 1);
+      } else {
+        favoritesList.push(id);
+      }
+      saveFavorites();
+      filterScholarships();
+    }
+
+    function toggleFavoritesOnly() {
+      showFavoritesOnly = !showFavoritesOnly;
+      const btn = document.getElementById('favToggleBtn');
+      if (showFavoritesOnly) {
+        btn.style.background = '#F43F5E';
+        btn.style.borderColor = '#F43F5E';
+        btn.style.color = '#FFF';
+      } else {
+        btn.style.background = '#1E293B';
+        btn.style.borderColor = '#334155';
+        btn.style.color = '#F8FAFC';
+      }
+      filterScholarships();
+    }
+
+    function selectCategory(cat) {
+      currentCategory = cat;
+      const chips = document.querySelectorAll('.cat-chip');
+      chips.forEach(c => {
+        if (c.getAttribute('data-cat') === cat) {
+          c.classList.add('active');
+        } else {
+          c.classList.remove('active');
+        }
+      });
+      filterScholarships();
+    }
+
+    function toggleMatchPanel() {
+      const p = document.getElementById('matchPanel');
+      p.classList.toggle('active');
+    }
+
+    function filterScholarships() {
+      const keyword = document.getElementById('searchKeyword').value.toLowerCase().trim();
+      const campus = document.getElementById('campusFilter').value;
+      const gpa = parseFloat(document.getElementById('profileGpa').value) || 0;
+      const credits = parseFloat(document.getElementById('profileCredits').value) || 0;
+      const lang = document.getElementById('profileLang').value;
+
+      const langValues = { "NONE": 0, "A2": 1, "B1": 2, "B2": 3, "C1": 4 };
+      const userLangLevel = langValues[lang] || 0;
+
+      const filtered = SCHOLARSHIPS_DATA.filter(item => {
+        // Categoría
+        if (currentCategory !== "ALL" && item.category !== currentCategory) return false;
+
+        // Favoritos
+        if (showFavoritesOnly && !favoritesList.includes(item.id)) return false;
+
+        // Campus UDG
+        if (campus !== "ALL" && !item.campus.includes("ALL") && !item.campus.includes(campus)) return false;
+
+        // Texto
+        if (keyword) {
+          const matchTitle = item.title.toLowerCase().includes(keyword);
+          const matchDesc = item.desc.toLowerCase().includes(keyword);
+          const matchInst = item.institution.toLowerCase().includes(keyword);
+          const matchBenefit = item.benefit.toLowerCase().includes(keyword);
+          if (!matchTitle && !matchDesc && !matchInst && !matchBenefit) return false;
+        }
+
+        // Match Maker
+        if (gpa > 0 && item.minGpa > gpa) return false;
+        if (credits > 0 && item.minCredits > credits) return false;
+        if (item.minLang && item.minLang !== "NONE") {
+          const reqLangLevel = langValues[item.minLang] || 0;
+          if (userLangLevel < reqLangLevel) return false;
+        }
+
+        return true;
+      });
+
+      renderScholarships(filtered);
+    }
+
+    function renderScholarships(list) {
+      const container = document.getElementById('scholarshipGrid');
+      const countEl = document.getElementById('visibleCount');
+      countEl.innerText = list.length;
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="1.5" style="margin-bottom: 0.8rem;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <h3 style="font-size: 1.15rem; color: #FFF; margin-bottom: 0.4rem;">No se encontraron convocatorias con estos criterios</h3>
+            <p style="font-size: 0.88rem; max-width: 420px; margin: 0 auto 1.2rem; color: #94A3B8;">
+              Prueba relajando los filtros de promedio o buscando una categoría más amplia de la Red UDG.
+            </p>
+            <button class="btn-detail" onclick="resetFilters()">Restablecer Filtros</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = list.map(item => {
+        const isFav = favoritesList.includes(item.id);
+        const statusClass = item.status === 'open' ? 'status-open' : (item.status === 'annual' ? 'status-annual' : 'status-upcoming');
+
+        return `
+          <div class="scholarship-card">
+            <div>
+              <div class="card-top">
+                <span class="institution-pill">${item.institution}</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="status-badge ${statusClass}">${item.statusLabel}</span>
+                  <button class="btn-fav-card ${isFav ? 'saved' : ''}" onclick="toggleFavorite('${item.id}', event)" title="Guardar en favoritos">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <h2 class="card-title">${item.title}</h2>
+
+              <div class="card-benefit">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><line x1="12" y1="18" x2="12" y2="6"></line></svg>
+                <span>${item.benefit}</span>
+              </div>
+
+              <p class="card-desc">${item.desc}</p>
+
+              <div class="requirements-list">
+                <span class="req-tag">Promedio min: ${item.minGpa}</span>
+                ${item.minCredits > 0 ? `<span class="req-tag">Créditos: ${item.minCredits}%</span>` : ''}
+                ${item.minLang && item.minLang !== 'NONE' ? `<span class="req-tag">Idioma: ${item.minLang}</span>` : '<span class="req-tag">Sin requisito idioma</span>'}
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="dates-info">
+                <span>Vigencia:</span><br>
+                <strong>${item.dates.split('.')[0]}</strong>
+              </div>
+              <button class="btn-detail" onclick="openDetailModal('${item.id}')">
+                <span>Ver Detalles</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openDetailModal(id) {
+      const item = SCHOLARSHIPS_DATA.find(x => x.id === id);
+      if (!item) return;
+
+      document.getElementById('modalInst').innerText = item.institution;
+      document.getElementById('modalStatus').innerText = item.statusLabel;
+      document.getElementById('modalTitle').innerText = item.title;
+      document.getElementById('modalBenefitText').innerText = item.benefit;
+      document.getElementById('modalDesc').innerText = item.desc;
+      document.getElementById('modalDates').innerText = item.dates;
+      document.getElementById('modalLink').href = item.url;
+
+      const reqBox = document.getElementById('modalReqs');
+      reqBox.innerHTML = `<ul>${item.reqs.map(r => `<li>${r}</li>`).join('')}</ul>`;
+
+      document.getElementById('detailModal').classList.add('open');
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detailModal').classList.remove('open');
+    }
+
+    function resetFilters() {
+      document.getElementById('searchKeyword').value = '';
+      document.getElementById('campusFilter').value = 'ALL';
+      document.getElementById('profileGpa').value = '';
+      document.getElementById('profileCredits').value = '';
+      document.getElementById('profileLang').value = 'NONE';
+      currentCategory = 'ALL';
+      showFavoritesOnly = false;
+      document.getElementById('favToggleBtn').style.background = '#1E293B';
+      selectCategory('ALL');
+    }
+
+    // Inicialización al cargar la página
+    document.addEventListener('DOMContentLoaded', () => {
+      saveFavorites();
+      filterScholarships();
+    });
+  </script>
+</body>
+</html>
