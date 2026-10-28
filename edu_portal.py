@@ -132,7 +132,7 @@ def init_academic_db():
                 full_name TEXT,
                 picture_url TEXT,
                 google_id TEXT,
-                role TEXT DEFAULT 'beta_tester',
+                role TEXT DEFAULT 'student',
                 status TEXT DEFAULT 'active',
                 notes TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -181,6 +181,12 @@ def init_academic_db():
         cursor.execute('PRAGMA busy_timeout=10000;')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_edu_tasks_user_status ON edu_tasks(user, status);')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_edu_courses_user_source ON edu_courses(user, source);')
+        cursor.execute("UPDATE edu_users SET role = 'student' WHERE role != 'admin';")
+        cursor.execute("""
+            INSERT INTO edu_users (email, full_name, role, status, notes)
+            VALUES ('masteralessandro521@gmail.com', 'Prof. Alessandro (Seguridad Web)', 'student', 'active', 'Profesor Seguridad Web - Beta Tester')
+            ON CONFLICT(email) DO UPDATE SET status = 'active'
+        """)
         conn.commit()
         conn.close()
         logger.info("📦 [DORY EDU] Base de datos local academic.db verificada/inicializada con soporte de usuarios e índices.")
@@ -201,6 +207,69 @@ def get_google_redirect_uri():
     if 'dory.mx' in host:
         return 'https://edu.dory.mx/edu/auth/google/callback'
     return f"{scheme}://{host}/edu/auth/google/callback"
+
+
+_ALLOWED_NEXT_HOSTS = {'dory.mx', 'edu.dory.mx', 'dev.dory.mx', 'portfolio.dory.mx'}
+
+
+def _safe_next(next_url, default='/edu/'):
+    """Evita redirección abierta: solo rutas locales (/…, no //) o https hacia hosts dory.mx conocidos."""
+    if not next_url:
+        return default
+    if next_url.startswith('/') and not next_url.startswith('//'):
+        return next_url
+    try:
+        p = urllib.parse.urlparse(next_url)
+        if p.scheme == 'https' and (p.hostname or '').lower() in _ALLOWED_NEXT_HOSTS:
+            return next_url
+    except Exception:
+        pass
+    return default
+
+
+def _cors_origin_allowed(origin):
+    """Lista blanca por host exacto (sin subcadenas): la extensión Dory, localhost y dominios dory.mx/udg.mx."""
+    if not origin:
+        return False
+    if origin.startswith('chrome-extension://'):
+        return True
+    try:
+        host = (urllib.parse.urlparse(origin).hostname or '').lower()
+    except Exception:
+        return False
+    if host in ('localhost', '127.0.0.1'):
+        return True
+    return host == 'dory.mx' or host.endswith('.dory.mx') or host == 'udg.mx' or host.endswith('.udg.mx')
+
+
+_LOGIN_FAILS = {}  # ip -> [timestamps] de intentos fallidos recientes (en memoria, se reinicia con el proceso)
+
+
+def _login_client_ip():
+    # Detrás de Cloudflare+túnel, remote_addr es una IP de borde que varía por request; usar la IP real del cliente.
+    cf = request.headers.get('CF-Connecting-IP')
+    if cf:
+        return cf.strip()
+    xff = request.headers.get('X-Forwarded-For')
+    if xff:
+        return xff.split(',')[0].strip()  # el extremo izquierdo es el cliente original
+    return request.remote_addr or 'unknown'
+
+
+def _login_throttled(ip):
+    """True si la IP superó 10 intentos fallidos en 10 min. shortcut: en memoria; mover a Redis/DB si hay abuso real."""
+    now = _time.time()
+    recent = [t for t in _LOGIN_FAILS.get(ip, []) if now - t < 600]
+    _LOGIN_FAILS[ip] = recent
+    return len(recent) >= 10
+
+
+def _login_fail(ip):
+    _LOGIN_FAILS.setdefault(ip, []).append(_time.time())
+
+
+def _login_ok(ip):
+    _LOGIN_FAILS.pop(ip, None)
 
 
 def edu_auth_required(f):
@@ -254,7 +323,7 @@ def sync_user_session():
                     session.clear()
                     flash("Tu cuenta beta ha sido suspendida. Contacta al administrador.", "error")
                     return redirect(url_for('edu_bp.login'))
-                session['edu_role'] = row['role']
+                session['edu_role'] = 'admin' if email in EDU_ADMIN_EMAILS else 'student'
                 if row['full_name']:
                     session['edu_name'] = row['full_name']
                 if row['picture_url']:
@@ -274,7 +343,7 @@ def google_login():
     """Inicia el flujo de autenticación con Google OAuth 2.0."""
     state = secrets.token_urlsafe(16)
     session['oauth_state'] = state
-    next_url = request.args.get('next') or url_for('edu_bp.dashboard')
+    next_url = _safe_next(request.args.get('next'), url_for('edu_bp.dashboard'))
     session['oauth_next'] = next_url
 
     redirect_uri = get_google_redirect_uri()
@@ -385,10 +454,10 @@ def google_callback():
                 SET full_name = ?, picture_url = ?, google_id = ?, last_login = ?
                 WHERE email = ?
             """, (full_name, picture, google_id, now_str, email))
-            role = user_row['role']
+            role = 'admin' if email in EDU_ADMIN_EMAILS else 'student'
         else:
             is_first_login = True
-            role = 'admin' if email in EDU_ADMIN_EMAILS else 'beta_tester'
+            role = 'admin' if email in EDU_ADMIN_EMAILS else 'student'
             cur.execute("""
                 INSERT INTO edu_users (email, full_name, picture_url, google_id, role, status, last_login)
                 VALUES (?, ?, ?, ?, ?, 'active', ?)
@@ -483,7 +552,7 @@ def admin_users():
     cur.execute("SELECT COUNT(*) FROM edu_users")
     total_users = cur.fetchone()[0]
 
-    cur.execute("SELECT COUNT(*) FROM edu_users WHERE role = 'beta_tester' AND status = 'active'")
+    cur.execute("SELECT COUNT(*) FROM edu_users WHERE role IN ('student', 'beta_tester') AND status = 'active'")
     active_beta = cur.fetchone()[0]
 
     cur.execute("SELECT COUNT(*) FROM edu_users WHERE role = 'admin'")
@@ -514,7 +583,7 @@ def admin_update_role():
     """Actualiza el rol de un usuario."""
     data = request.get_json(silent=True) or {}
     user_id = data.get('user_id')
-    role = data.get('role', 'beta_tester')
+    role = data.get('role', 'student')
 
     if not user_id or role not in ('admin', 'beta_tester', 'student', 'docente'):
         return jsonify({'success': False, 'error': 'Parámetros inválidos.'}), 400
@@ -583,7 +652,7 @@ def admin_create_user():
     data = request.get_json(silent=True) or {}
     email = data.get('email', '').strip().lower()
     full_name = data.get('full_name', '').strip()
-    role = data.get('role', 'beta_tester')
+    role = data.get('role', 'student')
 
     if not email or '@' not in email:
         return jsonify({'success': False, 'error': 'Correo electrónico inválido.'}), 400
@@ -612,13 +681,17 @@ def login():
         return redirect(url_for('edu_bp.dashboard'))
 
     error_msg = None
-    next_url = request.args.get('next') or request.form.get('next') or url_for('edu_bp.dashboard')
+    next_url = _safe_next(request.args.get('next') or request.form.get('next'), url_for('edu_bp.dashboard'))
 
     if request.method == 'POST':
+        ip = _login_client_ip()
+        if _login_throttled(ip):
+            return render_template('edu_login.html', error="Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo.", next_url=next_url), 429
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
 
         if username == EDU_TEST_USER and _password_matches(password, EDU_TEST_PASS):
+            _login_ok(ip)
             session.clear()
             session['edu_authenticated'] = True
             session['edu_user'] = username
@@ -632,6 +705,7 @@ def login():
             logger.info(f"🔑 [DORY EDU] Sesión iniciada con éxito para '{username}' (Admin)")
             return redirect(next_url)
         else:
+            _login_fail(ip)
             logger.warning(f"⚠️ [DORY EDU] Intento fallido de login para '{username}'")
             error_msg = "Usuario o contraseña incorrectos. Verifique sus credenciales de prueba."
 
@@ -668,7 +742,7 @@ def dashboard():
         return redirect(url_for('edu_bp.login'))
     user_name = session.get('edu_name', current_user)
     user_picture = session.get('edu_picture')
-    user_role = session.get('edu_role', 'beta_tester')
+    user_role = session.get('edu_role', 'student')
     is_admin = (user_role == 'admin')
     first_login = session.pop('edu_first_login', False) or (request.args.get('tour') == '1')
     
@@ -759,12 +833,18 @@ def _trigger_microservice_autostart(target_url: str):
                 r"C:\Users\QB_DESARROLLO\Desktop\03-Orquestador-y-Proyectos-Home\Proyectos_Home\Proyectos\Tareas\server",
                 r"C:\Users\CarlosAlbertoAcevesC\Desktop\02-plataformas-activas\tareas\server",
             ], r"C:\Users\CarlosAlbertoAcevesC\Desktop\02-plataformas-activas\tareas\server")
-        elif ':3012' in target_url or ':3002' in target_url:
+            cmd = [r"C:\Program Files\nodejs\node.exe" if os.path.exists(r"C:\Program Files\nodejs\node.exe") else "node", "src/index.js"]
+        elif ':3012' in target_url:
             svc_key = 'becafinder'
             svc_dir = _resolve_existing_dir([
                 r"C:\Users\QB_DESARROLLO\Desktop\03-Orquestador-y-Proyectos-Home\Proyectos_Home\Proyectos\Buscador_Academico\server",
                 r"C:\Users\CarlosAlbertoAcevesC\Desktop\02-plataformas-activas\buscador-academico\server",
             ], r"C:\Users\CarlosAlbertoAcevesC\Desktop\02-plataformas-activas\buscador-academico\server")
+            cmd = [r"C:\Program Files\nodejs\node.exe" if os.path.exists(r"C:\Program Files\nodejs\node.exe") else "node", "src/index.js"]
+        elif ':3002' in target_url:
+            svc_key = 'owasp-juice-tour'
+            svc_dir = r"C:\Users\CarlosAlbertoAcevesC\Desktop\03-ciberseguridad-soc\juice-shop-rust-tour"
+            cmd = [os.path.join(svc_dir, r"target\release\juice-tour-server.exe")]
         else:
             return
 
@@ -772,13 +852,10 @@ def _trigger_microservice_autostart(target_url: str):
             return
         _LAST_AUTOSTART_TS[svc_key] = now
 
-        node_exe = r"C:\Program Files\nodejs\node.exe"
-        if not os.path.exists(node_exe):
-            node_exe = "node"
-        if os.path.isdir(svc_dir):
+        if os.path.isdir(svc_dir) and (svc_key != 'owasp-juice-tour' or os.path.exists(cmd[0])):
             logger.info(f"🔄 [AUTO-HEAL] Iniciando microservicio '{svc_key}' bajo demanda en {svc_dir}...")
             subprocess.Popen(
-                [node_exe, "src/index.js"],
+                cmd,
                 cwd=svc_dir,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -793,14 +870,22 @@ def _build_failover_urls(primary_url: str):
     """Construye la lista ordenada de candidatos (local primario -> local alterno -> nodo HA LAN)."""
     parsed = urllib.parse.urlparse(primary_url)
     path_and_query = parsed.path + (f"?{parsed.query}" if parsed.query else "")
-    is_becas = ':3012' in primary_url or ':3002' in primary_url or '/becas' in parsed.path
-    if is_becas:
+    is_owasp = ':3002' in primary_url or '/owasp' in parsed.path
+    is_becas = ':3012' in primary_url or '/becas' in parsed.path
+    is_tareas = ':3001' in primary_url or ':3011' in primary_url or '/tareas' in parsed.path
+    if is_owasp:
         bases = [
             f"http://{parsed.netloc}",
-            "http://127.0.0.1:3012",
-            "http://192.168.2.218:3012",
-            "http://192.168.2.222:3012",
+            "http://127.0.0.1:3002",
+            "http://192.168.2.222:3002",
+            "http://100.89.1.27:3002",
         ]
+    elif is_becas:
+        # Backend único: cada nodo tiene su propia becafinder.db sin réplica; repartir tráfico partiría el expediente de un usuario.
+        bases = [os.environ.get('BECAFINDER_BACKEND', 'http://192.168.2.218:3012')]
+    elif is_tareas:
+        # Backend único: taskhub.db (sql.js en memoria) no se replica; repartir tráfico partiría las tareas, tokens y sesiones del alumno.
+        bases = [os.environ.get('TASKHUB_BACKEND', 'http://192.168.2.222:3001')]
     else:
         bases = [
             f"http://{parsed.netloc}",
@@ -823,7 +908,7 @@ def proxy_to_microservice(target_url, extra_headers=None):
     excluded_headers = {
         'accept-encoding', 'content-encoding', 'content-length', 'transfer-encoding',
         'connection', 'keep-alive', 'proxy-authenticate',
-        'proxy-authorization', 'te', 'trailers', 'upgrade', 'host'
+        'proxy-authorization', 'te', 'trailers', 'upgrade', 'host', 'cookie'
     }
     # Nunca reenviar headers de identidad/confianza enviados por el cliente: solo el Gateway los define.
     headers = {
@@ -846,7 +931,8 @@ def proxy_to_microservice(target_url, extra_headers=None):
         if k.lower() not in ('session', 'session_id', 'edu_session', 'remember_token')
     }
     req_body = request.get_data()
-    candidate_urls = _build_failover_urls(target_url)
+    is_socketio_poll = '/socket.io' in target_url
+    candidate_urls = [target_url] if is_socketio_poll else _build_failover_urls(target_url)
     last_error = None
 
     for idx, candidate in enumerate(candidate_urls):
@@ -854,7 +940,7 @@ def proxy_to_microservice(target_url, extra_headers=None):
             cand_headers = dict(headers)
             cand_netloc = urllib.parse.urlparse(candidate).netloc
             cand_headers['Host'] = cand_netloc
-            timeout_sec = 30 if idx == 0 else 4
+            timeout_sec = (0.3, 1.5) if is_socketio_poll else ((0.8, 15.0) if idx == 0 else (0.8, 3.5))
             resp = _PROXY_SESSION.request(
                 method=request.method,
                 url=candidate,
@@ -877,7 +963,7 @@ def proxy_to_microservice(target_url, extra_headers=None):
 
             # Inyectar headers CORS para permitir llamadas cruzadas autorizadas
             req_origin = request.headers.get('Origin')
-            if req_origin and ('udg.mx' in req_origin or 'dory.mx' in req_origin or 'localhost' in req_origin or req_origin.startswith('chrome-extension://')):
+            if req_origin and _cors_origin_allowed(req_origin):
                 resp_headers.append(('Access-Control-Allow-Origin', req_origin))
                 resp_headers.append(('Access-Control-Allow-Credentials', 'true'))
                 resp_headers.append(('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With'))
@@ -890,6 +976,8 @@ def proxy_to_microservice(target_url, extra_headers=None):
             )
         except requests.exceptions.RequestException as e:
             last_error = e
+            if is_socketio_poll:
+                return jsonify({'error': 'socket_io_unavailable', 'status': 503}), 503
             if idx == 0:
                 logger.warning(f"⚠️ [SELF-HEAL] Primario local {candidate} no disponible ({e}). Despertando proceso local y probando pool HA...")
                 _trigger_microservice_autostart(target_url)
@@ -900,11 +988,23 @@ def proxy_to_microservice(target_url, extra_headers=None):
 
     logger.error(f"Error en reverse proxy tras probar pool HA para {target_url}: {last_error}")
 
-    is_becas = ':3012' in target_url or ':3002' in target_url or '/becas' in request.path
-    service_name = 'BecaFinder (Crush)' if is_becas else 'TaskHub (Nemo)'
-    service_tag = '🐢 CRUSH' if is_becas else '⚡ NEMO'
-    accent_color = '#06b6d4' if is_becas else '#6366f1'
-    brand_logo = '/static/crush_logo.svg' if is_becas else '/static/nemo_logo.svg'
+    is_owasp = ':3002' in target_url or '/owasp' in request.path
+    is_becas = ':3012' in target_url or '/becas' in request.path
+    if is_owasp:
+        service_name = 'OWASP Juice Shop (Bruce)'
+        service_tag = '🦈 BRUCE'
+        accent_color = '#0284c7'
+        brand_logo = '/static/bruce_logo.svg'
+    elif is_becas:
+        service_name = 'BecaFinder (Crush)'
+        service_tag = '🐢 CRUSH'
+        accent_color = '#06b6d4'
+        brand_logo = '/static/crush_logo.svg'
+    else:
+        service_name = 'TaskHub (Nemo)'
+        service_tag = '⚡ NEMO'
+        accent_color = '#6366f1'
+        brand_logo = '/static/nemo_logo.svg'
 
     # Si es llamada API o probe JSON, devolver JSON con 503
     accept_hdr = request.headers.get('Accept', '')
@@ -960,20 +1060,26 @@ def handle_becas_request(subpath="", prefix="/becas"):
     # 1. Rutas de Login y Logout para BecaFinder
     if clean_subpath in ('login', 'login/'):
         error_msg = None
-        next_url = request.args.get('next') or request.form.get('next') or f"{prefix}"
+        next_url = _safe_next(request.args.get('next') or request.form.get('next'), f"{prefix}")
         if request.method == 'POST':
-            username = request.form.get('username', '').strip()
-            password = request.form.get('password', '')
-            expected_pass = EDU_BECAS_USERS.get(username)
-            if _password_matches(password, expected_pass):
-                session.clear()
-                session['edu_auth_becas'] = True
-                session['edu_user_becas'] = username
-                session['edu_role'] = 'admin'
-                logger.info(f"🎓 [BECAS] Sesión iniciada con éxito para '{username}'")
-                return redirect(next_url)
+            ip = _login_client_ip()
+            if _login_throttled(ip):
+                error_msg = "Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo."
             else:
-                error_msg = "Credenciales incorrectas para BecaFinder. Verifique su código o usuario."
+                username = request.form.get('username', '').strip()
+                password = request.form.get('password', '')
+                expected_pass = EDU_BECAS_USERS.get(username)
+                if _password_matches(password, expected_pass):
+                    _login_ok(ip)
+                    session.clear()
+                    session['edu_auth_becas'] = True
+                    session['edu_user_becas'] = username
+                    session['edu_role'] = 'admin' if username.lower() in EDU_ADMIN_EMAILS else 'student'
+                    logger.info(f"🎓 [BECAS] Sesión iniciada con éxito para '{username}'")
+                    return redirect(next_url)
+                else:
+                    _login_fail(ip)
+                    error_msg = "Credenciales incorrectas para BecaFinder. Verifique su código o usuario."
                 
         return render_template(
             'edu_login.html',
@@ -1019,7 +1125,7 @@ def handle_becas_request(subpath="", prefix="/becas"):
     edu_email = edu_user
     edu_name = session.get('edu_name', '') or ('CARLOS ALBERTO ACEVES CABRERA' if edu_user == 'carlos.aceves6195@alumnos.udg.mx' else '')
     edu_name_safe = (edu_name or '').encode('latin-1', errors='ignore').decode('latin-1')
-    edu_role = session.get('edu_role', 'beta_tester')
+    edu_role = 'admin' if edu_user.lower() in EDU_ADMIN_EMAILS else 'student'
     identity_headers = {
         'X-Edu-User': edu_user,
         'X-Edu-Email': edu_email,
@@ -1044,20 +1150,26 @@ def handle_tareas_request(subpath="", prefix="/tareas"):
     # 1. Rutas de Login y Logout para TaskHub
     if clean_subpath in ('login', 'login/'):
         error_msg = None
-        next_url = request.args.get('next') or request.form.get('next') or f"{prefix}"
+        next_url = _safe_next(request.args.get('next') or request.form.get('next'), f"{prefix}")
         if request.method == 'POST':
-            username = request.form.get('username', '').strip()
-            password = request.form.get('password', '')
-            expected_pass = EDU_TAREAS_USERS.get(username)
-            if _password_matches(password, expected_pass):
-                session.clear()
-                session['edu_auth_tareas'] = True
-                session['edu_user_tareas'] = username
-                session['edu_role'] = 'admin'
-                logger.info(f"⚡ [TAREAS] Sesión iniciada con éxito para '{username}'")
-                return redirect(next_url)
+            ip = _login_client_ip()
+            if _login_throttled(ip):
+                error_msg = "Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo."
             else:
-                error_msg = "Credenciales incorrectas para TaskHub. Verifique su código o usuario."
+                username = request.form.get('username', '').strip()
+                password = request.form.get('password', '')
+                expected_pass = EDU_TAREAS_USERS.get(username)
+                if _password_matches(password, expected_pass):
+                    _login_ok(ip)
+                    session.clear()
+                    session['edu_auth_tareas'] = True
+                    session['edu_user_tareas'] = username
+                    session['edu_role'] = 'admin' if username.lower() in EDU_ADMIN_EMAILS else 'student'
+                    logger.info(f"⚡ [TAREAS] Sesión iniciada con éxito para '{username}'")
+                    return redirect(next_url)
+                else:
+                    _login_fail(ip)
+                    error_msg = "Credenciales incorrectas para TaskHub. Verifique su código o usuario."
                 
         return render_template(
             'edu_login.html',
@@ -1087,11 +1199,12 @@ def handle_tareas_request(subpath="", prefix="/tareas"):
     # Manejar preflight CORS directo
     if request.method == 'OPTIONS':
         resp = Response('', status=204)
-        req_origin = request.headers.get('Origin', '*')
-        resp.headers['Access-Control-Allow-Origin'] = req_origin
-        resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-Sync-Token'
-        resp.headers['Access-Control-Allow-Credentials'] = 'true'
+        req_origin = request.headers.get('Origin', '')
+        if _cors_origin_allowed(req_origin):
+            resp.headers['Access-Control-Allow-Origin'] = req_origin
+            resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-Sync-Token'
+            resp.headers['Access-Control-Allow-Credentials'] = 'true'
         return resp
 
     # Si ya cuenta con sesión Gateway EDU, otorgar sesión Tareas automáticamente
@@ -1117,7 +1230,7 @@ def handle_tareas_request(subpath="", prefix="/tareas"):
     edu_email = edu_user
     edu_name = session.get('edu_name', '') or ('CARLOS ALBERTO ACEVES CABRERA' if edu_user == 'carlos.aceves6195@alumnos.udg.mx' else '')
     edu_name_safe = (edu_name or '').encode('latin-1', errors='ignore').decode('latin-1')
-    edu_role = session.get('edu_role', 'beta_tester')
+    edu_role = 'admin' if edu_user.lower() in EDU_ADMIN_EMAILS else 'student'
     identity_headers = {
         'X-Edu-User': edu_user,
         'X-Edu-Email': edu_email,
@@ -1142,6 +1255,64 @@ def bp_becas(subpath):
 @edu_bp.route('/tareas/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
 def bp_tareas(subpath):
     return handle_tareas_request(subpath, prefix='/edu/tareas')
+
+
+def handle_owasp_request(subpath="", prefix="/edu/owasp"):
+    """Reverse proxy seguro hacia el sandbox Rust de OWASP Juice Shop (Bruce) en :3002."""
+    clean_subpath = subpath.strip('/')
+    if not clean_subpath and not request.path.endswith('/'):
+        target_slash = request.path + '/'
+        if request.query_string:
+            target_slash += '?' + request.query_string.decode('utf-8', errors='ignore')
+        return redirect(target_slash)
+
+    is_sub_resource = (
+        bool(clean_subpath)
+        or _is_public_static_asset(clean_subpath)
+    )
+    has_edu_session = bool(
+        session.get('edu_authenticated')
+        or session.get('edu_auth_becas')
+        or session.get('edu_auth_tareas')
+    )
+    if not is_sub_resource and not has_edu_session:
+        current_target = request.full_path if request.query_string else request.path
+        return redirect(url_for('edu_bp.login', next=current_target))
+
+    edu_user = (
+        session.get('edu_user')
+        or session.get('edu_user_becas')
+        or session.get('edu_user_tareas')
+        or ''
+    ).strip()
+    if edu_user.lower() in ('carlos', '225361954', 'admin', 'carlos@dory.mx', 'carlosalbertoacevesc@gmail.com'):
+        edu_user = 'carlos.aceves6195@alumnos.udg.mx'
+    edu_name = session.get('edu_name', '') or ('CARLOS ALBERTO ACEVES CABRERA' if edu_user == 'carlos.aceves6195@alumnos.udg.mx' else '')
+    edu_name_safe = (edu_name or '').encode('latin-1', errors='ignore').decode('latin-1')
+    edu_role = session.get('edu_role', 'student')
+    identity_headers = {}
+    if edu_user:
+        identity_headers = {
+            'X-Edu-User': edu_user,
+            'X-Edu-Email': edu_user,
+            'X-Edu-Name': edu_name_safe,
+            'X-Edu-Role': edu_role,
+        }
+
+    owasp_port = os.environ.get('OWASP_JUICE_PORT', '3002')
+    target_url = (
+        f"http://127.0.0.1:{owasp_port}/{subpath.lstrip('/')}"
+        if clean_subpath
+        else f"http://127.0.0.1:{owasp_port}/"
+    )
+    return proxy_to_microservice(target_url, extra_headers=identity_headers)
+
+
+@edu_bp.route('/owasp', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@edu_bp.route('/owasp/', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@edu_bp.route('/owasp/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+def bp_owasp(subpath):
+    return handle_owasp_request(subpath, prefix='/edu/owasp')
 
 
 def handle_splunk_request(subpath="", prefix="/edu/splunk"):
@@ -1182,7 +1353,11 @@ def handle_juegos_request(subpath="", prefix="/edu/juegos"):
     if not clean_subpath:
         return send_from_directory(CUGDL_GAMES_DIR, 'index.html')
 
-    file_path = os.path.join(CUGDL_GAMES_DIR, clean_subpath)
+    # Contener la petición dentro de CUGDL_GAMES_DIR: '..', rutas absolutas o symlinks que escapen -> 404.
+    base = os.path.realpath(CUGDL_GAMES_DIR)
+    file_path = os.path.realpath(os.path.join(base, clean_subpath))
+    if file_path != base and not file_path.startswith(base + os.sep):
+        abort(404)
 
     # Si es un directorio, forzar trailing slash para que las rutas relativas de scripts y assets resuelvan correctamente
     if os.path.isdir(file_path):
@@ -1256,7 +1431,6 @@ def test_moodle_token():
                 'success': True,
                 'message': '¡Autenticación exitosa con Moodle CUGDL!',
                 'token_masked': masked_token,
-                'full_token': res_data['token'],
                 'has_private_token': 'privatetoken' in res_data
             }), 200
         elif 'error' in res_data:
