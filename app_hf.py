@@ -29,8 +29,12 @@ import sqlite3
 import json
 from datetime import datetime
 from contextlib import closing
-from flask import Flask, request, render_template, jsonify, session, redirect, url_for, send_from_directory
+from flask import Flask, request, render_template, jsonify, session, redirect, url_for, send_from_directory, abort, Response
+import importlib
+import blog_posts as _blog_mod
 from functools import wraps, lru_cache
+import mimetypes
+mimetypes.add_type('image/webp', '.webp')  # Windows' registry lacks it: blog photos were served as octet-stream
 import requests
 from urllib.parse import urlparse, quote
 
@@ -108,7 +112,7 @@ def optimize_http_response(response):
 
 
 # --- Dory EDU Hub & Gateway Registration ---
-from edu_portal import edu_bp, handle_becas_request, handle_tareas_request, handle_splunk_request, handle_juegos_request
+from edu_portal import edu_bp, handle_becas_request, handle_tareas_request, handle_splunk_request, handle_juegos_request, handle_owasp_request
 from dev_workbench import dev_wb_bp, get_allowed_dev_users as _get_allowed_dev_users, is_dev_authorized as _is_dev_portfolio_authorized
 app.register_blueprint(edu_bp, url_prefix='/edu')
 app.register_blueprint(dev_wb_bp)
@@ -137,6 +141,12 @@ def direct_splunk_proxy(subpath):
 @app.route('/juegos/<path:subpath>', methods=['GET'], strict_slashes=False)
 def direct_juegos_proxy(subpath):
     return handle_juegos_request(subpath, prefix='/juegos')
+
+@app.route('/owasp', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@app.route('/owasp/', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+@app.route('/owasp/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
+def direct_owasp_proxy(subpath):
+    return handle_owasp_request(subpath, prefix='/owasp')
 
 # Transparent API fallbacks for BecaFinder
 @app.route('/api/becas', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], strict_slashes=False)
@@ -195,12 +205,33 @@ def fallback_api_auth(subpath):
 
 
 
+_OWASP_ROOT_PREFIXES = (
+    '/tour-assets/', '/tour-api/', '/rest/', '/ftp/', '/socket.io/',
+    '/the/devs/', '/solve/challenges/', '/profile/image/',
+    '/assets/public/', '/assets/i18n/', '/dataerasure',
+    '/api/Challenges', '/api/Products', '/api/Feedbacks', '/api/BasketItems',
+    '/api/Quantitys', '/api/Users', '/api/SecurityQuestions', '/api/SecurityAnswers',
+    '/api/Cards', '/api/Addresss', '/api/Deliverys', '/api/Recycles', '/api/Complaints',
+)
+_OWASP_ROOT_EXACT = {
+    '/ftp', '/profile', '/runtime.js', '/polyfills.js', '/vendor.js',
+    '/main.js', '/scripts.js', '/styles.css', '/favicon_js.ico',
+}
+
+
 @app.before_request
 def handle_subdomain_routing():
     """Detecta peticiones desde subdominios dev.dory.mx y edu.dory.mx y las enruta inteligentemente."""
+    path = request.path
+    if (
+        path in _OWASP_ROOT_EXACT
+        or any(path.startswith(p) for p in _OWASP_ROOT_PREFIXES)
+        or ((path.startswith('/chunk-') or path.startswith('/rolldown-runtime-')) and path.endswith('.js'))
+    ):
+        return handle_owasp_request(path.lstrip('/'), prefix='/edu/owasp')
+
     host = request.host.lower()
     if host.startswith('dev.') or host.startswith('portfolio.'):
-        path = request.path
         if path.startswith('/static/') or path in ('/favicon.ico', '/robots.txt', '/dev/login', '/dev/logout', '/dev/sso-callback'):
             return None
         if path == '/login':
@@ -212,9 +243,10 @@ def handle_subdomain_routing():
         return None
 
     if host.startswith('edu.'):
-        path = request.path
-        # No redirigir si ya va a /becas, /tareas, /splunk, /juegos, /edu, /dev, /portfolio, /vault o /static
-        if path.startswith('/becas') or path.startswith('/tareas') or path.startswith('/splunk') or path.startswith('/juegos') or path.startswith('/edu') or path.startswith('/dev') or path.startswith('/portfolio') or path.startswith('/vault') or path.startswith('/static'):
+        # No redirigir si ya va a /becas, /tareas, /splunk, /juegos, /owasp, /edu, /dev, /portfolio, /vault, /static o páginas legales
+        if path in ('/privacidad', '/privacy', '/terminos', '/terms', '/favicon.ico', '/robots.txt'):
+            return None
+        if path.startswith('/becas') or path.startswith('/tareas') or path.startswith('/splunk') or path.startswith('/juegos') or path.startswith('/owasp') or path.startswith('/edu') or path.startswith('/dev') or path.startswith('/portfolio') or path.startswith('/vault') or path.startswith('/static'):
             return None
             
         # Permitir que las APIs directas sean atendidas por sus endpoints
@@ -375,6 +407,11 @@ def init_database():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_reports_pred_score ON incoming_phishing_reports(prediction, risk_score);')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_feedback_timestamp ON feedback(timestamp DESC);')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_consents_granted_type ON user_consents(granted, consent_type);')
+    try:
+        from retention import purge_expired
+        purge_expired(cursor)  # retention promised in /privacidad also runs on every boot
+    except Exception as e:
+        logger.warning(f"Retention purge skipped at startup: {e}")
     
     conn.commit()
     conn.close()
@@ -397,10 +434,37 @@ def robots_txt():
     """Directorio de indexación para robots y motores de búsqueda."""
     return send_from_directory(os.path.join(APP_ROOT, 'static'), 'robots.txt', mimetype='text/plain')
 
+# Public, indexable pages: canonical path -> (template, changefreq, priority). Aliases redirect here (301).
+SITEMAP_PAGES = {
+    '/': ('index.html', 'weekly', '1.0'),
+    '/anonimizador': ('anonymizer.html', 'monthly', '0.9'),
+    '/como-funciona': ('como_funciona.html', 'monthly', '0.8'),
+    '/blog': ('blog_index.html', 'weekly', '0.8'),
+    '/faq': ('faq.html', 'monthly', '0.7'),
+    '/contacto': ('contact.html', 'monthly', '0.7'),
+    '/privacidad': ('privacy.html', 'yearly', '0.4'),
+    '/terminos': ('terms.html', 'yearly', '0.4'),
+}
+URL_ALIASES = {'/privacy': '/privacidad', '/terms': '/terminos', '/contact': '/contacto', '/anon': '/anonimizador',
+               '/how-it-works': '/como-funciona', '/semaforo': '/como-funciona'}
+for _old, _new in URL_ALIASES.items():
+    # One canonical URL per page: duplicates split ranking signals.
+    app.add_url_rule(_old, 'alias' + _old.replace('/', '_').replace('-', '_'), (lambda target=_new: redirect(target, 301)))
+
+
 @app.route('/sitemap.xml')
 def sitemap_xml():
-    """Mapa del sitio XML oficial para Google Search Console y Bing Webmaster."""
-    return send_from_directory(os.path.join(APP_ROOT, 'static'), 'sitemap.xml', mimetype='application/xml')
+    """Sitemap built from the page table and the blog registry, so new posts appear without editing a file."""
+    from datetime import datetime, timezone
+    tpl_dir = os.path.join(APP_ROOT, 'templates')
+    def mtime(name):
+        return datetime.fromtimestamp(os.path.getmtime(os.path.join(tpl_dir, name)), timezone.utc).date().isoformat()
+    urls = [(path, mtime(tpl), freq, prio) for path, (tpl, freq, prio) in SITEMAP_PAGES.items()]
+    urls += [(f"/blog/{p['slug']}", (p.get('updated') or p['published']).isoformat(), 'yearly', '0.7') for p in blog_registry()[0]]
+    body = ''.join(f'<url><loc>https://dory.mx{path}</loc><lastmod>{mod}</lastmod><changefreq>{freq}</changefreq><priority>{prio}</priority></url>'
+                   for path, mod, freq, prio in urls)
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</urlset>'
+    return Response(xml, mimetype='application/xml')
 
 # --- Routes ---
 @app.route('/')
@@ -412,7 +476,53 @@ def index():
 @app.route('/stitch-preview')
 def stitch_preview():
     """Render the new Stitch-designed Dory.mx dashboard preview."""
-    return render_template('stitch_preview.html')
+    resp = app.make_response(render_template('stitch_preview.html'))
+    resp.headers['X-Robots-Tag'] = 'noindex, nofollow'  # old design draft: must not compete with the real home
+    return resp
+
+
+_blog_mtime = 0
+
+
+def blog_registry():
+    """(published posts, slug -> post incl. drafts). Re-read when blog_posts.py changes, so the marketing agent's drafts show up without a restart."""
+    global _blog_mtime
+    m = os.path.getmtime(_blog_mod.__file__)
+    if m != _blog_mtime:
+        importlib.reload(_blog_mod)
+        _blog_mtime = m
+    return [p for p in _blog_mod.POSTS if not p.get('draft')], _blog_mod.BY_SLUG
+
+
+def _is_local_preview():
+    # Production traffic arrives through the Cloudflare tunnel (also from 127.0.0.1) and always carries CF-Connecting-IP.
+    return not request.headers.get('CF-Connecting-IP') and request.remote_addr in ('127.0.0.1', '::1')
+
+
+@app.context_processor
+def inject_blog_helpers():
+    def photo_ok(slug):
+        return os.path.exists(os.path.join(APP_ROOT, 'static', 'blog', f'{slug}.webp'))
+    return {'photo_ok': photo_ok}
+
+
+@app.route('/blog')
+def blog_index():
+    return render_template('blog_index.html', posts=blog_registry()[0], active='blog')
+
+
+@app.route('/blog/<slug>')
+def blog_post(slug):
+    published, by_slug = blog_registry()
+    post = by_slug.get(slug)
+    if not post or (post.get('draft') and not _is_local_preview()) \
+            or not os.path.exists(os.path.join(APP_ROOT, 'templates', 'blog', f'{slug}.html')):
+        abort(404)  # a draft's registry entry can reach the nodes before its article does
+    related = [p for p in published if p['slug'] != slug][:3]
+    resp = app.make_response(render_template(f'blog/{slug}.html', post=post, related=related, active='blog'))
+    if post.get('draft'):
+        resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    return resp
 
 @app.route('/dev/login', methods=['GET', 'POST'])
 def dev_portfolio_login():
@@ -498,32 +608,35 @@ def dev_portfolio_page():
 
 @app.route('/vault/<doc_type>')
 def download_vault_pdf(doc_type):
-    """Serve certified Vault PDFs (cv, kardex, carta) directly on dev.dory.mx and dory.mx."""
+    """Serve certified Vault PDFs (cv, cv-es, kardex, siiau, carta) directly on dev.dory.mx and dory.mx."""
     if not _is_dev_portfolio_authorized():
         return redirect(f"/dev/login?next={quote(request.path)}")
     candidate_dirs = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vault_docs'),
         r'C:\Users\QB_DESARROLLO\Desktop\03-Orquestador-y-Proyectos-Home\Proyectos_Home\Proyectos\Buscador_Academico\server\vault_docs\carlos_aceves6195_alumnos_udg_mx',
         r'C:\Users\CarlosAlbertoAcevesC\Desktop\02-plataformas-activas\buscador-academico\server\vault_docs\carlos_aceves6195_alumnos_udg_mx',
     ]
-    vault_dir = next((d for d in candidate_dirs if os.path.isdir(d)), candidate_dirs[-1])
     mapping = {
         'cv': 'CV_Ejecutivo_225361954.pdf',
+        'cv-es': 'CV_Ejecutivo_ZMG_ES_225361954.pdf',
         'kardex': 'Kardex_Oficial_UDG_225361954.pdf',
+        'siiau': 'rwservlet.pdf',
         'carta': 'Carta_Motivacion_225361954.pdf',
     }
     filename = mapping.get(doc_type.lower())
-    if not filename or not os.path.exists(os.path.join(vault_dir, filename)):
+    if not filename:
         return jsonify({'error': 'Vault document not found'}), 404
-    return send_from_directory(vault_dir, filename, mimetype='application/pdf')
+    for vdir in candidate_dirs:
+        if os.path.isdir(vdir) and os.path.exists(os.path.join(vdir, filename)):
+            return send_from_directory(vdir, filename, mimetype='application/pdf')
+    return jsonify({'error': 'Vault document not found'}), 404
 
 @app.route('/privacidad')
-@app.route('/privacy')
 def privacy():
     """Render the Privacy Policy and Security page."""
     return render_template('privacy.html')
 
 @app.route('/terminos')
-@app.route('/terms')
 def terms():
     """Render the Terms of Service page."""
     return render_template('terms.html')
@@ -534,20 +647,16 @@ def faq():
     return render_template('faq.html')
 
 @app.route('/contacto')
-@app.route('/contact')
 def contact():
     """Render the Contact and Service Request page."""
     return render_template('contact.html')
 
-@app.route('/anon')
 @app.route('/anonimizador')
 def anonymizer_page():
     """Render the Dory AI Data Anonymizer & Sanitizer interactive tool."""
     return render_template('anonymizer.html')
 
 @app.route('/como-funciona')
-@app.route('/how-it-works')
-@app.route('/semaforo')
 def como_funciona():
     """Render the explanation of Dory's ML engine and risk traffic light."""
     return render_template('como_funciona.html')
@@ -935,14 +1044,17 @@ def submit_feedback():
                 'allowed': ['correct', 'incorrect']
             }), 400
         
-        # Get client info
-        ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
-        user_agent = request.headers.get('User-Agent', 'Unknown')
-        
+        # Data minimisation (see /privacidad): text through the Privacy Shield, no IP or browser fingerprint.
+        from retention import shield_text, purge_expired
+        data['email_text'] = shield_text(str(data['email_text']))[:20000]
+        ip_address = None
+        user_agent = None
+
         # Store in database
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+        purge_expired(cursor)
+
         cursor.execute('''
             INSERT INTO feedback (
                 email_text, prediction, user_feedback, confidence, 
@@ -1240,9 +1352,11 @@ STALWART_IMAP_INSECURE = os.environ.get('STALWART_IMAP_INSECURE', '1').lower() i
 # Carpeta de cuarentena para correos con veredicto PHISHING
 DORY_QUARANTINE_FOLDER = os.environ.get('DORY_QUARANTINE_FOLDER', 'Junk')
 DORY_MAILBOXES = {
-    'carlos@dory.mx', 'contacto@dory.mx', 'soporte@dory.mx',
+    'carlos@dory.mx', 'contacto@dory.mx', 'soporte@dory.mx', 'privacidad@dory.mx',
     'alerta@dory.mx', 'seguridad@dory.mx', 'spam@dory.mx'
 }
+# privacidad@ is the address published in /privacidad; soporte@ keeps working for older links.
+ARCO_ADDRESSES = {'privacidad@dory.mx', 'soporte@dory.mx'}
 
 # Efectos secundarios lentos (copia de reporte, respuesta SMTP/Resend, ARCO) fuera del ciclo
 # petición/respuesta: el Worker de Cloudflare ya no espera segundos de SMTP por cada correo.
@@ -1362,11 +1476,11 @@ def handle_arco_request(sender_email: str, subject: str, raw_body_text: str = ''
 
         ack_msg = MIMEMultipart('alternative')
         ack_msg['Subject'] = f"[{folio}] Acuse de Recibo — Solicitud de Derechos ARCO (Dory.mx)"
-        ack_msg['From'] = "Dory.mx Privacidad y Cumplimiento <soporte@dory.mx>"
+        ack_msg['From'] = "Dory.mx Privacidad <privacidad@dory.mx>"
         ack_msg['To'] = sender_email
         ack_msg['Date'] = email.utils.formatdate(localtime=True)
 
-        text_content = f"""Estimado(a) Titular,\n\nHemos recibido formalmente su comunicación en el buzón oficial de soporte@dory.mx solicitando la atención y ejercicio de Derechos ARCO (Acceso, Rectificación, Cancelación y Oposición), en estricto apego a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).\n\n--------------------------------------------------\nNÚMERO DE FOLIO ASIGNADO: {folio}\nFecha de radicación: {now.strftime('%d/%m/%Y %H:%M')}\nFecha límite de resolución legal: {deadline}\n--------------------------------------------------\n\nPRÓXIMOS PASOS EN EL PROCESO:\n1. Cotejo y Verificación: Nuestro Oficial de Privacidad verificará los registros administrativos asociados a su dirección.\n2. Cero Retención de Contenido: Dory no almacena cuerpos de correos analizados; las acciones aplican sobre registros de contacto o remitentes autorizados.\n3. Dictamen Formal: Recibirá la resolución definitiva a esta misma dirección de correo en un plazo no mayor a 5 días hábiles.\n\nAtentamente,\nOficialía de Privacidad y Cumplimiento Normativo\nDory Intelligence — Guadalajara, Jalisco, México\nContacto: soporte@dory.mx\n"""
+        text_content = f"""Estimado(a) Titular,\n\nHemos recibido formalmente su comunicación en el buzón oficial de privacidad@dory.mx solicitando la atención y ejercicio de Derechos ARCO (Acceso, Rectificación, Cancelación y Oposición), en estricto apego a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).\n\n--------------------------------------------------\nNÚMERO DE FOLIO ASIGNADO: {folio}\nFecha de radicación: {now.strftime('%d/%m/%Y %H:%M')}\nFecha límite de resolución legal: {deadline}\n--------------------------------------------------\n\nPRÓXIMOS PASOS EN EL PROCESO:\n1. Cotejo y Verificación: Nuestro Oficial de Privacidad verificará los registros administrativos asociados a su dirección.\n2. Alcance: su solicitud puede abarcar los correos que nos reenvió (el original que conservamos para mejorar el detector y el análisis anonimizado de 30 días), sus datos de contacto y el registro de consentimiento.\n3. Dictamen Formal: Recibirá la resolución definitiva a esta misma dirección de correo en un plazo no mayor a 5 días hábiles (el plazo legal máximo es de 20).\n\nAtentamente,\nPrivacidad Dory.mx\nGuadalajara, Jalisco, México\nContacto: privacidad@dory.mx\n"""
 
         html_content = f"""<!DOCTYPE html>
 <html>
@@ -1376,7 +1490,7 @@ def handle_arco_request(sender_email: str, subject: str, raw_body_text: str = ''
       <h2 style="margin: 0; color: #0284c7; font-size: 20px;">Dory.mx — Oficialía de Privacidad y Cumplimiento</h2>
     </div>
     <p style="font-size: 15px;">Estimado(a) Titular,</p>
-    <p style="font-size: 14px;">Hemos recibido formalmente su comunicación en el buzón oficial de <strong>soporte@dory.mx</strong> solicitando la atención y ejercicio de Derechos ARCO (Acceso, Rectificación, Cancelación y Oposición), en estricto apego a la <em>Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP)</em>.</p>
+    <p style="font-size: 14px;">Hemos recibido formalmente su comunicación en el buzón oficial de <strong>privacidad@dory.mx</strong> solicitando la atención y ejercicio de Derechos ARCO (Acceso, Rectificación, Cancelación y Oposición), en estricto apego a la <em>Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP)</em>.</p>
     
     <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 14px 18px; border-radius: 6px; margin: 20px 0;">
       <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase;">Número de Folio Asignado</div>
@@ -1387,15 +1501,15 @@ def handle_arco_request(sender_email: str, subject: str, raw_body_text: str = ''
     <h3 style="font-size: 15px; color: #0f172a; margin-top: 20px;">Próximos Pasos en el Proceso:</h3>
     <ol style="font-size: 13.5px; color: #334155; padding-left: 20px;">
       <li style="margin-bottom: 8px;"><strong>Cotejo y Verificación:</strong> Nuestro Oficial de Privacidad verificará los registros administrativos asociados a su dirección.</li>
-      <li style="margin-bottom: 8px;"><strong>Cero Retención de Contenido:</strong> Dory no conserva cuerpos de correos analizados; las cancelaciones aplican sobre registros de contacto o remitentes autorizados.</li>
-      <li style="margin-bottom: 8px;"><strong>Dictamen Formal:</strong> Recibirá la resolución definitiva a esta misma cuenta en un plazo no mayor a 5 días hábiles.</li>
+      <li style="margin-bottom: 8px;"><strong>Alcance:</strong> su solicitud puede abarcar los correos que nos reenvió (el original que conservamos para mejorar el detector y el análisis anonimizado de 30 días), sus datos de contacto y el registro de consentimiento.</li>
+      <li style="margin-bottom: 8px;"><strong>Dictamen Formal:</strong> Recibirá la resolución definitiva a esta misma cuenta en un plazo no mayor a 5 días hábiles (el plazo legal máximo es de 20).</li>
     </ol>
 
     <p style="font-size: 13px; color: #64748b; margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
       Atentamente,<br>
-      <strong>Oficialía de Privacidad y Cumplimiento Normativo</strong><br>
-      Dory Intelligence — Guadalajara, Jalisco, México<br>
-      Correo oficial: <a href="mailto:soporte@dory.mx" style="color: #0284c7; text-decoration: none;">soporte@dory.mx</a>
+      <strong>Privacidad Dory.mx</strong><br>
+      Guadalajara, Jalisco, México<br>
+      Correo oficial: <a href="mailto:privacidad@dory.mx" style="color: #0284c7; text-decoration: none;">privacidad@dory.mx</a>
     </p>
   </div>
 </body>
@@ -1424,7 +1538,7 @@ def stalwart_deliver_local(raw_rfc822: bytes, recipient: str, sender: str = '', 
     if folder:
         target_folder = _quote_imap_folder(folder)
     else:
-        target_folder = '"Soporte ARCO"' if 'soporte@dory.mx' in recipient else 'INBOX'
+        target_folder = '"Soporte ARCO"' if recipient in ARCO_ADDRESSES else 'INBOX'
     
     # 1. Intento directo vía IMAP APPEND a la carpeta correspondiente
     try:
@@ -1567,13 +1681,9 @@ def mail_inbound():
         # 502 -> el Worker reintenta y, si persiste, usa su reenvío/rechazo de respaldo (no se pierde el correo)
         return jsonify({'status': 'delivery_failed', 'category': category}), 502
 
-    # 4. Persistencia (cuerpo saneado con el Escudo de Privacidad)
+    # 4. Persistencia (save_incoming_report pasa asunto y cuerpo por el Escudo de Privacidad)
     try:
         from mail_service import save_incoming_report
-        from privacy_shield import PrivacyShield
-        if result['db_payload'].get('email_body'):
-            result['db_payload']['email_body'] = PrivacyShield.anonymize_text(
-                result['db_payload']['email_body'])['sanitized_text']
         record_id = save_incoming_report(result['db_payload'])
     except Exception as e:
         logger.error(f"Error persistiendo reporte entrante: {e}", exc_info=True)
@@ -1583,7 +1693,7 @@ def mail_inbound():
     # Si el correo va a soporte@dory.mx o el asunto menciona ARCO (palabra completa; antes "Marcos"
     # o "marco" disparaban un folio), radicar formalmente y generar acuse. Nunca para phishing.
     subject = email_info.get('subject') or ''
-    is_arco = ('soporte@dory.mx' == dory_recipient or re.search(r'\barco\b', subject, re.IGNORECASE)) \
+    is_arco = (dory_recipient in ARCO_ADDRESSES or re.search(r'\barco\b', subject, re.IGNORECASE)) \
         and category != 'PHISHING'
 
     _BG_EXECUTOR.submit(_inbound_background_tasks, worker, result, record_id, dory_recipient, bool(is_arco))
@@ -1615,16 +1725,18 @@ def mail_inbound():
 def _inbound_background_tasks(worker, result, record_id, dory_recipient, is_arco):
     """Efectos secundarios lentos del webhook, fuera del ciclo petición/respuesta."""
     email_info = result['email_info']
-    try:
-        stalwart_deliver_report(result['report'], email_info)
-    except Exception as e:
-        logger.warning(f"No se pudo copiar el reporte a 'Respuestas Dory': {e}")
 
     reply_ok = False
     try:
         reply_ok = worker.send_smtp_reply(email_info, result['report'], envelope_recipient=dory_recipient)
     except Exception as smtp_err:
         logger.warning(f"No se pudo despachar respuesta SMTP externa: {smtp_err}")
+
+    if reply_ok:
+        try:
+            stalwart_deliver_report(result['report'], email_info)
+        except Exception as e:
+            logger.warning(f"No se pudo copiar el reporte a 'Respuestas Dory': {e}")
 
     if record_id and record_id > 0 and reply_ok:
         try:
@@ -1774,6 +1886,11 @@ def handle_403_error(e):
 
 @app.errorhandler(404)
 def handle_404_error(e):
+    # Recuperar enlaces UTM a los que les falte '?' (ej. /utm_source=linkedin&... desde lnkd.in)
+    if 'utm_' in request.path and '=' in request.path:
+        base_path, _, query_part = request.path.rpartition('/')
+        if query_part.startswith('utm_'):
+            return redirect((base_path or '/') + '?' + query_part, code=302)
     return _render_dory_error(
         404,
         'ROUTE_NOT_FOUND',

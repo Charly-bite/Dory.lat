@@ -340,31 +340,40 @@ def sync_user_session():
 
 @edu_bp.route('/auth/google/login', methods=['GET'])
 def google_login():
-    """Inicia el flujo de autenticación con Google OAuth 2.0."""
+    """Inicia el flujo de autenticación con Google OAuth 2.0 (por defecto solo openid email profile para evitar límite de 100 usuarios)."""
     state = secrets.token_urlsafe(16)
     session['oauth_state'] = state
     next_url = _safe_next(request.args.get('next'), url_for('edu_bp.dashboard'))
     session['oauth_next'] = next_url
+
+    include_classroom = request.args.get('classroom', '').strip().lower() in ('1', 'true', 'yes')
+    base_scope = 'openid email profile'
+    if include_classroom:
+        scope = (
+            f'{base_scope} '
+            'https://www.googleapis.com/auth/classroom.courses.readonly '
+            'https://www.googleapis.com/auth/classroom.coursework.me '
+            'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly '
+            'https://www.googleapis.com/auth/classroom.rosters.readonly '
+            'https://www.googleapis.com/auth/drive.readonly'
+        )
+    else:
+        scope = base_scope
 
     redirect_uri = get_google_redirect_uri()
     params = {
         'client_id': GOOGLE_CLIENT_ID,
         'redirect_uri': redirect_uri,
         'response_type': 'code',
-        'scope': (
-            'openid email profile '
-            'https://www.googleapis.com/auth/classroom.courses.readonly '
-            'https://www.googleapis.com/auth/classroom.coursework.me '
-            'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly '
-            'https://www.googleapis.com/auth/classroom.rosters.readonly '
-            'https://www.googleapis.com/auth/drive.readonly'
-        ),
+        'scope': scope,
         'state': state,
-        'prompt': 'select_account consent',
-        'access_type': 'offline'
+        'prompt': 'select_account consent' if include_classroom else 'select_account',
     }
+    if include_classroom:
+        params['access_type'] = 'offline'
+        params['include_granted_scopes'] = 'true'
     auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
-    logger.info(f"🌐 [GOOGLE OAUTH] Iniciando OAuth hacia Google (redirect_uri: {redirect_uri})")
+    logger.info(f"🌐 [GOOGLE OAUTH] Iniciando OAuth hacia Google (redirect_uri: {redirect_uri}, classroom={include_classroom})")
     return redirect(auth_url)
 
 
@@ -467,29 +476,31 @@ def google_callback():
         conn.commit()
         conn.close()
 
-        # Propagar automáticamente el token OAuth a TaskHub (local y nodo hermano HA) para sincronizar Google Classroom sin pasos extra
-        for sso_url in _build_failover_urls('http://127.0.0.1:3001/auth/google/sso-token'):
-            try:
-                requests.post(
-                    sso_url,
-                    json={
-                        'email': email,
-                        'full_name': full_name,
-                        'access_token': access_token,
-                        'refresh_token': refresh_token,
-                        'expiry_date': expiry_date,
-                    },
-                    headers={
-                        'X-Gateway-Secret': EDU_GATEWAY_SECRET,
-                        'X-Edu-User': email,
-                        'X-Edu-Name': (full_name or '').encode('latin-1', errors='ignore').decode('latin-1'),
-                        'X-Edu-Role': role,
-                    },
-                    timeout=2
-                )
-                logger.info(f"🔄 [DORY EDU -> TASKHUB] Token de Google Classroom vinculado en '{sso_url}' para '{email}'")
-            except Exception:
-                pass
+        # Propagar el token OAuth a TaskHub únicamente cuando incluya permisos de Google Classroom
+        granted_scopes = str(token_data.get('scope') or '')
+        if 'classroom' in granted_scopes:
+            for sso_url in _build_failover_urls('http://127.0.0.1:3001/auth/google/sso-token'):
+                try:
+                    requests.post(
+                        sso_url,
+                        json={
+                            'email': email,
+                            'full_name': full_name,
+                            'access_token': access_token,
+                            'refresh_token': refresh_token,
+                            'expiry_date': expiry_date,
+                        },
+                        headers={
+                            'X-Gateway-Secret': EDU_GATEWAY_SECRET,
+                            'X-Edu-User': email,
+                            'X-Edu-Name': (full_name or '').encode('latin-1', errors='ignore').decode('latin-1'),
+                            'X-Edu-Role': role,
+                        },
+                        timeout=2
+                    )
+                    logger.info(f"🔄 [DORY EDU -> TASKHUB] Token de Google Classroom vinculado en '{sso_url}' para '{email}'")
+                except Exception:
+                    pass
 
         # Limpiar cualquier sesión previa en el navegador antes de establecer la nueva identidad
         next_url = session.get('oauth_next') or url_for('edu_bp.dashboard')
@@ -672,6 +683,20 @@ def admin_create_user():
         return jsonify({'success': True, 'message': 'Usuario registrado exitosamente.'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@edu_bp.route('/privacidad', methods=['GET'])
+@edu_bp.route('/privacy', methods=['GET'])
+def edu_privacy():
+    """Aviso de privacidad unificado accesible desde edu.dory.mx."""
+    return render_template('privacy.html')
+
+
+@edu_bp.route('/terminos', methods=['GET'])
+@edu_bp.route('/terms', methods=['GET'])
+def edu_terms():
+    """Términos de servicio accesibles desde edu.dory.mx."""
+    return render_template('terms.html')
 
 
 @edu_bp.route('/login', methods=['GET', 'POST'])

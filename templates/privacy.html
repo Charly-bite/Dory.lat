@@ -1,0 +1,182 @@
+{% set active = 'privacidad' %}
+{% extends "_abismo.html" %}
+{% block title %}Aviso de privacidad — Dory.mx y Dory EDU (edu.dory.mx){% endblock %}
+{% block description %}Qué datos reciben Dory.mx y Dory EDU (edu.dory.mx: BecaFinder y TaskHub Nemo), cómo se aíslan por estudiante, cuánto tiempo se conservan y cómo ejercer tus derechos ARCO.{% endblock %}
+{% block path %}/privacidad{% endblock %}
+{% block body_class %}page-legal{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+  <p class="kicker">Aviso de privacidad</p>
+  <h1>Tus datos,<br> en claro.</h1>
+  <p class="lede">Dory existe para que nadie se quede con tu información. Aquí está, sin letra chiquita, qué recibimos, qué guardamos, cuánto tiempo y cómo pedir que lo borremos.</p>
+  <p class="legal-meta">Última actualización: 27 de octubre de 2026 · Ley Federal de Protección de Datos Personales en Posesión de los Particulares (DOF 20/03/2025)</p>
+</section>
+
+<section class="privacy-brief" aria-labelledby="briefTitle">
+  <h2 id="briefTitle" class="side-title">En 30 segundos</h2>
+  <ul class="brief-grid">
+    <li><b>Lo que pegas en dory.mx no se guarda.</b><span>Se anonimiza, se analiza en memoria y se descarta al darte el dictamen.</span></li>
+    <li><b>Lo que reenvías a spam@dory.mx nos ayuda a mejorar.</b><span>Guardamos el correo en nuestro propio servidor para reentrenar el detector. Si no quieres, pídenos que lo borremos.</span></li>
+    <li><b>La extensión no nos manda nada.</b><span>Todo pasa en tu navegador. El anonimizador web procesa el texto en memoria y no lo guarda.</span></li>
+    <li><b>En Dory EDU (edu.dory.mx) tu perfil y bóveda están aislados.</b><span>Tu Kárdex SIIAU, documentos de becas y tareas de Moodle/Classroom viven en un espacio privado vinculado únicamente a tu correo institucional; ningún otro usuario puede verlos.</span></li>
+    <li><b>No vendemos ni compartimos tus datos.</b><span>Sin publicidad ni venta a terceros. Cumplimos con la Política de Uso Limitado de los Servicios de API de Google.</span></li>
+  </ul>
+</section>
+
+<section class="legal-wrap">
+  <nav class="legal-toc" aria-label="Índice">
+    <p class="side-title">Índice</p>
+    <ol>
+      <li><a href="#responsable">1. Quién es el responsable</a></li>
+      <li><a href="#datos">2. Qué datos tratamos y cuánto tiempo</a></li>
+      <li><a href="#dory-edu">3. Dory EDU (BecaFinder, TaskHub y Google OAuth)</a></li>
+      <li><a href="#escudo">4. El Escudo de Privacidad</a></li>
+      <li><a href="#finalidades">5. Para qué los usamos</a></li>
+      <li><a href="#terceros">6. Con quién se comparten</a></li>
+      <li><a href="#cookies">7. Cookies y analítica</a></li>
+      <li><a href="#seguridad">8. Cómo los protegemos</a></li>
+      <li><a href="#derechos">9. Tus derechos ARCO</a></li>
+      <li><a href="#cambios">10. Cambios a este aviso</a></li>
+    </ol>
+  </nav>
+
+  <article class="legal-doc">
+    <section id="responsable">
+      <h2><span class="section-title-num">01</span>Quién es el responsable</h2>
+      <p>El responsable del tratamiento de tus datos personales es <strong>Dory.mx</strong>, con sede en Guadalajara, Jalisco, México.</p>
+      <p>Para cualquier tema de privacidad, incluidas las notificaciones formales, escríbenos a <a href="mailto:privacidad@dory.mx">privacidad@dory.mx</a>.</p>
+    </section>
+
+    <section id="datos">
+      <h2><span class="section-title-num">02</span>Qué datos tratamos y cuánto tiempo</h2>
+      <p>Depende de qué parte de Dory uses. No te pedimos crear una cuenta para ninguna.</p>
+      <div class="post-table-wrap">
+        <table class="post-table data-table">
+          <thead><tr><th>Si usas…</th><th>Recibimos</th><th>Guardamos</th><th>Cuánto tiempo</th></tr></thead>
+          <tbody>
+            <tr><td><strong>El analizador de dory.mx</strong></td><td>El texto o enlace que pegas y tu dirección IP (necesaria para que la página funcione).</td><td>Nada del texto. Se anonimiza antes de analizarlo y se descarta.</td><td>Solo mientras se analiza.</td></tr>
+            <tr><td><strong>spam@dory.mx (análisis)</strong></td><td>El correo que reenvías: tu dirección, asunto, cuerpo, enlaces, adjuntos y cabeceras técnicas.</td><td>En nuestra base de análisis: tu dirección (para responderte), asunto y cuerpo <strong>anonimizados</strong>, enlaces, veredicto y el resultado de SPF/DKIM.</td><td>30 días; después se borra automáticamente.</td></tr>
+            <tr><td><strong>spam@dory.mx (entrenamiento)</strong></td><td>El mismo correo, que llega a un buzón de nuestro propio servidor de correo, no a un proveedor externo.</td><td>El mensaje tal como lo enviaste y una copia del dictamen que te respondimos, para reentrenar y evaluar el detector.</td><td>Mientras sea útil para mejorar el detector, o hasta que pidas que lo borremos.</td></tr>
+            <tr><td><strong>El anonimizador web</strong></td><td>El texto que pegas.</td><td>Nada. La tabla etiqueta → dato real vive solo en tu navegador.</td><td>Solo mientras se procesa.</td></tr>
+            <tr><td><strong>La extensión</strong></td><td>Nada: no se conecta a nuestros servidores.</td><td>Nada. Las etiquetas viven en tu navegador y se borran al cerrarlo.</td><td>—</td></tr>
+            <tr><td><strong>Dory EDU — Inicio de sesión (edu.dory.mx)</strong></td><td>Tu correo electrónico (institucional <code>@alumnos.udg.mx</code> o autorizado), nombre visible, foto de perfil e identificador de cuenta mediante Google OAuth 2.0 (<code>openid, email, profile</code>).</td><td>Correo, nombre, rol estudiantil y fecha de último acceso en nuestra base académica para mantener tu sesión y aislar tus recursos.</td><td>Mientras mantengas activa tu cuenta estudiantil o hasta que solicites su baja.</td></tr>
+            <tr><td><strong>BecaFinder (edu.dory.mx/becas)</strong></td><td>El archivo PDF de tu Kárdex SIIAU y los documentos de soporte que decidas subir a tu bóveda personal para postulaciones de beca.</td><td>Datos académicos extraídos del Kárdex (código de estudiante, carrera, promedio, créditos, semestre y materias), tus postulaciones y los archivos de tu bóveda en un directorio privado aislado por usuario.</td><td>Hasta que los elimines desde tu perfil/bóveda o solicites la cancelación de tu cuenta.</td></tr>
+            <tr><td><strong>TaskHub Nemo (edu.dory.mx/tareas)</strong></td><td>Tus cursos, tareas pendientes y calificaciones sincronizadas desde Moodle CUGDL (<code>mi.cugdl.udg.mx</code>) y, de forma opcional si lo autorizas explícitamente, desde Google Classroom.</td><td>Lista de materias, fechas de entrega, archivos de trabajo que subas a tu espacio personal y tokens de sincronización asociados exclusivamente a tu correo.</td><td>Mientras uses el organizador académico o hasta que desconectes tu cuenta / solicites su eliminación.</td></tr>
+            <tr><td><strong>El formulario de contacto</strong></td><td>Nombre, correo, empresa, tamaño del equipo, interés, mensaje, IP y navegador (para frenar abuso).</td><td>Todo lo anterior, para responderte.</td><td>Hasta 12 meses; después se borra automáticamente.</td></tr>
+            <tr><td><strong>Una solicitud ARCO</strong></td><td>Tu correo, el asunto y el texto de tu solicitud.</td><td>Folio, tu correo, asunto, un extracto y su estado.</td><td>El tiempo necesario para atenderla y acreditar que la atendimos.</td></tr>
+            <tr><td><strong>El aviso de cookies</strong></td><td>Tu elección.</td><td>Fecha, tipo y versión del consentimiento, IP y navegador, como evidencia.</td><td>Mientras este aviso esté vigente.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>No te pedimos datos sensibles (salud, origen, creencias, etc.). Si un correo que vas a revisar los trae, mejor pégalo en <a href="/#analizar">dory.mx</a>, que no guarda nada, o quítalos antes de reenviarlo: el original que conservamos para entrenamiento no pasa por el Escudo.</p>
+    </section>
+
+    <section id="dory-edu">
+      <h2><span class="section-title-num">03</span>Dory EDU (BecaFinder, TaskHub y Google OAuth)</h2>
+      <p>La plataforma académica <strong>Dory EDU (<a href="https://edu.dory.mx">edu.dory.mx</a>)</strong> está diseñada para estudiantes universitarios (incluyendo la comunidad del Centro Universitario de Guadalajara — CUGDL) bajo un modelo de <strong>aislamiento estricto por identidad</strong>:</p>
+      <ul>
+        <li><strong>Aislamiento multiusuario garantizado:</strong> Cada consulta y escritura en <strong>BecaFinder</strong> (<code>/becas</code>) y <strong>TaskHub Nemo</strong> (<code>/tareas</code>) está vinculada criptográficamente al correo autenticado en el Gateway de seguridad. Tu perfil académico, tu Kárdex SIIAU, tus tareas y tu bóveda de documentos son privados y ningún otro estudiante puede visualizarlos ni modificarlos.</li>
+        <li><strong>Generación de Kits de Beca y Cartas de Motivos:</strong> Los datos de tu Kárdex SIIAU se utilizan exclusivamente para calcular tu elegibilidad frente a convocatorias de becas activas y generar en PDF tu Carta de Motivos y lista de requisitos cuando tú lo solicitas.</li>
+        <li><strong>Autorización incremental con Google:</strong> Para iniciar sesión en <code>edu.dory.mx</code> únicamente solicitamos tu identidad básica de Google (<code>openid, email, profile</code>). Los permisos de lectura de Google Classroom se solicitan de manera opcional únicamente si decides vincular tus materias en TaskHub.</li>
+      </ul>
+      <div class="callout-card">
+        <div class="callout-title">Cumplimiento con la Política de Datos de Usuario de los Servicios de API de Google (Limited Use)</div>
+        <div class="callout-desc">El uso y la transferencia que hace Dory EDU de la información recibida de las APIs de Google hacia cualquier otra aplicación se apega estrictamente a la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, incluidos los requisitos de <strong>Uso Limitado (Limited Use)</strong>. Los datos obtenidos a través de Google OAuth y Google Classroom se utilizan únicamente para mostrarte tu perfil y organizar tus entregas académicas dentro de <code>edu.dory.mx</code>; jamás se venden, no se usan con fines publicitarios ni se emplean para entrenar modelos de inteligencia artificial de terceros.</div>
+      </div>
+    </section>
+
+    <section id="escudo">
+      <h2><span class="section-title-num">04</span>El Escudo de Privacidad</h2>
+      <p>Antes de analizar un texto, y antes de guardar cualquier correo, Dory cambia por etiquetas los datos que puedan identificarte:</p>
+      <div class="shield-tags">
+        <span class="shield-tag">[RFC_PROTEGIDO]</span><span class="shield-tag">[CURP_PROTEGIDA]</span><span class="shield-tag">[CLABE_PROTEGIDA]</span>
+        <span class="shield-tag">[TARJETA_PROTEGIDA]</span><span class="shield-tag">[TELEFONO_PROTEGIDO]</span><span class="shield-tag">[NOMBRE_PROTEGIDO]</span>
+      </div>
+      <ul>
+        <li><strong>Identidad fiscal:</strong> RFC de personas y empresas, y CURP.</li>
+        <li><strong>Dinero:</strong> cuentas CLABE y tarjetas (validadas con el algoritmo de Luhn para no confundirlas con cualquier número).</li>
+        <li><strong>Accesos:</strong> contraseñas escritas en el texto, tokens y llaves de API.</li>
+        <li><strong>Contacto y personas:</strong> teléfonos, correos y nombres que aparecen después de un saludo, título o firma.</li>
+      </ul>
+      <p>Los enlaces se conservan, porque son justo lo que hay que revisar. El escudo funciona por patrones: un nombre sin título, como «Juan Pérez» a secas, puede pasar. Por eso, además, la base de análisis se borra sola a los 30 días.</p>
+    </section>
+
+    <section id="finalidades">
+      <h2><span class="section-title-num">05</span>Para qué los usamos</h2>
+      <p>Usamos tus datos solo para:</p>
+      <ul>
+        <li>Analizar el correo o texto y decirte si es phishing (remitente, enlaces, adjuntos, SPF, DKIM y DMARC).</li>
+        <li>Enviarte el dictamen a la dirección desde la que reenviaste.</li>
+        <li>En <strong>Dory EDU (edu.dory.mx)</strong>: autenticar tu sesión estudiantil, filtrar becas compatibles con tu Kárdex SIIAU, generar tus Cartas de Motivos en PDF y sincronizar tus tareas de Moodle CUGDL o Google Classroom.</li>
+        <li>Reentrenar y evaluar nuestro modelo de detección de phishing con los correos que nos reenvías a <code>spam@dory.mx</code>. En ese proceso alguien de nuestro equipo puede revisar algunos ejemplos.</li>
+        <li>Responder tu mensaje de contacto o tu solicitud ARCO.</li>
+        <li>Mantener el servicio seguro y frenar abusos.</li>
+      </ul>
+      <div class="callout-card">
+        <div class="callout-title">Tu consentimiento</div>
+        <div class="callout-desc">Al reenviar un correo a spam@dory.mx aceptas este aviso, incluido el uso de ese correo para mejorar el detector. Si no estás de acuerdo, no lo reenvíes y pégalo en dory.mx, que no guarda nada. Si ya lo reenviaste y no quieres que lo usemos, escribe a <a href="mailto:privacidad@dory.mx?subject=No%20usar%20mi%20correo">privacidad@dory.mx</a> y lo borramos.</div>
+      </div>
+      <p><strong>No</strong> usamos tus datos para publicidad, no hacemos perfiles comerciales, no los vendemos y no entrenamos modelos de terceros con tus correos ni con tu información académica.</p>
+    </section>
+
+    <section id="terceros">
+      <h2><span class="section-title-num">06</span>Con quién se comparten</h2>
+      <p>No vendemos, rentamos ni cedemos tus datos personales. Para operar, algunos servicios externos tocan una parte mínima de la información:</p>
+      <ul>
+        <li><strong>Google OAuth 2.0 y Google Classroom API</strong> permiten autenticar tu cuenta institucional en <code>edu.dory.mx</code> y, si lo autorizas, consultar tus cursos y tareas pendientes.</li>
+        <li><strong>Google Safe Browsing</strong> recibe solo los enlaces encontrados en el correo analizado en <code>dory.mx</code>, para revisar si son peligrosos. No recibe tu nombre, tu correo ni el texto.</li>
+        <li><strong>Cloudflare</strong> protege y entrega el sitio y el correo; el tráfico pasa por su red cifrada.</li>
+        <li><strong>Fontshare y Google Fonts</strong> sirven las tipografías del sitio; tu navegador las descarga directamente y ellos ven tu IP, como con cualquier archivo web.</li>
+        <li><strong>Google Analytics</strong>, solo si aceptas la analítica (ver la sección siguiente).</li>
+      </ul>
+      <p>Solo entregaríamos datos a una autoridad cuando una ley o una orden fundada y motivada lo exija.</p>
+    </section>
+
+    <section id="cookies">
+      <h2><span class="section-title-num">07</span>Cookies y analítica</h2>
+      <p>En <code>edu.dory.mx</code> utilizamos una cookie de sesión cifrada y firmada (<code>HttpOnly</code>, <code>SameSite=Lax</code>) estrictamente necesaria para mantener tu sesión iniciada y aislar tu perfil estudiantil. En <code>dory.mx</code> guardamos tu elección del aviso de cookies en el almacenamiento de tu navegador: si eliges <strong>Solo esenciales</strong>, no se activa ninguna cookie de analítica; si eliges <strong>Aceptar todo</strong>, usamos Google Analytics 4 con la IP anonimizada para saber qué páginas se visitan, con la publicidad y la personalización de anuncios siempre apagadas.</p>
+    </section>
+
+    <section id="seguridad">
+      <h2><span class="section-title-num">08</span>Cómo los protegemos</h2>
+      <ul>
+        <li>Todo el tráfico del sitio, de Dory EDU y del correo viaja cifrado (HTTPS/TLS).</li>
+        <li>Nuestros servidores no abren puertos públicos a internet: el tráfico entra por túneles cifrados de Cloudflare y nuestra red privada autenticada.</li>
+        <li>En <strong>Dory EDU</strong>, los microservicios validan un secreto criptográfico del Gateway y aíslan cada operación por el correo autenticado del alumno, impidiendo el acceso cruzado entre perfiles o bóvedas de documentos.</li>
+        <li>La base de análisis de phishing está anonimizada y caduca a los 30 días; los datos académicos de Dory EDU puedes actualizarlos o eliminarlos en cualquier momento.</li>
+      </ul>
+    </section>
+
+    <section id="derechos">
+      <h2><span class="section-title-num">09</span>Tus derechos ARCO y baja de cuenta</h2>
+      <p>Puedes pedir en cualquier momento <strong>Acceso</strong> a tus datos, su <strong>Rectificación</strong>, su <strong>Cancelación</strong> (incluida la eliminación total de tu cuenta de Dory EDU, tu Kárdex y tu bóveda de documentos) u <strong>Oponerte</strong> a que los usemos. También puedes revocar el acceso de Google OAuth desde <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">myaccount.google.com/permissions</a>.</p>
+      <ol>
+        <li>Escribe a <a href="mailto:privacidad@dory.mx?subject=Solicitud%20de%20Derechos%20ARCO">privacidad@dory.mx</a> (o a <a href="mailto:soporte@dory.mx?subject=Solicitud%20de%20Derechos%20ARCO">soporte@dory.mx</a>) con el asunto «Solicitud de Derechos ARCO».</li>
+        <li>Incluye tu nombre, el correo con el que usaste Dory o Dory EDU y qué quieres que hagamos con tus datos.</li>
+        <li>Te respondemos con un folio y resolvemos en un máximo de 5 días hábiles (el plazo legal es de 20).</li>
+      </ol>
+      <div class="callout-card">
+        <div class="callout-title">Si no estás conforme</div>
+        <div class="callout-desc">Puedes acudir a la Secretaría Anticorrupción y Buen Gobierno, autoridad encargada de vigilar la protección de datos personales en México.</div>
+      </div>
+    </section>
+
+    <section id="cambios">
+      <h2><span class="section-title-num">10</span>Cambios a este aviso</h2>
+      <p>Si cambiamos qué datos tratamos, para qué o por cuánto tiempo, actualizaremos este aviso aquí mismo y cambiaremos la fecha de arriba. Si el cambio es importante, lo avisaremos también en la portada.</p>
+    </section>
+  </article>
+</section>
+{% endblock %}
+
+{% block floor_cta %}
+<div class="floor-cta">
+  <h2>¿Dudas sobre tus datos?</h2>
+  <p>Escríbenos a privacidad@dory.mx. Respondemos solicitudes ARCO en un máximo de 5 días hábiles.</p>
+  <div class="floor-actions">
+    <a class="btn btn-primary" href="mailto:privacidad@dory.mx"><span>Escribir a privacidad</span></a>
+    <a class="link" href="/contacto">Contacto</a>
+  </div>
+</div>
+{% endblock %}
